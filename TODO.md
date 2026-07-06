@@ -1,6 +1,6 @@
 ---
 title: Hasat — Master Roadmap & Build Log
-updated: 2026-07-02
+updated: 2026-07-06
 tags:
   - hasat
   - todo
@@ -9,7 +9,7 @@ tags:
 ---
 
 # Hasat — Master Roadmap & Build Log
-> GTM Hedefi: **25 Ağustos 2026** · Günlük 1-2 saat · `[C]` = Claude ile · `[C Chrome]` = Chrome test
+> GTM Hedefi: **25 Ağustos 2026** · Günlük 1-2 saat · `[C]` = Claude ile · `[C Web]` = Web Claude (Lovable+Supabase+GitHub MCP)
 
 ---
 
@@ -30,10 +30,15 @@ tags:
 - [x] [C] P16-B: Public vitrin URL `/s/{slug}` — girişsiz görüntülenebilir
 - [x] [C] P16-C: IBAN ödeme köprüsü — havale → farmer onayı → sipariş aktif
 - [x] [C] P16-E: Gerçek zamanlı fiyat verisi (price_feed, sparkline, AI nudge)
+- [x] [C Web] P16-F: Topluluk reply threads + buyer→farmer profile linkleri
+- [x] [C Web] P16-H Extension: Stok takibi + batch sayfası
+- [x] [C Web] P16-G: Çiftçi referral programı UI
+- [x] [C Web] P16-I: Crop config + production method + crop-agnostic AI
+- [x] [C Web] P16-H: Ürün yaşam döngüsü / izlenebilirlik
 
 ### Bug Fixes — Tamamlanan
 - [x] B1: Journal tag rendering (`[key:value]` chips)
-- [x] B4: Hasat Dönemi chip — dinamik ay
+- [x] B4: Hasat Dönemi chip — dinamik ay (P16-I ile crop_config'den kalıcı çözüldü)
 - [x] B6: Sertifika expiry badge (Süresi Geçti / Yakında Sona Eriyor)
 - [x] B11: Safran birim → ₺18.400/kg+
 - [x] B12: Farmer panelinde alıcı adı → Zeynep Kaya
@@ -41,10 +46,11 @@ tags:
 - [x] B15: Teslim tarihi → dd.MM.yyyy (shadcn Calendar)
 - [x] B16: Sipariş kartında telefon → maskeli
 - [x] B18: Abonelikler placeholder → "Keşfet'e Git" CTA
-- [x] B19: Keşfet kategoriler sayacı → düzeltildi
+- [x] B19: Keşfet kategoriler sayacı → düzeltildi (P16-I ile category_group'a göre)
 - [x] ListingSheet description prefill + save
 - [x] Stepper min_order clamping
 - [x] Buyer Tamamlanan tab filter + Accept → orders satırı otomatik oluşturma
+- [x] tsgo: `/buyer/orders*` ve `/login` search-param tip hataları (P16-H ile birlikte temizlendi)
 
 ### Araştırma & Planlama
 - [x] Saffron fiyat/yield araştırması · Financial model v0.5 (4-kat indoor) · GTM planı · Vault yeniden yapılandırma
@@ -54,6 +60,49 @@ tags:
 
 ## 🔴 ŞİMDİ — Temmuz 2026
 
+### 🚨 Bug Fix Batch 4 — Onboarding Kritik (GTM BLOCKER) — 2026-07-06 E2E testinde bulundu
+
+> Gerçek numaralarla (05421241011 çiftçi, 05398545295 alıcı henüz test edilmedi) uçtan uca onboarding testi yapıldı. Kod incelemesi + canlı DB ile doğrulanan 3 bug bulundu. **Bunlar düzeltilmeden hiçbir gerçek çiftçi onboarding'i tamamlayıp Günlük'e kayıt atamaz.** P16-J'den önce, kredi geldiğinde ilk sırada gönderilecek.
+
+**Bulgular:**
+1. `onboarding.farmer.tsx` → "Şimdilik atla" butonu sadece sertifika adımını (step 3) atlaması gerekirken, step 2'de girilen `name`/`city` bilgisini de siliyor, zorla `name="Çiftçi"`, `city=null` yazıyor (`finish(true)` fonksiyonu).
+2. Onboarding'de toplanan "Ana Ürünlerin" (crops) ve "Arazi Büyüklüğü" (land dönüm) hiçbir DB kolonuna yazılmıyor — sadece client-side Zustand state'te tutuluyor, sayfa yenilenince/çıkışta kayboluyor. `profiles` tablosunda bu alanlar için kolon bile yok.
+3. **En kritik:** Uygulamada hiçbir yerde "Parsel Ekle" UI'ı yok. Backend (`useCreateParcel` in `queries.ts`) tam çalışır durumda (farm oluşturma, foto upload dahil) ama onu çağıran hiçbir buton/form yok. Settings sadece mevcut parselleri düzenle/sil gösteriyor; Storefront ve Journal.new sayfaları "Ayarlar'dan ekleyin" diye yönlendiriyor ama orada da giriş noktası yok. **Yeni bir çiftçi ilk parselini asla oluşturamıyor, dolayısıyla Günlük'e hiç kayıt atamıyor.**
+
+**Sıradaki Lovable promptu (kredi gelince ilk gönderilecek):**
+```
+Fix critical onboarding gaps found in E2E testing.
+
+1. src/routes/onboarding.farmer.tsx — fix "Şimdilik atla" (skip) data loss:
+   The finish(skip) function currently overwrites name/city with hardcoded
+   "Çiftçi"/null even when skip=true, discarding whatever the user typed in
+   step 2. "Şimdilik atla" should ONLY skip step 3 (certifications) — it must
+   NOT touch name/city. Change so:
+     const profileName = name.trim() || "Çiftçi"; // only fallback if truly empty
+     city: city || null; // keep whatever was entered in step 2, regardless of skip
+   Only certifications (step 3 specific fields) should be skipped when skip=true.
+
+2. Persist crops + land size collected in onboarding step 2:
+   ALTER TABLE public.parcels
+     ADD COLUMN IF NOT EXISTS is_primary boolean DEFAULT false;
+   -- (crops already exists as parcels.crops text[]; land size maps to parcels.area)
+   In onboarding.farmer.tsx finish(): after upserting the profile, also create
+   the farmer's first parcel via the same insert pattern as useCreateParcel
+   (ensure a farms row exists, then insert into parcels with name derived from
+   city or "Ana Parsel", area = land, crops = crops array, location_label = city).
+   Skip this parcel creation if skip=true or crops/land were never touched.
+
+3. Add a real "+ Parsel Ekle" entry point — this is the critical gap:
+   In src/routes/farmer.settings.tsx, in the "Parsellerim" Section, add a
+   "+ Parsel Ekle" button (same visual pattern as the existing "+ Sertifika Ekle"
+   button right below it) that opens a Sheet with fields: Parsel Adı, Şehir/İlçe,
+   Alan (dönüm), Ana Ürünler (multi-select from CROPS list used elsewhere),
+   Fotoğraflar (PhotoUploader, max 5). On save, call useCreateParcel with these
+   values. This must work for farmers with zero existing parcels (first-time use).
+
+4. tsgo typecheck.
+```
+
 ### Yasal & Altyapı
 - [ ] Şahıs şirketi kur — noterden git (~₺2-3K, 1 gün)
 - [ ] iyzico.com başvurusu yap (şirket belgesi gerekli, onay ~2 hafta)
@@ -61,240 +110,88 @@ tags:
 - [ ] Twilio: Verify service oluştur
 - [ ] Twilio: webhook URL → Supabase Edge Function URL ile güncelle
 - [ ] **WhatsApp Business başvurusu → hemen başla (2-4 hafta Meta review)**
+  > 2026-07-06 notu: WhatsApp OTP kanalı test edildi, teslimat başarısız oldu (Supabase→Twilio isteği 200 döndü ama SMS/WA hiç gelmedi). SMS kanalı çalışıyor. Kök neden Twilio/Meta tarafında — bu başvuru tamamlanana kadar login ekranında SMS'i varsayılan yapmayı düşün.
 
 ### Bug Fix Batch 3 (Lovable prompt)
 - [ ] [C] B2: JournalEntryCard quality default → 'A'
 - [ ] [C] B5: `safran_soğanı` slug → "Safran Soğanı"
 
-> Not: B4 P16-I ile crop_config üzerinden kalıcı olarak çözülecek.
+> Not: B4 P16-I ile crop_config üzerinden kalıcı olarak çözüldü.
 
 ---
 
 ## 🏗️ Lovable Build Sırası
 
-> **Doğru sıra:** F → H-Ext → G → H → I → J → D
+> **Doğru sıra:** ~~F~~ → ~~H-Ext~~ → ~~G~~ → ~~I~~ → ~~H~~ → **Bug Fix Batch 4 (onboarding)** → J → D
+> Sıradaki: **Bug Fix Batch 4** (yukarıda, GTM blocker — kredi gelince ilk gönderilecek), sonra **P16-J**
 
 ---
 
-### 🔄 P16-F — Topluluk Mesajlaşma *(ŞU AN IMPLEMENT EDİLİYOR)*
+### ✅ P16-F — Topluluk Mesajlaşma *(Tamamlandı — 2026-07-03)*
 
-```
-Implement P16-F: Community reply threads + farmer profile links.
+Implement edildi ve kod incelemesi + canlı DB doğrulamasıyla test edildi.
 
-1. DB Migration:
-   ALTER TABLE public.community_posts
-     ADD COLUMN IF NOT EXISTS parent_id uuid
-       REFERENCES public.community_posts(id) ON DELETE CASCADE;
-   CREATE INDEX IF NOT EXISTS idx_community_posts_parent
-     ON public.community_posts(parent_id) WHERE parent_id IS NOT NULL;
-   Existing RLS covers replies — no new policy needed.
-
-2. Data layer (src/lib/hasat/queries.ts):
-   - Extend Post type: parentId: string | null, replyCount: number
-   - useCommunityPosts: add .is("parent_id", null) filter; fetch reply counts
-     in second query (SELECT parent_id WHERE parent_id IN rootIds), aggregate client-side
-   - Add useReplies(postId) — fetch WHERE parent_id = postId, ORDER BY created_at ASC
-   - Add useCreateReply() — INSERT { content, author_id, parent_id }
-     then best-effort INSERT into notifications:
-     { user_id: root_author_id, type: 'reply', related_id: new_reply.id,
-       message: '{name} gönderine yanıt verdi' } — swallow errors silently
-     Optimistic update appends to ["communityReplies", postId] cache
-
-3. UI (src/routes/farmer.community.tsx):
-   - Track expandedId: string | null; clicking a post card toggles
-   - Badge: "{n} yorum" below post content (uses replyCount)
-   - When expanded: ReplyThread block — compact rows (avatar initial + name + content + relative time)
-   - Empty state: "Henüz yorum yok"
-   - Composer: Input + "Yanıtla" button, always visible when expanded, clears on success
-   - stopPropagation on like button to prevent toggle
-
-4. Farmer profile links — buyer-side navigation:
-   Everywhere a farmer name appears in the buyer panel, make it a link to /s/{farmer_slug}:
-   - Buyer discover page (listing cards) · Community feed (post author) · Offer thread header · Buyer orders list
-   slug = profiles.name lowercased, spaces→hyphens. Fallback: /s/{profile.id}
-   Route already exists from P16-B.
-
-5. tsgo typecheck.
-
-Notes: Max depth 1 — no nested replies. Notification insert is best-effort.
-```
+**Küçük bulgular:**
+- `community_posts.comments_count` kolonu DB'de mevcut ama hiç güncellenmez (ölü kolon). UI bu kolonu kullanmıyor, `replyCount`'u ayrı count sorgusuyla hesaplıyor — kullanıcıya görünen bir bug yok. Acil değil.
+- Optimistic UI yok — mutation sonrası `invalidateQueries` ile refetch yapılıyor. Küçük gecikme var, kritik değil.
+- Test hesabı notu: DB'de Ahmet `905001234567` olarak kayıtlı (login akışı `90` prefix'ini otomatik ekliyor).
 
 ---
 
-### ⏭ P16-H Extension — Stok Takibi + Batch Sayfası *(P16-F biter bitmez — P16-G'den önce)*
+### ✅ P16-H Extension — Stok Takibi + Batch Sayfası *(Tamamlandı — 2026-07-03)*
 
-> **Acil:** listing.quantity düşülmüyor — overselling riski. Safran sezonu öncesi çözülmeli.
-
-```
-Implement P16-H Extension: Inventory tracking + batch page.
-
-1. DB:
-   ALTER TABLE public.listings
-     ADD COLUMN IF NOT EXISTS parcel_id uuid REFERENCES public.parcels(id);
-
-   CREATE TABLE IF NOT EXISTS public.listing_harvest_entries (
-     listing_id uuid REFERENCES public.listings(id) ON DELETE CASCADE,
-     harvest_entry_id uuid REFERENCES public.harvest_entries(id) ON DELETE CASCADE,
-     PRIMARY KEY (listing_id, harvest_entry_id)
-   );
-   GRANT SELECT ON public.listing_harvest_entries TO anon, authenticated;
-   GRANT INSERT, DELETE ON public.listing_harvest_entries TO authenticated;
-   ALTER TABLE public.listing_harvest_entries ENABLE ROW LEVEL SECURITY;
-   CREATE POLICY "Farmers manage their batch links" ON public.listing_harvest_entries
-     FOR ALL TO authenticated
-     USING (EXISTS (SELECT 1 FROM listings l WHERE l.id = listing_id AND l.farmer_id = auth.uid()))
-     WITH CHECK (EXISTS (SELECT 1 FROM listings l WHERE l.id = listing_id AND l.farmer_id = auth.uid()));
-   CREATE POLICY "Public read batch links" ON public.listing_harvest_entries
-     FOR SELECT TO anon, authenticated USING (true);
-
-2. Available quantity hook useListingStock(listingId) — client-side computed:
-   available_quantity = SUM(linked harvest_entries.quantity)
-     MINUS SUM(offer.quantity WHERE offer.status IN ('pending_payment','active','delivered'))
-
-3. UI — Vitrin + Teklif Ver:
-   - Show available_quantity on farmer vitrin and buyer discover listing cards
-   - If <= 0: "Tükendi" badge + disable "Teklif Ver" for buyers (farmer can still edit)
-
-4. Server-side stock guard (BEFORE trigger on offers):
-   On status → 'pending_payment': recompute available_quantity.
-   If insufficient → RAISE EXCEPTION 'Stok yetersiz'.
-   (Same pattern as P15 A2 accept guard.)
-   Other active negotiations NOT auto-cancelled — they get notification on next action.
-
-5. Batch page (new route /farmer/batch/$listingId):
-   - Linked harvest_entries: chronological (date, quantity, quality, notes)
-   - Calculated stock + related orders/sales for this listing
-   - Entry from Günlük harvest_entry detail: "Bu hasatı bir ürüne bağla" → listing selector
-
-6. Buyer-facing batch view (same route, filtered): costs + notes redacted.
-
-7. tsgo typecheck.
-
-Rule: stok reservation only on first pending_payment — negotiation does not reserve stock.
-```
+**Uygulanan:**
+- `listing_harvest_entries` tablosu + RLS, `listings.parcel_id` kolonu
+- `useListingStock` hook — bağlı hasat kaydı yoksa `listing.quantity`'e fallback
+- Vitrin + Keşfet'te stok/"Tükendi" badge'i, teklif sayfasında disable
+- Server-side stock guard trigger (`trg_enforce_offer_stock`) — **düzeltme uygulandı:** orijinal promptta `offers.status`'ün `'pending_payment'` değeri olduğu varsayılmıştı ama DB'de böyle bir değer yok; gerçek "ödeme bekleniyor" durumu `status='accepted' AND payment_status IN ('unpaid','pending_transfer')`. Trigger, `OLD.status IS DISTINCT FROM 'accepted' AND NEW.status='accepted'` geçişinde ateşlenecek şekilde düzeltilerek implement edildi.
+- Batch sayfası `/batch/$listingId` (planlanan `/farmer/batch/...` yerine root-level — farmer ve buyer aynı route'u `isOwner` kontrolüyle paylaşıyor)
+- Günlük'te "Bu hasatı bir ürüne bağla" bölümü
+- Buyer view'da notlar gizli, costs hiç render edilmiyor
 
 ---
 
-### ⏭ P16-G — Çiftçi Referral Programı UI
+### ✅ P16-G — Çiftçi Referral Programı UI *(Tamamlandı — 2026-07-03)*
 
-```
-Implement P16-G: Farmer referral program UI.
-
-1. DB:
-   ALTER TABLE public.profiles
-     ADD COLUMN IF NOT EXISTS referral_code text UNIQUE,
-     ADD COLUMN IF NOT EXISTS referred_by uuid REFERENCES public.profiles(id);
-   UPDATE public.profiles SET referral_code = UPPER(LEFT(id::text, 6)) WHERE referral_code IS NULL;
-   Update handle_new_user trigger: set referral_code = UPPER(LEFT(NEW.id::text, 6)) on INSERT.
-
-2. New route: /farmer/referral
-   - Referral code prominent display
-   - "Kopyala" button → clipboard toast
-   - "Linki Paylaş" → copies https://hasat.lovable.app/join?ref={code}
-   - WhatsApp share → wa.me pre-filled: "Hasat'ta ürünlerini D2C satmaya başla! Davet kodum: {code} — https://hasat.lovable.app/join?ref={code}"
-   - Placeholder: "Davet ettiğin çiftçiler burada görünecek"
-   - Add "Arkadaşını Davet Et" to farmer sidebar nav
-
-3. /join?ref={code} route:
-   - On load: store ref in localStorage key "hasat_ref"
-   - After OTP registration: UPDATE profiles SET referred_by = (SELECT id FROM profiles WHERE referral_code = stored_code LIMIT 1)
-   - Clear localStorage after write
-
-4. tsgo typecheck.
-```
+**Uygulanan:**
+- `profiles.referral_code` (unique) + `referred_by`, mevcut kayıtlara backfill
+- `handle_new_user` trigger'ı her yeni kayıtta otomatik kod üretecek şekilde güncellendi
+- `/farmer/referral` sayfası: kod gösterimi, Kopyala / Linki Paylaş / WhatsApp CTA, davet edilen çiftçiler listesi
+- Sidebar'a "Arkadaşını Davet Et" (masaüstü + mobil)
+- `/join?ref={code}` public route — kodu DB'de doğruluyor
+- OTP kayıt sonrası `applyStoredReferral` hook'u ile `referred_by` yazılıyor
 
 ---
 
-### ⏭ P16-H — Ürün Yaşam Döngüsü / İzlenebilirlik
+### ✅ P16-I — Crop Config & Production Method *(Tamamlandı — 2026-07-06)*
 
-> Önkoşul: P16-H Extension (parcel_id + listing_harvest_entries) ve P16-I (crop_config) implement edilmiş olmalı.
-
-```
-Implement P16-H: Product lifecycle traceability — buyer-facing provenance.
-
-Prerequisites: P16-H Extension and P16-I must already be implemented.
-
-1. Coverage score (client-side):
-   Season window = parcel + crop, from most recent replant/dikim entry onward (if none: earliest entry).
-   lifecycle_steps from crop_config (required steps only for score denominator).
-   coverage = steps with ≥1 matching entry / total required steps
-   Tiers: Temel (<40%), İyi Belgelenmiş (40–79%), Tam İzlenebilir (≥80%)
-   No crop_config match → "Belgeleniyor" placeholder.
-
-2. Coverage badge on listing cards (buyer discover + public vitrin): informational, not a purchase gate.
-
-3. Buyer UI — listing detail "Ürün Geçmişi" timeline:
-   - harvest_entries for listing's parcel from season start (chronological)
-   - Each: date, type label (from crop_config lifecycle labels), quantity if applicable, photo thumbnail
-   - Redaction: costs (jsonb) + free-text notes MUST NOT appear in buyer view
-   - 0 entries: "Bu ürün henüz belgelenmemiş" — neutral tone
-   - No replant entry found: "İlk Sezon" badge — neutral framing, not negative
-
-4. Farmer UI — pre-publish listing preview:
-   "Alıcı bunu görecek" preview + missing lifecycle steps as suggestions (not blockers).
-
-5. Anti-fraud — date locking:
-   harvest_entry linked to active/delivered listing → lock entry_date field
-   OR show both "kayıt tarihi" (created_at) and "olay tarihi" (entry_date) so buyer can detect backdating.
-
-6. tsgo typecheck.
-```
+**Uygulanan:**
+- `crop_config` tablosu — DB'deki gerçek 7 crop için satır (safran, safran_soğanı, lavanta, fındık, zeytin, zeytinyağı, tıbbi bitkiler), sadece plandaki 2 değil
+- `parcels.production_method`, `price_feed.source_type` kolonları
+- B4 fix: `SeasonBanner` artık `crop_config`'den dinamik ay okuyor
+- B19 fix: Keşfet kategori sayacı `category_group`'a göre gruplanıyor
+- AI kutuları crop-agnostic: in-app chat, `ai-box-insights`, `whatsapp-ai-webhook` dinamik `crop_config` context'i kullanıyor
+- Bonus: önceden var olan `/buyer/orders*` ve `/login` search-param tsgo hataları da bu turda temizlendi
 
 ---
 
-### ⏭ P16-I — Crop Config & Production Method
+### ✅ P16-H — Ürün Yaşam Döngüsü / İzlenebilirlik *(Tamamlandı — 2026-07-06)*
 
-```
-Implement P16-I: Crop configuration table + production method + crop-agnostic AI.
+**Uygulanan:**
+- `computeCoverage` — sezon penceresi son replant/dikim'den itibaren, gerekli adım/toplam gerekli adım oranı
+- Tier'ler: Belgeleniyor / Temel / İyi Belgelenmiş / Tam İzlenebilir
+- `CoverageBadge` — keşfet, vitrin, public `/s/$slug`
+- `ProvenanceTimeline` — buyer "Ürün Geçmişi", teklif sayfası + batch sayfası; cost/not redaksiyonu (sadece tarih/miktar/kalite/foto)
+- "İlk Sezon" rozeti (replant kaydı yoksa)
+- Farmer "Alıcı bunu görecek" önizlemesi (`BuyerPreview`) — eksik adımlar öneri, blocker değil
+- Anti-fraud: `harvest_entries.step_key` + `trg_enforce_harvest_date_lock` trigger (aktif/satılmış ilana bağlı hasadın tarihi kilitleniyor)
 
-1. DB — crop_config:
-   CREATE TABLE IF NOT EXISTS public.crop_config (
-     crop text PRIMARY KEY,
-     display_name text NOT NULL,
-     default_unit text NOT NULL DEFAULT 'kg',
-     harvest_window_start_month int,
-     harvest_window_end_month int,
-     lifecycle_steps jsonb,
-     price_benchmark_source text,
-     category_group text
-   );
-   GRANT SELECT ON public.crop_config TO anon, authenticated;
-   ALTER TABLE public.crop_config ENABLE ROW LEVEL SECURITY;
-   CREATE POLICY "Public read crop_config" ON public.crop_config FOR SELECT TO anon, authenticated USING (true);
-
-   INSERT INTO public.crop_config VALUES
-     ('safran','Safran','g',10,11,
-      '[{"key":"replant","label":"Korm/Dikim","required":true},{"key":"care","label":"Bakım","required":false},{"key":"harvest","label":"Hasat","required":true},{"key":"drying","label":"Kurutma","required":true}]',
-      'Manuel','baharat'),
-     ('lavanta','Lavanta','kg',6,8,
-      '[{"key":"pruning","label":"Budama","required":false},{"key":"care","label":"Bakım","required":false},{"key":"harvest","label":"Hasat","required":true},{"key":"distillation","label":"Distilasyon","required":false}]',
-      'Manuel','tıbbi_bitki')
-   ON CONFLICT DO NOTHING;
-
-2. DB — parcels production_method:
-   ALTER TABLE public.parcels
-     ADD COLUMN IF NOT EXISTS production_method text
-     CHECK (production_method IN ('indoor','outdoor')) DEFAULT 'outdoor';
-
-3. DB — price_feed source_type:
-   ALTER TABLE public.price_feed
-     ADD COLUMN IF NOT EXISTS source_type text
-     CHECK (source_type IN ('manual','api')) DEFAULT 'manual';
-
-4. Fix B4 (Hasat Dönemi chip): read harvest_window_start/end_month from crop_config — no hardcoded months.
-5. Fix B19 (Keşfet kategori sayacı): map listing crop to crop_config.category_group.
-
-6. AI boxes audit — crop-agnostic:
-   Find any AI prompt hardcoding 'safran', 'Ekim', 'Kasım', or season windows.
-   Replace with dynamic values from crop_config (harvest_window, lifecycle_steps, display_name).
-   LLM receives crop + crop_config as context.
-
-7. tsgo typecheck.
-```
+**Not:** Bu prompt `plan_mode=true` ile gönderilmesine rağmen Lovable direkt build etti (plan sunmadı) — entegrasyon davranışı beklenenden farklıydı, ama sonuç kod incelemesi + DB doğrulamasıyla doğru çıktı.
+**Küçük gözlem:** Journal'da yeni hasat kayıtları artık `step_key` ile otomatik etiketleniyor (`WORK_TO_STEP_KEY`), ama P16-H öncesi eski kayıtlarda `step_key = null` — bu eski kayıtlar coverage hesabına girmeyebilir. Kritik değil, ileride backfill düşünülebilir.
 
 ---
 
-### ⏭ P16-J — Indoor Farming İlgi/Ortaklık Landing Page
+### ⏭ P16-J — Indoor Farming İlgi/Ortaklık Landing Page *(Bug Fix Batch 4'ten sonra)*
 
 ```
 Implement P16-J: Indoor farming interest capture page.
@@ -353,9 +250,10 @@ Add Terms of Service and Privacy Policy pages:
 
 ## 🟡 AĞUSTOS 2026 — Soft Launch
 
-### E2E Test (P16 tümü bittikten sonra)
-- [ ] [C Chrome] Tüm MVP özelliklerini uçtan uca test et
-  Kapsam: OTP login, onboarding, parsel/sertifika, listing, teklif/müzakere, stok takibi, IBAN ödeme, community+reply, AI chat, bildirimler, vitrin URL, referral, izlenebilirlik
+### E2E Test (P16 tümü bittikten sonra) — devam ediyor
+- [x] [C Web] Farmer onboarding E2E — 05421241011 ile başlatıldı, 3 kritik bug bulundu (yukarıda Bug Fix Batch 4)
+- [ ] Buyer onboarding E2E — 05398545295 ile (henüz yapılmadı, Lovable kredisi bekleniyor)
+- [ ] Kalan kapsam: parsel/sertifika, listing, teklif/müzakere, stok takibi, IBAN ödeme, community+reply, AI chat, bildirimler, vitrin URL, referral, izlenebilirlik
 
 ### Teknik Final
 - [ ] hasat.lovable.app → custom domain yayını
@@ -408,6 +306,9 @@ Add Terms of Service and Privacy Policy pages:
 4. UUID'leri hardcode et — phone lookup = ambiguous column hatası
 5. Server-side kural: DB trigger'lar client bypass'ına karşı tek gerçek güvence
 6. AI prompt'ları crop-agnostic yaz — `crop` + `crop_config` parametre olarak geç; statik metin yok
+7. Offer/durum alanlarında gerçek enum değerlerini prompt yazmadan önce DB'den doğrula — plandaki varsayılan durum adı DB'deki gerçek değerle uyuşmayabilir (bkz. P16-H Extension `pending_payment` düzeltmesi)
+8. `plan_mode=true` her zaman güvenli bir "sadece planla" garantisi vermeyebilir — sonucu (commit sha değişti mi) kontrol et
+9. **Yeni bir akış (onboarding, form vb.) yazdırırken "veri buraya kaydediliyor mu" ve "bu veriyi sonra düzenleyebileceğim bir UI var mı" sorularını ayrıca sor** — P16-A/onboarding'de crops/land toplanıp hiç kaydedilmemiş, parsel oluşturmak için hiç UI olmaması gibi sessiz boşluklar Lovable'ın kendi taahhüt ettiği kapsamda bile atlanabiliyor
 
 ---
 
@@ -426,14 +327,88 @@ Add Terms of Service and Privacy Policy pages:
 | Listing = tek parsel | Blend yok — 2 parselden satış = 2 ayrı listing |
 | Sezon başlangıcı anchor | Son dikim-tipi entry — takvim yılı değil |
 | Yetersiz kayıt satışı bloke eder mi | Hayır — sadece coverage rozeti etkilenir |
-| Stok kilidi | İlk pending_payment kilitler; diğerleri bildirim alır |
+| Stok kilidi | İlk `status='accepted'` geçişi kilitler; diğer aktif müzakereler bildirim alır |
 | Journal audit trail | details jsonb Phase 2; sertifikasyon-grade generator Phase 2 |
 | Otomatik fiyat çekimi | Phase 2+ — MVP'de manuel küratörlük yeterli |
-| AI kutuları | crop-agnostic yapılacak (P16-I) |
+| AI kutuları | crop-agnostic — P16-I ile düzeltildi |
+| Claude Web araçları | Lovable MCP (send_message, read_file, get_project) + Supabase MCP (execute_sql, project `efuqpiaavrzimvstpdpm`) + GitHub MCP (get_file_contents — READ ONLY, yazma 403 veriyor) |
+| Vault sync | `hasat-vault` reposu **bilinçli olarak PUBLIC** tutuluyor (2026-07-06 kararı) — GitHub MCP connector'ı private repo scope'una erişemediği için. İçerik kontrol edildi, hassas secret/kod yok. GitHub MCP bu repoyu okuyabiliyor ama YAZAMIYOR (403 Resource not accessible by integration) — Web Claude güncel TODO içeriğini hazırlar, kullanıcı manuel yapıştırır. Obsidian Git eklentisi bu vault'tan kaldırıldı (ayrı, kişisel bilgi içeren belgelerle karışma riski vardı). |
+| Onboarding test numaraları | Çiftçi: 05421241011 (auth id `69ca6368-bfb7-48fd-829e-79ddc9edbf75`) · Alıcı: 05398545295 (henüz test edilmedi) — WhatsApp OTP çalışmıyor, SMS kullan |
 
 ---
 
 ## 📋 Son Test Sonuçları
+
+### Farmer Onboarding E2E — 05421241011 (2026-07-06) ⚠️ 3 kritik bug bulundu
+| Test | Sonuç | Not |
+|---|---|---|
+| WhatsApp OTP gönderimi | ❌ | Supabase→Twilio 200 döndü, mesaj gelmedi. Kök neden Twilio/WhatsApp tarafında, araştırılmadı |
+| SMS OTP gönderimi + doğrulama | ✅ | Çalıştı (eski orphan auth kaydı temizlendikten sonra) |
+| Yeni profil oluşturma (`handle_new_user` trigger) | ✅ | `role`, `referral_code` doğru atanıyor |
+| Onboarding step 2 (isim/şehir/ürün/dönüm) | ⚠️ | Dolduruldu ama "Şimdilik atla" (step 3) basılınca hepsi siliniyor — **bug** |
+| Onboarding step 3 "Şimdilik atla" | ❌ | `name`/`city` bilgisini de siliyor, sadece sertifikaları atlaması gerekirken — **bug, Batch 4'te** |
+| Crops/land size DB'de kalıcı mı | ❌ | Hiçbir kolona yazılmıyor, sadece client state'te — **bug, Batch 4'te** |
+| Günlük'e ilk kayıt atma (Hasat Ekle) | ❌ | Parsel yok, parsel ekleme UI'ı hiçbir yerde yok — **kritik bug, Batch 4'te** |
+
+**DB doğrulaması:** `on_auth_user_created` trigger'ı sağlam ve aktif. `handle_new_user()` fonksiyonu referral_code çakışmasını doğru yönetiyor. `useCreateParcel` backend fonksiyonu tam çalışır durumda ama hiçbir UI'dan çağrılmıyor.
+
+### P16-H — Ürün Yaşam Döngüsü / İzlenebilirlik (2026-07-06) ✅
+| Test | Sonuç | Not |
+|---|---|---|
+| Coverage score hesaplama | ✅ | Sezon penceresi + gerekli adım oranı doğru |
+| Tier'ler (Belgeleniyor/Temel/İyi/Tam) | ✅ | |
+| CoverageBadge — keşfet/vitrin/public vitrin | ✅ | Üç yerde de |
+| Buyer "Ürün Geçmişi" timeline | ✅ | Teklif sayfası + batch sayfası |
+| Cost/not redaksiyonu | ✅ | Sadece tarih/miktar/kalite/foto görünüyor |
+| "İlk Sezon" rozeti | ✅ | |
+| Farmer "Alıcı bunu görecek" önizlemesi | ✅ | Eksik adımlar öneri, blocker değil |
+| Anti-fraud tarih kilidi | ✅ | DB trigger + UI'da kayıt/olay tarihi farkı gösterimi |
+| tsgo (+ önceki hatalar) | ✅ | `/buyer/orders*`, `/login` search-param hataları da temizlendi |
+
+### P16-I — Crop Config & Production Method (2026-07-06) ✅
+| Test | Sonuç | Not |
+|---|---|---|
+| `crop_config` tablo + RLS | ✅ | 7 crop için satır — DB'deki gerçek kullanımı kapsıyor |
+| `parcels.production_method`, `price_feed.source_type` | ✅ | |
+| B4 fix (dinamik hasat dönemi) | ✅ | |
+| B19 fix (kategori sayacı) | ✅ | |
+| AI kutuları crop-agnostic | ✅ | |
+
+### P16-G — Çiftçi Referral Programı UI (2026-07-03) ✅
+| Test | Sonuç | Not |
+|---|---|---|
+| `referral_code` + `referred_by` kolonları | ✅ | Canlı DB'de doğrulandı (Ahmet → `0868E4`) |
+| Backfill mevcut kayıtlara | ✅ | |
+| `handle_new_user` otomatik kod üretimi | ✅ | |
+| `/farmer/referral` sayfası | ✅ | |
+| Sidebar "Arkadaşını Davet Et" | ✅ | |
+| `/join?ref={code}` | ✅ | |
+| OTP kayıt sonrası `referred_by` yazımı | ✅ | |
+| tsgo typecheck | ✅ | |
+
+### P16-H Extension — Stok Takibi + Batch Sayfası (2026-07-03) ✅
+| Test | Sonuç | Not |
+|---|---|---|
+| `listing_harvest_entries` tablo + RLS | ✅ | |
+| `listings.parcel_id` kolonu | ✅ | |
+| `useListingStock` hook | ✅ | |
+| Vitrin + Keşfet stok/Tükendi badge | ✅ | |
+| Teklif Ver disable | ✅ | |
+| Server-side stock guard trigger | ✅ | `status='accepted'` geçişine düzeltilerek gönderildi |
+| Batch sayfası | ✅ | `/batch/$listingId` — root-level, paylaşılan route |
+| Günlük → "hasadı ürüne bağla" | ✅ | |
+| Buyer view redaksiyonu | ✅ | |
+
+### P16-F — Topluluk Reply Threads + Farmer Profil Linkleri (2026-07-03) ✅
+| Test | Sonuç | Not |
+|---|---|---|
+| "{n} yorum" badge | ✅ | |
+| Reply thread + empty state | ✅ | |
+| Yanıtla composer → DB kaydı | ⚠️ Kısmi | Optimistic UI yok, refetch ile çalışıyor. Kritik değil |
+| Buyer discover → /s/{slug} linki | ✅ | |
+| Community feed → farmer linki | ✅ | |
+| Offer thread header → farmer linki | ✅ | |
+| Buyer orders → farmer linki | ✅ | |
 
 ### P16-E — Gerçek Zamanlı Fiyat Verisi (2026-07-02) ✅
 | Test | Sonuç |
