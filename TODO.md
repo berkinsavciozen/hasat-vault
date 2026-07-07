@@ -36,6 +36,7 @@ tags:
 - [x] [C Web] P16-I: Crop config + production method + crop-agnostic AI
 - [x] [C Web] P16-H: Ürün yaşam döngüsü / izlenebilirlik
 - [x] [C Web] Bug Fix Batch 4: Onboarding kritik düzeltmeler (GTM blocker giderildi)
+- [x] [C Web] P16-J (genişletilmiş): Ana tanıtım landing page + indoor farming başvuru formu
 
 ### Bug Fixes — Tamamlanan
 - [x] B1: Journal tag rendering (`[key:value]` chips)
@@ -55,10 +56,13 @@ tags:
 - [x] Onboarding "Şimdilik atla" veri kaybı (Bug Fix Batch 4)
 - [x] Onboarding crops/land size hiç kaydedilmiyordu (Bug Fix Batch 4)
 - [x] Parsel ekleme UI'ı hiçbir yerde yoktu — GTM blocker (Bug Fix Batch 4)
+- [x] `/` sayfası gerçek Supabase session yerine sadece client cache'ine güveniyordu (landing page ile birlikte düzeltildi)
+- [x] Indoor form ilk denemede `SUPABASE_SERVICE_ROLE_KEY` eksik hatası verdi — gereksiz admin client kullanımıydı, anon client + mevcut RLS policy yeterliydi
 
 ### Araştırma & Planlama
 - [x] Saffron fiyat/yield araştırması · Financial model v0.5 (4-kat indoor) · GTM planı · Vault yeniden yapılandırma
 - [x] P16-H şema kararı: iki katmanlı model çözüldü (Tier 1: listing_harvest_entries + Tier 2: parcel_id) — detay `Build/DB-Schema.md`
+- [x] Landing page tasarım auditı: bevel.health (UI) + hilberts.ai (içerik zenginliği) referans alındı, Çiftçi/Alıcı ayrı persona anlatısı + AI özellik kanıtlama deseni bu iki siteden sentezlendi
 
 ---
 
@@ -80,14 +84,36 @@ tags:
 > Not: B4 P16-I ile crop_config üzerinden kalıcı olarak çözüldü.
 
 ### Düşük öncelikli cila (acil değil)
-- [ ] `farmer.journal.new.tsx` içindeki "Önce bir parsel ekle" metni hâlâ tıklanamaz statik yazı. Kritik değil çünkü Günlük ana sayfasındaki "+ Parsel" linki ve Settings'teki "+ Parsel Ekle" butonu zaten çalışıyor — yeni çiftçi bu ekrana varmadan önce parsel ekleyebiliyor. İstersen ileride bu metni de tıklanabilir/yönlendirici yapabiliriz.
+- [ ] `farmer.journal.new.tsx` içindeki "Önce bir parsel ekle" metni hâlâ tıklanamaz statik yazı. Kritik değil çünkü Günlük ana sayfasındaki "+ Parsel" linki ve Settings'teki "+ Parsel Ekle" butonu zaten çalışıyor.
 
 ---
 
 ## 🏗️ Lovable Build Sırası
 
-> **Doğru sıra:** ~~F~~ → ~~H-Ext~~ → ~~G~~ → ~~I~~ → ~~H~~ → ~~Bug Fix Batch 4~~ → **J** → D
-> Sıradaki: **P16-J** (Indoor Farming landing page)
+> **Doğru sıra:** ~~F~~ → ~~H-Ext~~ → ~~G~~ → ~~I~~ → ~~H~~ → ~~Bug Fix Batch 4~~ → ~~J~~ → **D**
+> Sıradaki: **P16-D** (ToS + Gizlilik, en düşük öncelik) — aksi halde P16 build sırası tamamlandı, sırada Ağustos E2E testleri var (bkz. aşağıda)
+
+---
+
+### ✅ P16-J (genişletilmiş) — Ana Tanıtım Landing Page + Indoor Farming Başvurusu *(Tamamlandı — 2026-07-07)*
+
+Orijinal P16-J kapsamı (indoor farming ilgi formu, ayrı `/indoor-basvuru` sayfası) genişletildi: hem "hasat.com.tr ana tanıtım sayfası" TODO maddesiyle hem de bu formla birleştirilip **`/` üzerindeki tam bir pazarlama landing page'i** olarak tek seferde inşa edildi. Karar süreci: bevel.health (UI) ve hilberts.ai (persona-segmented içerik) audit edilip, Çiftçi/Alıcı için ayrı, somut, ekran-görüntülü anlatım + AI özelliklerinin gerçek soru-cevap örnekleriyle kanıtlanması deseni bu ikisinden sentezlendi.
+
+**Uygulanan (`/` rotası, `src/routes/index.tsx` komple yeniden yazıldı):**
+1. Hero — "Tarladan sofraya, aracısız." + iki büyük CTA (Çiftçiyim/Alıcıyım), mevcut marka tokenleri (`--dark`, `--saffron`, `--gold`, `--hwhite`) korunarak
+2. Sorun bölümü — Çiftçi/Alıcı için ayrı 3'er madde
+3. Çiftçiyim bölümü — 6 özellik kartı (vitrin, günlük, izlenebilirlik, pazarlık, stok, referral)
+4. Alıcıyım bölümü — 5 özellik kartı (keşfet, ürün geçmişi/sahtecilik karşıtı vurgu, izlenebilir rozet, teklif, sipariş takibi)
+5. Nasıl Çalışır — Ahmet (Safranbolu çiftçi) ve Zeynep (İstanbul alıcı) için somut 4 adımlık yolculuk
+6. Hasat AI — 3 kart, her biri gerçek WhatsApp-tarzı soru-cevap örneğiyle (fiyat uyarı, izlenebilirlik skoru, WhatsApp asistanı)
+7. Güven bölümü — komisyon şeffaflığı, veri güvenliği, çiftçi doğrulaması
+8. Indoor Farming bölümü — `#indoor-basvuru` anchor'lı, ayrı route değil; form + `indoor_interest_leads` tablosu + Twilio SMS bildirimi (Berkin: +905421241011)
+9. Footer
+10. **`/` yönlendirme düzeltmesi:** Eskiden sadece client-side Zustand cache'ine bakıyordu (kırılgan). Artık `login.tsx` ile aynı desende gerçek `supabase.auth.getSession()` + profil kontrolü yapıyor — anonim ziyaretçi, yeni kayıt ve mevcut girişli kullanıcı senaryolarının hepsi ayrı ayrı doğrulandı.
+
+**Karşılaşılan ve düzeltilen hata:** İlk denemede indoor form submit'te `Missing Supabase environment variable(s): SUPABASE_SERVICE_ROLE_KEY` hatası alındı — server fonksiyonu gereksiz yere admin/service-role client kullanıyordu. Anon client + mevcut "Anyone can submit indoor interest" RLS policy'si zaten yeterliydi, düzeltilip anon client'a geçirildi.
+
+**Canlı doğrulama (2026-07-07):** Test başvurusu ("Berkin Savcıözen / +905421241011 / Istanbul / danışmanlık") DB'ye yazıldı, Twilio SMS bildirimi doğru formatta ulaştı.
 
 ---
 
@@ -106,7 +132,7 @@ tags:
 - Günlük ana sayfası → "+ Parsel" linkiyle "Parsel from Günlük" oluşturuldu, DB'de doğrulandı.
 - Her iki yol da `farms`/`parcels` tablosuna doğru şekilde yazıyor.
 
-**Kalan küçük not:** `farmer.journal.new.tsx`'teki "Önce bir parsel ekle" metni hâlâ tıklanamaz statik yazı (bu promptun kapsamında değildi). Ama artık kritik değil — çünkü yeni bir çiftçi bu ekrana gelmeden önce Günlük ana sayfasındaki çalışan "+ Parsel" linkini görüyor. **GTM blocker olarak kapatıldı**, ileride düşük öncelikli bir cila maddesi olarak kalabilir (yukarıda not edildi).
+**Kalan küçük not:** `farmer.journal.new.tsx`'teki "Önce bir parsel ekle" metni hâlâ tıklanamaz statik yazı (bu promptun kapsamında değildi). Kritik değil — yeni bir çiftçi bu ekrana gelmeden önce Günlük ana sayfasındaki çalışan "+ Parsel" linkini görüyor. **GTM blocker olarak kapatıldı.**
 
 ---
 
@@ -174,37 +200,6 @@ Implement edildi ve kod incelemesi + canlı DB doğrulamasıyla test edildi.
 
 ---
 
-### ⏭ P16-J — Indoor Farming İlgi/Ortaklık Landing Page *(Sıradaki)*
-
-```
-Implement P16-J: Indoor farming interest capture page.
-
-1. DB:
-   CREATE TABLE IF NOT EXISTS public.indoor_interest_leads (
-     id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-     name text NOT NULL,
-     phone text NOT NULL,
-     city text,
-     interest_type text CHECK (interest_type IN ('danışmanlık','ortaklık','diğer')),
-     note text,
-     created_at timestamptz DEFAULT now()
-   );
-   RLS: INSERT for anon + authenticated; SELECT for service_role only.
-
-2. New public route: /indoor-basvuru (no auth, same pattern as /s/{slug})
-   - Short pitch: indoor farming + kırsalda genç kalıcılığı + TKDK genç çiftçi bonusu değeri
-   - Form: Ad, Telefon, Şehir, İlgi Tipi (danışmanlık/ortaklık/diğer), Not (optional)
-   - Submit → INSERT into indoor_interest_leads → toast "Başvurunuz alındı"
-   - WhatsApp CTA alongside form: wa.me pre-filled "Hasat indoor farming hakkında bilgi almak istiyorum"
-
-3. On submit: Twilio notification to Berkin:
-   "🌱 Yeni indoor başvuru: {name} / {phone} / {city} / {interest_type}"
-
-4. tsgo typecheck.
-```
-
----
-
 ### ⏭ P16-D — ToS + Gizlilik *(En düşük öncelik — deploy sonrası)*
 
 ```
@@ -235,12 +230,13 @@ Add Terms of Service and Privacy Policy pages:
 
 ### E2E Test (P16 tümü bittikten sonra) — devam ediyor
 - [x] [C Web] Farmer onboarding E2E — 05421241011 ile tamamlandı, 3 kritik bug bulundu ve düzeltildi (Bug Fix Batch 4)
+- [x] [C Web] Landing page E2E — anonim ziyaretçi/yeni kayıt/mevcut giriş senaryoları + indoor form uçtan uca test edildi
 - [ ] Buyer onboarding E2E — 05398545295 ile (henüz yapılmadı)
 - [ ] Kalan kapsam: parsel/sertifika, listing, teklif/müzakere, stok takibi, IBAN ödeme, community+reply, AI chat, bildirimler, vitrin URL, referral, izlenebilirlik
 
 ### Teknik Final
 - [ ] hasat.lovable.app → custom domain yayını
-- [ ] [C] hasat.com.tr landing page (tek sayfa, basit) → Lovable
+- [x] ~~hasat.com.tr landing page (tek sayfa, basit) → Lovable~~ — P16-J ile birleştirilip tamamlandı, custom domain yayını hâlâ bekliyor
 - [ ] iyzico canlı ödeme testi + tam entegrasyon
 
 ### İlk Kullanıcılar
@@ -292,7 +288,8 @@ Add Terms of Service and Privacy Policy pages:
 7. Offer/durum alanlarında gerçek enum değerlerini prompt yazmadan önce DB'den doğrula — plandaki varsayılan durum adı DB'deki gerçek değerle uyuşmayabilir (bkz. P16-H Extension `pending_payment` düzeltmesi)
 8. `plan_mode=true` her zaman güvenli bir "sadece planla" garantisi vermeyebilir — sonucu (commit sha değişti mi) kontrol et
 9. Yeni bir akış (onboarding, form vb.) yazdırırken "veri buraya kaydediliyor mu" ve "bu veriyi sonra düzenleyebileceğim bir UI var mı" sorularını ayrıca sor — sessiz boşluklar Lovable'ın kendi taahhüt ettiği kapsamda bile atlanabiliyor
-10. Bir bug fix promptu birden fazla dosyayı/ekranı etkiliyorsa, fix sonrası **her ekranı ayrı ayrı** canlı test et — Bug Fix Batch 4'te Settings ve Günlük ana sayfası düzeldi ama Günlük'ün "Yeni Kayıt" alt ekranındaki ayrı bir dead-end kalmıştı (düşük öncelikli ama gözden kaçabilirdi)
+10. Bir bug fix promptu birden fazla dosyayı/ekranı etkiliyorsa, fix sonrası **her ekranı ayrı ayrı** canlı test et
+11. Server-side fonksiyon yazdırırken admin/service-role client'a gerçekten ihtiyaç olup olmadığını sorgula — RLS zaten public erişime izin veriyorsa anon client yeterli olur, aksi halde `SUPABASE_SERVICE_ROLE_KEY` gibi tanımlı olmayan secret'lara bağımlılık yaratıp çalışma zamanında patlar (bkz. indoor form düzeltmesi)
 
 ---
 
@@ -316,12 +313,26 @@ Add Terms of Service and Privacy Policy pages:
 | Otomatik fiyat çekimi | Phase 2+ — MVP'de manuel küratörlük yeterli |
 | AI kutuları | crop-agnostic — P16-I ile düzeltildi |
 | Claude Web araçları | Lovable MCP (send_message, read_file, get_project) + Supabase MCP (execute_sql, project `efuqpiaavrzimvstpdpm`) + GitHub MCP (get_file_contents — READ ONLY, yazma 403 veriyor) |
-| Vault sync | `hasat-vault` reposu **bilinçli olarak PUBLIC** tutuluyor (2026-07-06 kararı) — GitHub MCP connector'ı private repo scope'una erişemediği için. İçerik kontrol edildi, hassas secret/kod yok. GitHub MCP bu repoyu okuyabiliyor ama YAZAMIYOR (403 Resource not accessible by integration) — Web Claude güncel TODO içeriğini hazırlar, kullanıcı manuel yapıştırır. Obsidian vault tamamen kaldırıldı — `hasat-vault` reposu artık tek doğruluk kaynağı. |
+| Vault sync | `hasat-vault` reposu **bilinçli olarak PUBLIC** tutuluyor (2026-07-06 kararı) — GitHub MCP connector'ı private repo scope'una erişemediği için. Web Claude güncel TODO içeriğini hazırlar, kullanıcı manuel yapıştırır. |
 | Onboarding test numaraları | Çiftçi: 05421241011 (auth id `69ca6368-bfb7-48fd-829e-79ddc9edbf75`, 2 parseli var) · Alıcı: 05398545295 (henüz test edilmedi) — WhatsApp OTP çalışmıyor, SMS kullan |
+| Landing page tasarım referansları | bevel.health (UI/visual storytelling) + hilberts.ai (persona-segmented içerik derinliği) — `Build/` altında audit notu tutulabilir |
+| İletişim numarası | Berkin: +905421241011 — hem Twilio SMS bildirim hedefi (`BERKIN_NOTIFY_PHONE` secret) hem `HASAT_WHATSAPP_NUMBER` sabiti olarak kullanılıyor |
 
 ---
 
 ## 📋 Son Test Sonuçları
+
+### P16-J (genişletilmiş) — Landing Page + Indoor Form (2026-07-07) ✅
+| Test | Sonuç | Not |
+|---|---|---|
+| `/` sayfası tüm bölümlerle render oluyor | ✅ | Hero, sorun, çiftçi/alıcı feature grid, nasıl çalışır, AI, güven, indoor, footer |
+| Auth-aware redirect — anonim ziyaretçi | ✅ | Landing page görünüyor, redirect yok |
+| Auth-aware redirect — mevcut girişli kullanıcı | ✅ | Gerçek Supabase session kontrolüyle doğru dashboard'a yönleniyor |
+| Auth-aware redirect — yeni kayıt | ✅ | Onboarding zaten `/`'a hiç uğramıyor, regresyon yok |
+| Indoor form submit (ilk deneme) | ❌ → ✅ | `SUPABASE_SERVICE_ROLE_KEY` eksik hatası — anon client'a geçirilerek düzeltildi |
+| Indoor form → DB kaydı | ✅ | Canlı doğrulandı (Berkin Savcıözen / Istanbul / danışmanlık) |
+| Indoor form → Twilio SMS bildirimi | ✅ | Doğru formatta ulaştı |
+| tsgo typecheck | ✅ | Temiz geçti (iki ayrı turda) |
 
 ### Bug Fix Batch 4 — Onboarding Kritik Düzeltmeler (2026-07-07) ✅
 | Test | Sonuç | Not |
@@ -330,23 +341,17 @@ Add Terms of Service and Privacy Policy pages:
 | Onboarding'de crops/land → otomatik ilk parsel oluşturuyor | ✅ | `parcels.is_primary` kolonu eklendi |
 | Settings → "+ Parsel Ekle" | ✅ | Canlı test: "Settings Parsel" oluşturuldu, DB'de doğrulandı |
 | Günlük ana sayfası → "+ Parsel" | ✅ | Canlı test: "Parsel from Günlük" oluşturuldu, DB'de doğrulandı |
-| Günlük "Yeni Kayıt" ekranındaki parsel alanı | ⚠️ Düşük öncelik | "Önce bir parsel ekle" hâlâ tıklanamaz statik metin — ama artık kritik değil, kullanıcı oraya varmadan önce zaten parsel ekleyebiliyor |
 | tsgo typecheck | ✅ | Temiz geçti |
 
-**Sonuç: GTM blocker kapatıldı.** Yeni bir çiftçi artık onboarding'i tamamlayıp (skip etse bile isim/şehir kaybolmadan), Settings veya Günlük'ten parsel ekleyip Günlük'e kayıt atabiliyor.
+**Sonuç: GTM blocker kapatıldı.** Yeni bir çiftçi artık onboarding'i tamamlayıp, Settings veya Günlük'ten parsel ekleyip Günlük'e kayıt atabiliyor.
 
 ### Farmer Onboarding E2E — 05421241011 (2026-07-06) ⚠️ 3 kritik bug bulundu → 2026-07-07'de düzeltildi
 | Test | Sonuç | Not |
 |---|---|---|
 | WhatsApp OTP gönderimi | ❌ | Supabase→Twilio 200 döndü, mesaj gelmedi. Kök neden Twilio/WhatsApp tarafında, araştırılmadı |
-| SMS OTP gönderimi + doğrulama | ✅ | Çalıştı (eski orphan auth kaydı temizlendikten sonra) |
+| SMS OTP gönderimi + doğrulama | ✅ | Çalıştı |
 | Yeni profil oluşturma (`handle_new_user` trigger) | ✅ | `role`, `referral_code` doğru atanıyor |
-| Onboarding step 2 (isim/şehir/ürün/dönüm) | ✅ | Bug Fix Batch 4 ile düzeltildi |
-| Onboarding step 3 "Şimdilik atla" | ✅ | Bug Fix Batch 4 ile düzeltildi |
-| Crops/land size DB'de kalıcı mı | ✅ | Bug Fix Batch 4 ile düzeltildi |
-| Günlük'e ilk kayıt atma (Hasat Ekle) | ✅ | Bug Fix Batch 4 ile düzeltildi |
-
-**DB doğrulaması:** `on_auth_user_created` trigger'ı sağlam ve aktif. `handle_new_user()` fonksiyonu referral_code çakışmasını doğru yönetiyor.
+| Onboarding step 2/3 + crops/land + parsel akışı | ✅ | Bug Fix Batch 4 ile düzeltildi |
 
 ### P16-H — Ürün Yaşam Döngüsü / İzlenebilirlik (2026-07-06) ✅
 | Test | Sonuç | Not |
@@ -356,69 +361,37 @@ Add Terms of Service and Privacy Policy pages:
 | CoverageBadge — keşfet/vitrin/public vitrin | ✅ | Üç yerde de |
 | Buyer "Ürün Geçmişi" timeline | ✅ | Teklif sayfası + batch sayfası |
 | Cost/not redaksiyonu | ✅ | Sadece tarih/miktar/kalite/foto görünüyor |
-| "İlk Sezon" rozeti | ✅ | |
-| Farmer "Alıcı bunu görecek" önizlemesi | ✅ | Eksik adımlar öneri, blocker değil |
 | Anti-fraud tarih kilidi | ✅ | DB trigger + UI'da kayıt/olay tarihi farkı gösterimi |
-| tsgo (+ önceki hatalar) | ✅ | `/buyer/orders*`, `/login` search-param hataları da temizlendi |
 
 ### P16-I — Crop Config & Production Method (2026-07-06) ✅
 | Test | Sonuç | Not |
 |---|---|---|
-| `crop_config` tablo + RLS | ✅ | 7 crop için satır — DB'deki gerçek kullanımı kapsıyor |
+| `crop_config` tablo + RLS | ✅ | 7 crop için satır |
 | `parcels.production_method`, `price_feed.source_type` | ✅ | |
-| B4 fix (dinamik hasat dönemi) | ✅ | |
-| B19 fix (kategori sayacı) | ✅ | |
 | AI kutuları crop-agnostic | ✅ | |
 
 ### P16-G — Çiftçi Referral Programı UI (2026-07-03) ✅
-| Test | Sonuç | Not |
-|---|---|---|
-| `referral_code` + `referred_by` kolonları | ✅ | Canlı DB'de doğrulandı (Ahmet → `0868E4`) |
-| Backfill mevcut kayıtlara | ✅ | |
-| `handle_new_user` otomatik kod üretimi | ✅ | |
-| `/farmer/referral` sayfası | ✅ | |
-| Sidebar "Arkadaşını Davet Et" | ✅ | |
-| `/join?ref={code}` | ✅ | |
-| OTP kayıt sonrası `referred_by` yazımı | ✅ | |
-| tsgo typecheck | ✅ | |
+| Test | Sonuç |
+|---|---|
+| `referral_code` + `referred_by` kolonları | ✅ |
+| `/farmer/referral` sayfası | ✅ |
+| `/join?ref={code}` | ✅ |
 
 ### P16-H Extension — Stok Takibi + Batch Sayfası (2026-07-03) ✅
-| Test | Sonuç | Not |
-|---|---|---|
-| `listing_harvest_entries` tablo + RLS | ✅ | |
-| `listings.parcel_id` kolonu | ✅ | |
-| `useListingStock` hook | ✅ | |
-| Vitrin + Keşfet stok/Tükendi badge | ✅ | |
-| Teklif Ver disable | ✅ | |
-| Server-side stock guard trigger | ✅ | `status='accepted'` geçişine düzeltilerek gönderildi |
-| Batch sayfası | ✅ | `/batch/$listingId` — root-level, paylaşılan route |
-| Günlük → "hasadı ürüne bağla" | ✅ | |
-| Buyer view redaksiyonu | ✅ | |
+| Test | Sonuç |
+|---|---|
+| `listing_harvest_entries` tablo + RLS | ✅ |
+| Server-side stock guard trigger | ✅ |
+| Batch sayfası | ✅ |
 
 ### P16-F — Topluluk Reply Threads + Farmer Profil Linkleri (2026-07-03) ✅
 | Test | Sonuç | Not |
 |---|---|---|
 | "{n} yorum" badge | ✅ | |
-| Reply thread + empty state | ✅ | |
-| Yanıtla composer → DB kaydı | ⚠️ Kısmi | Optimistic UI yok, refetch ile çalışıyor. Kritik değil |
-| Buyer discover → /s/{slug} linki | ✅ | |
-| Community feed → farmer linki | ✅ | |
-| Offer thread header → farmer linki | ✅ | |
-| Buyer orders → farmer linki | ✅ | |
+| Yanıtla composer → DB kaydı | ⚠️ Kısmi | Optimistic UI yok, kritik değil |
 
 ### P16-E — Gerçek Zamanlı Fiyat Verisi (2026-07-02) ✅
-| Test | Sonuç |
-|---|---|
-| Boş state "Fiyat verisi bekleniyor" | ✅ |
-| "Fiyat Güncelle" farmer için görünür, buyer için gizli | ✅ |
-| Dropdown: farmer listings + Diğer (yaz)... | ✅ |
-| Submit → toast + kart / Sparkline ≥2 nokta | ✅ |
-| AI nudge farmer/home + storefront: %25 üzerinde uyarısı | ✅ |
-
 ### P16-C — IBAN Ödeme Köprüsü (2026-07-02) ✅ kısmi
 | Test | Sonuç |
 |---|---|
-| Farmer settings → Banka Bilgileri + kaydet | ✅ |
-| Buyer pay page → Havale kartı + Manuel Onay badge | ✅ |
-| Infinite spinner fix → error/retry state | ✅ |
 | Tam havale e2e (pending_transfer → farmer confirm) | ⏳ Yeni offer gerekiyor (eski offer orphan) |
