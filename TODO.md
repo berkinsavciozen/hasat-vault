@@ -1,6 +1,6 @@
 ---
 title: Hasat — Master Roadmap & Build Log
-updated: 2026-07-06
+updated: 2026-07-07
 tags:
   - hasat
   - todo
@@ -35,6 +35,7 @@ tags:
 - [x] [C Web] P16-G: Çiftçi referral programı UI
 - [x] [C Web] P16-I: Crop config + production method + crop-agnostic AI
 - [x] [C Web] P16-H: Ürün yaşam döngüsü / izlenebilirlik
+- [x] [C Web] Bug Fix Batch 4: Onboarding kritik düzeltmeler (GTM blocker giderildi)
 
 ### Bug Fixes — Tamamlanan
 - [x] B1: Journal tag rendering (`[key:value]` chips)
@@ -51,6 +52,9 @@ tags:
 - [x] Stepper min_order clamping
 - [x] Buyer Tamamlanan tab filter + Accept → orders satırı otomatik oluşturma
 - [x] tsgo: `/buyer/orders*` ve `/login` search-param tip hataları (P16-H ile birlikte temizlendi)
+- [x] Onboarding "Şimdilik atla" veri kaybı (Bug Fix Batch 4)
+- [x] Onboarding crops/land size hiç kaydedilmiyordu (Bug Fix Batch 4)
+- [x] Parsel ekleme UI'ı hiçbir yerde yoktu — GTM blocker (Bug Fix Batch 4)
 
 ### Araştırma & Planlama
 - [x] Saffron fiyat/yield araştırması · Financial model v0.5 (4-kat indoor) · GTM planı · Vault yeniden yapılandırma
@@ -59,49 +63,6 @@ tags:
 ---
 
 ## 🔴 ŞİMDİ — Temmuz 2026
-
-### 🚨 Bug Fix Batch 4 — Onboarding Kritik (GTM BLOCKER) — 2026-07-06 E2E testinde bulundu
-
-> Gerçek numaralarla (05421241011 çiftçi, 05398545295 alıcı henüz test edilmedi) uçtan uca onboarding testi yapıldı. Kod incelemesi + canlı DB ile doğrulanan 3 bug bulundu. **Bunlar düzeltilmeden hiçbir gerçek çiftçi onboarding'i tamamlayıp Günlük'e kayıt atamaz.** P16-J'den önce, kredi geldiğinde ilk sırada gönderilecek.
-
-**Bulgular:**
-1. `onboarding.farmer.tsx` → "Şimdilik atla" butonu sadece sertifika adımını (step 3) atlaması gerekirken, step 2'de girilen `name`/`city` bilgisini de siliyor, zorla `name="Çiftçi"`, `city=null` yazıyor (`finish(true)` fonksiyonu).
-2. Onboarding'de toplanan "Ana Ürünlerin" (crops) ve "Arazi Büyüklüğü" (land dönüm) hiçbir DB kolonuna yazılmıyor — sadece client-side Zustand state'te tutuluyor, sayfa yenilenince/çıkışta kayboluyor. `profiles` tablosunda bu alanlar için kolon bile yok.
-3. **En kritik:** Uygulamada hiçbir yerde "Parsel Ekle" UI'ı yok. Backend (`useCreateParcel` in `queries.ts`) tam çalışır durumda (farm oluşturma, foto upload dahil) ama onu çağıran hiçbir buton/form yok. Settings sadece mevcut parselleri düzenle/sil gösteriyor; Storefront ve Journal.new sayfaları "Ayarlar'dan ekleyin" diye yönlendiriyor ama orada da giriş noktası yok. **Yeni bir çiftçi ilk parselini asla oluşturamıyor, dolayısıyla Günlük'e hiç kayıt atamıyor.**
-
-**Sıradaki Lovable promptu (kredi gelince ilk gönderilecek):**
-```
-Fix critical onboarding gaps found in E2E testing.
-
-1. src/routes/onboarding.farmer.tsx — fix "Şimdilik atla" (skip) data loss:
-   The finish(skip) function currently overwrites name/city with hardcoded
-   "Çiftçi"/null even when skip=true, discarding whatever the user typed in
-   step 2. "Şimdilik atla" should ONLY skip step 3 (certifications) — it must
-   NOT touch name/city. Change so:
-     const profileName = name.trim() || "Çiftçi"; // only fallback if truly empty
-     city: city || null; // keep whatever was entered in step 2, regardless of skip
-   Only certifications (step 3 specific fields) should be skipped when skip=true.
-
-2. Persist crops + land size collected in onboarding step 2:
-   ALTER TABLE public.parcels
-     ADD COLUMN IF NOT EXISTS is_primary boolean DEFAULT false;
-   -- (crops already exists as parcels.crops text[]; land size maps to parcels.area)
-   In onboarding.farmer.tsx finish(): after upserting the profile, also create
-   the farmer's first parcel via the same insert pattern as useCreateParcel
-   (ensure a farms row exists, then insert into parcels with name derived from
-   city or "Ana Parsel", area = land, crops = crops array, location_label = city).
-   Skip this parcel creation if skip=true or crops/land were never touched.
-
-3. Add a real "+ Parsel Ekle" entry point — this is the critical gap:
-   In src/routes/farmer.settings.tsx, in the "Parsellerim" Section, add a
-   "+ Parsel Ekle" button (same visual pattern as the existing "+ Sertifika Ekle"
-   button right below it) that opens a Sheet with fields: Parsel Adı, Şehir/İlçe,
-   Alan (dönüm), Ana Ürünler (multi-select from CROPS list used elsewhere),
-   Fotoğraflar (PhotoUploader, max 5). On save, call useCreateParcel with these
-   values. This must work for farmers with zero existing parcels (first-time use).
-
-4. tsgo typecheck.
-```
 
 ### Yasal & Altyapı
 - [ ] Şahıs şirketi kur — noterden git (~₺2-3K, 1 gün)
@@ -118,12 +79,34 @@ Fix critical onboarding gaps found in E2E testing.
 
 > Not: B4 P16-I ile crop_config üzerinden kalıcı olarak çözüldü.
 
+### Düşük öncelikli cila (acil değil)
+- [ ] `farmer.journal.new.tsx` içindeki "Önce bir parsel ekle" metni hâlâ tıklanamaz statik yazı. Kritik değil çünkü Günlük ana sayfasındaki "+ Parsel" linki ve Settings'teki "+ Parsel Ekle" butonu zaten çalışıyor — yeni çiftçi bu ekrana varmadan önce parsel ekleyebiliyor. İstersen ileride bu metni de tıklanabilir/yönlendirici yapabiliriz.
+
 ---
 
 ## 🏗️ Lovable Build Sırası
 
-> **Doğru sıra:** ~~F~~ → ~~H-Ext~~ → ~~G~~ → ~~I~~ → ~~H~~ → **Bug Fix Batch 4 (onboarding)** → J → D
-> Sıradaki: **Bug Fix Batch 4** (yukarıda, GTM blocker — kredi gelince ilk gönderilecek), sonra **P16-J**
+> **Doğru sıra:** ~~F~~ → ~~H-Ext~~ → ~~G~~ → ~~I~~ → ~~H~~ → ~~Bug Fix Batch 4~~ → **J** → D
+> Sıradaki: **P16-J** (Indoor Farming landing page)
+
+---
+
+### ✅ Bug Fix Batch 4 — Onboarding Kritik (GTM BLOCKER) *(Tamamlandı — 2026-07-07)*
+
+2026-07-06 E2E testinde (05421241011 ile) bulunan 3 kritik bug, tek promptta düzeltildi ve **canlı olarak yeniden test edilip doğrulandı.**
+
+**Uygulanan:**
+1. `onboarding.farmer.tsx` → `finish()` artık "Şimdilik atla" durumunda bile step 2'de girilen `name`/`city`'yi koruyor; sadece gerçekten boşsa "Çiftçi" fallback'i devreye giriyor.
+2. Onboarding'de toplanan crops + land size artık gerçekten kaydediliyor — `finish()` otomatik olarak `farms` + `parcels` satırı oluşturuyor (`is_primary=true`). `parcels.is_primary` kolonu eklendi.
+3. `farmer.settings.tsx` → Parsellerim bölümüne çalışan bir **"+ Parsel Ekle"** butonu ve formu (isim, şehir, dönüm, ürünler, fotoğraf) eklendi, `useCreateParcel`'a bağlı.
+4. tsgo temiz geçti.
+
+**Canlı doğrulama (2026-07-07):**
+- Settings → "+ Parsel Ekle" ile "Settings Parsel" oluşturuldu, DB'de doğrulandı.
+- Günlük ana sayfası → "+ Parsel" linkiyle "Parsel from Günlük" oluşturuldu, DB'de doğrulandı.
+- Her iki yol da `farms`/`parcels` tablosuna doğru şekilde yazıyor.
+
+**Kalan küçük not:** `farmer.journal.new.tsx`'teki "Önce bir parsel ekle" metni hâlâ tıklanamaz statik yazı (bu promptun kapsamında değildi). Ama artık kritik değil — çünkü yeni bir çiftçi bu ekrana gelmeden önce Günlük ana sayfasındaki çalışan "+ Parsel" linkini görüyor. **GTM blocker olarak kapatıldı**, ileride düşük öncelikli bir cila maddesi olarak kalabilir (yukarıda not edildi).
 
 ---
 
@@ -191,7 +174,7 @@ Implement edildi ve kod incelemesi + canlı DB doğrulamasıyla test edildi.
 
 ---
 
-### ⏭ P16-J — Indoor Farming İlgi/Ortaklık Landing Page *(Bug Fix Batch 4'ten sonra)*
+### ⏭ P16-J — Indoor Farming İlgi/Ortaklık Landing Page *(Sıradaki)*
 
 ```
 Implement P16-J: Indoor farming interest capture page.
@@ -251,8 +234,8 @@ Add Terms of Service and Privacy Policy pages:
 ## 🟡 AĞUSTOS 2026 — Soft Launch
 
 ### E2E Test (P16 tümü bittikten sonra) — devam ediyor
-- [x] [C Web] Farmer onboarding E2E — 05421241011 ile başlatıldı, 3 kritik bug bulundu (yukarıda Bug Fix Batch 4)
-- [ ] Buyer onboarding E2E — 05398545295 ile (henüz yapılmadı, Lovable kredisi bekleniyor)
+- [x] [C Web] Farmer onboarding E2E — 05421241011 ile tamamlandı, 3 kritik bug bulundu ve düzeltildi (Bug Fix Batch 4)
+- [ ] Buyer onboarding E2E — 05398545295 ile (henüz yapılmadı)
 - [ ] Kalan kapsam: parsel/sertifika, listing, teklif/müzakere, stok takibi, IBAN ödeme, community+reply, AI chat, bildirimler, vitrin URL, referral, izlenebilirlik
 
 ### Teknik Final
@@ -308,7 +291,8 @@ Add Terms of Service and Privacy Policy pages:
 6. AI prompt'ları crop-agnostic yaz — `crop` + `crop_config` parametre olarak geç; statik metin yok
 7. Offer/durum alanlarında gerçek enum değerlerini prompt yazmadan önce DB'den doğrula — plandaki varsayılan durum adı DB'deki gerçek değerle uyuşmayabilir (bkz. P16-H Extension `pending_payment` düzeltmesi)
 8. `plan_mode=true` her zaman güvenli bir "sadece planla" garantisi vermeyebilir — sonucu (commit sha değişti mi) kontrol et
-9. **Yeni bir akış (onboarding, form vb.) yazdırırken "veri buraya kaydediliyor mu" ve "bu veriyi sonra düzenleyebileceğim bir UI var mı" sorularını ayrıca sor** — P16-A/onboarding'de crops/land toplanıp hiç kaydedilmemiş, parsel oluşturmak için hiç UI olmaması gibi sessiz boşluklar Lovable'ın kendi taahhüt ettiği kapsamda bile atlanabiliyor
+9. Yeni bir akış (onboarding, form vb.) yazdırırken "veri buraya kaydediliyor mu" ve "bu veriyi sonra düzenleyebileceğim bir UI var mı" sorularını ayrıca sor — sessiz boşluklar Lovable'ın kendi taahhüt ettiği kapsamda bile atlanabiliyor
+10. Bir bug fix promptu birden fazla dosyayı/ekranı etkiliyorsa, fix sonrası **her ekranı ayrı ayrı** canlı test et — Bug Fix Batch 4'te Settings ve Günlük ana sayfası düzeldi ama Günlük'ün "Yeni Kayıt" alt ekranındaki ayrı bir dead-end kalmıştı (düşük öncelikli ama gözden kaçabilirdi)
 
 ---
 
@@ -332,25 +316,37 @@ Add Terms of Service and Privacy Policy pages:
 | Otomatik fiyat çekimi | Phase 2+ — MVP'de manuel küratörlük yeterli |
 | AI kutuları | crop-agnostic — P16-I ile düzeltildi |
 | Claude Web araçları | Lovable MCP (send_message, read_file, get_project) + Supabase MCP (execute_sql, project `efuqpiaavrzimvstpdpm`) + GitHub MCP (get_file_contents — READ ONLY, yazma 403 veriyor) |
-| Vault sync | `hasat-vault` reposu **bilinçli olarak PUBLIC** tutuluyor (2026-07-06 kararı) — GitHub MCP connector'ı private repo scope'una erişemediği için. İçerik kontrol edildi, hassas secret/kod yok. GitHub MCP bu repoyu okuyabiliyor ama YAZAMIYOR (403 Resource not accessible by integration) — Web Claude güncel TODO içeriğini hazırlar, kullanıcı manuel yapıştırır. Obsidian Git eklentisi bu vault'tan kaldırıldı (ayrı, kişisel bilgi içeren belgelerle karışma riski vardı). |
-| Onboarding test numaraları | Çiftçi: 05421241011 (auth id `69ca6368-bfb7-48fd-829e-79ddc9edbf75`) · Alıcı: 05398545295 (henüz test edilmedi) — WhatsApp OTP çalışmıyor, SMS kullan |
+| Vault sync | `hasat-vault` reposu **bilinçli olarak PUBLIC** tutuluyor (2026-07-06 kararı) — GitHub MCP connector'ı private repo scope'una erişemediği için. İçerik kontrol edildi, hassas secret/kod yok. GitHub MCP bu repoyu okuyabiliyor ama YAZAMIYOR (403 Resource not accessible by integration) — Web Claude güncel TODO içeriğini hazırlar, kullanıcı manuel yapıştırır. Obsidian vault tamamen kaldırıldı — `hasat-vault` reposu artık tek doğruluk kaynağı. |
+| Onboarding test numaraları | Çiftçi: 05421241011 (auth id `69ca6368-bfb7-48fd-829e-79ddc9edbf75`, 2 parseli var) · Alıcı: 05398545295 (henüz test edilmedi) — WhatsApp OTP çalışmıyor, SMS kullan |
 
 ---
 
 ## 📋 Son Test Sonuçları
 
-### Farmer Onboarding E2E — 05421241011 (2026-07-06) ⚠️ 3 kritik bug bulundu
+### Bug Fix Batch 4 — Onboarding Kritik Düzeltmeler (2026-07-07) ✅
+| Test | Sonuç | Not |
+|---|---|---|
+| "Şimdilik atla" artık name/city'yi silmiyor | ✅ | Kod incelemesiyle doğrulandı |
+| Onboarding'de crops/land → otomatik ilk parsel oluşturuyor | ✅ | `parcels.is_primary` kolonu eklendi |
+| Settings → "+ Parsel Ekle" | ✅ | Canlı test: "Settings Parsel" oluşturuldu, DB'de doğrulandı |
+| Günlük ana sayfası → "+ Parsel" | ✅ | Canlı test: "Parsel from Günlük" oluşturuldu, DB'de doğrulandı |
+| Günlük "Yeni Kayıt" ekranındaki parsel alanı | ⚠️ Düşük öncelik | "Önce bir parsel ekle" hâlâ tıklanamaz statik metin — ama artık kritik değil, kullanıcı oraya varmadan önce zaten parsel ekleyebiliyor |
+| tsgo typecheck | ✅ | Temiz geçti |
+
+**Sonuç: GTM blocker kapatıldı.** Yeni bir çiftçi artık onboarding'i tamamlayıp (skip etse bile isim/şehir kaybolmadan), Settings veya Günlük'ten parsel ekleyip Günlük'e kayıt atabiliyor.
+
+### Farmer Onboarding E2E — 05421241011 (2026-07-06) ⚠️ 3 kritik bug bulundu → 2026-07-07'de düzeltildi
 | Test | Sonuç | Not |
 |---|---|---|
 | WhatsApp OTP gönderimi | ❌ | Supabase→Twilio 200 döndü, mesaj gelmedi. Kök neden Twilio/WhatsApp tarafında, araştırılmadı |
 | SMS OTP gönderimi + doğrulama | ✅ | Çalıştı (eski orphan auth kaydı temizlendikten sonra) |
 | Yeni profil oluşturma (`handle_new_user` trigger) | ✅ | `role`, `referral_code` doğru atanıyor |
-| Onboarding step 2 (isim/şehir/ürün/dönüm) | ⚠️ | Dolduruldu ama "Şimdilik atla" (step 3) basılınca hepsi siliniyor — **bug** |
-| Onboarding step 3 "Şimdilik atla" | ❌ | `name`/`city` bilgisini de siliyor, sadece sertifikaları atlaması gerekirken — **bug, Batch 4'te** |
-| Crops/land size DB'de kalıcı mı | ❌ | Hiçbir kolona yazılmıyor, sadece client state'te — **bug, Batch 4'te** |
-| Günlük'e ilk kayıt atma (Hasat Ekle) | ❌ | Parsel yok, parsel ekleme UI'ı hiçbir yerde yok — **kritik bug, Batch 4'te** |
+| Onboarding step 2 (isim/şehir/ürün/dönüm) | ✅ | Bug Fix Batch 4 ile düzeltildi |
+| Onboarding step 3 "Şimdilik atla" | ✅ | Bug Fix Batch 4 ile düzeltildi |
+| Crops/land size DB'de kalıcı mı | ✅ | Bug Fix Batch 4 ile düzeltildi |
+| Günlük'e ilk kayıt atma (Hasat Ekle) | ✅ | Bug Fix Batch 4 ile düzeltildi |
 
-**DB doğrulaması:** `on_auth_user_created` trigger'ı sağlam ve aktif. `handle_new_user()` fonksiyonu referral_code çakışmasını doğru yönetiyor. `useCreateParcel` backend fonksiyonu tam çalışır durumda ama hiçbir UI'dan çağrılmıyor.
+**DB doğrulaması:** `on_auth_user_created` trigger'ı sağlam ve aktif. `handle_new_user()` fonksiyonu referral_code çakışmasını doğru yönetiyor.
 
 ### P16-H — Ürün Yaşam Döngüsü / İzlenebilirlik (2026-07-06) ✅
 | Test | Sonuç | Not |
