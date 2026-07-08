@@ -18,12 +18,13 @@ tags:
 ### Teknik Build
 - [x] Supabase schema + seed data (17 tablo, RLS)
 - [x] Farmer akışı: login, onboarding, journal, parcels, certifications, storefront, community, analytics, settings
-- [x] Buyer akışı: onboarding, discovery, offer, negotiation, payment (simulated)
+- [x] Buyer akışı: onboarding (şirket + bireysel), discovery, offer, negotiation, payment (simulated)
 - [x] AI özellikleri: tüm sayfalar AI analiz kutusu, WhatsApp AI chat (P9-P14)
 - [x] Bildirim sistemi: in-app + Twilio SMS/WhatsApp (P7)
 - [x] P15: Teklif/Müzakere state machine (ball_side, ping-pong, pending_payment)
 - [x] P15-Completion A1-A4: backfill, accept guard, withdrawCounter, buyer Aktif tab
-- [x] Auth/profiles fix: orphan cleanup, UNIQUE constraint, phone normalize
+- [x] Auth/profiles fix: orphan cleanup, UNIQUE constraint, phone normalize, ON CONFLICT(id) düzeltmesi
+- [x] Mobil responsiveness auditi ve düzeltmeleri (tüm uygulama)
 
 ### P16 — TÜM SERİ TAMAMLANDI ✅
 - [x] [C] P16-A: Ürün (max 3) + Parsel (max 5) fotoğraf upload
@@ -41,6 +42,8 @@ tags:
 - [x] [C Web] Crop/Şehir Konsolidasyonu: tek doğruluk kaynağı (`crop_config` + `TR_PROVINCES`) tüm uygulamada
 - [x] [C Web] Draft-İlan Otomasyon Pipeline'ı: parsel → otomatik draft ilan → hasat kaydı → otomatik bağlama → Yayınla
 - [x] [C Web] P16-D: ToS + Gizlilik sayfaları (`/terms`, `/privacy`)
+- [x] [C Web] Mobil Responsiveness Audit + Düzeltmeleri
+- [x] [C Web] Bireysel Alıcı Desteği: Şirket/Bireysel onboarding ayrımı + alıcı tipi gösterim düzeltmesi
 
 ### Bug Fixes — Tamamlanan
 - [x] B1: Journal tag rendering (`[key:value]` chips)
@@ -58,23 +61,27 @@ tags:
 - [x] ListingSheet description prefill + save
 - [x] Stepper min_order clamping
 - [x] Buyer Tamamlanan tab filter + Accept → orders satırı otomatik oluşturma
-- [x] tsgo: `/buyer/orders*` ve `/login` search-param tip hataları (P16-H ile birlikte temizlendi)
-- [x] Onboarding "Şimdilik atla" veri kaybı (Bug Fix Batch 4)
-- [x] Onboarding crops/land size hiç kaydedilmiyordu (Bug Fix Batch 4)
-- [x] Parsel ekleme UI'ı hiçbir yerde yoktu — GTM blocker (Bug Fix Batch 4)
-- [x] `/` sayfası gerçek Supabase session yerine sadece client cache'ine güveniyordu (landing page ile birlikte düzeltildi)
-- [x] Indoor form ilk denemede `SUPABASE_SERVICE_ROLE_KEY` eksik hatası verdi — gereksiz admin client kullanımıydı, anon client + mevcut RLS policy yeterliydi
-- [x] Çok ürünlü parselde Günlük kaydı her zaman `crops[0]`'a sabitleniyordu, ürün seçilemiyordu
-- [x] 5 ayrı hardcoded crop listesi + 4 kopya emoji haritası vardı, tutarsız görünüyordu
-- [x] Şehir alanları bazı yerlerde serbest metin, bazı yerlerde dropdown'dı — tutarsızdı
-- [x] Parsel oluşturunca vitrinde otomatik ilan/kayıt oluşmuyordu — üç ayrı manuel adım gerekiyordu
+- [x] tsgo: `/buyer/orders*` ve `/login` search-param tip hataları
+- [x] Onboarding "Şimdilik atla" veri kaybı, crops/land kaydedilmiyordu, parsel ekleme UI'ı yoktu (Bug Fix Batch 4)
+- [x] `/` sayfası gerçek Supabase session yerine sadece client cache'ine güveniyordu
+- [x] Indoor form `SUPABASE_SERVICE_ROLE_KEY` eksik hatası — anon client'a geçirildi
+- [x] Çok ürünlü parselde Günlük kaydı her zaman `crops[0]`'a sabitleniyordu
+- [x] 5 ayrı hardcoded crop listesi + 4 kopya emoji haritası — tutarsızlık
+- [x] Şehir alanları bazı yerlerde serbest metin, bazı yerlerde dropdown'dı
+- [x] Parsel oluşturunca vitrinde otomatik ilan oluşmuyordu — üç ayrı manuel adım gerekiyordu
 - [x] Parsel/hasat kaydı sonrası Vitrin sayfası tazelenmiyordu (`farmerListings` invalidation eksikti)
+- [x] **`handle_new_user()` trigger'ında `ON CONFLICT (phone) DO NOTHING`** — telefon çakışması olursa yeni kullanıcı için profil sessizce hiç oluşmuyordu (`.single()` hatası). `ON CONFLICT (id)`'ye düzeltildi. Canlı testte bir buyer signup'ında gerçekleşti, temizlendi ve düzeltmeyle tekrar test edildi.
+- [x] Login OTP kutuları 360px'de taşıyordu (6. kutu ekran dışı kesiliyordu)
+- [x] Alıcı alt navigasyonu 6 sekmeyi `grid-cols-5`'e sıkıştırıyordu, ikinci satıra taşıyordu
+- [x] AI chat balonu ile Storefront/Fiyatlar sayfası FAB'ları çakışıyordu (tıklanamıyordu)
+- [x] Header'larda uzun başlıklar bildirim zilini ekran dışına itiyordu
+- [x] Alıcı tipi her zaman "Restoran" gösteriliyordu — `profiles.buyer_type` diye var olmayan bir kolondan okunuyordu, gerçek `buyer_profiles.company_type`'a hiç bağlı değildi
 
 ### Araştırma & Planlama
 - [x] Saffron fiyat/yield araştırması · Financial model v0.5 (4-kat indoor) · GTM planı · Vault yeniden yapılandırma
 - [x] P16-H şema kararı: iki katmanlı model çözüldü (Tier 1: listing_harvest_entries + Tier 2: parcel_id)
 - [x] Landing page tasarım auditı: bevel.health (UI) + hilberts.ai (içerik zenginliği) referans alındı
-- [x] Lovable'a plan-mode audit yaptırıldı: crop/şehir tutarsızlıkları ve parsel→ilan→hasat bağlama boşluğu için
+- [x] Lovable'a plan-mode audit'ler yaptırıldı: crop/şehir tutarsızlıkları, parsel→ilan→hasat bağlama boşluğu, mobil responsiveness, bireysel alıcı desteği için
 
 ---
 
@@ -87,90 +94,92 @@ tags:
 - [ ] Twilio: Verify service oluştur
 - [ ] Twilio: webhook URL → Supabase Edge Function URL ile güncelle
 - [ ] **WhatsApp Business başvurusu → hemen başla (2-4 hafta Meta review)**
-  > 2026-07-06 notu: WhatsApp OTP kanalı test edildi, teslimat başarısız oldu. SMS kanalı çalışıyor. Bu başvuru tamamlanana kadar login ekranında SMS'i varsayılan yapmayı düşün.
+  > 2026-07-06 notu: WhatsApp OTP kanalı test edildi, teslimat başarısız oldu. SMS kanalı çalışıyor.
 
 ### Düşük öncelikli cila (acil değil)
 - [ ] `farmer.journal.new.tsx` içindeki "Önce bir parsel ekle" metni hâlâ tıklanamaz statik yazı. Kritik değil, iki başka çalışan yol var.
-- [ ] `formatCrop()` gerçekte `crop_config.display_name`'i okumuyor, slug'ı title-case'e çeviren bir heuristik — şu anki tüm veri için doğru ama teorik uyuşmazlık riski var.
+- [ ] `formatCrop()` gerçekte `crop_config.display_name`'i okumuyor, slug'ı title-case'e çeviren bir heuristik.
 - [ ] `useDeleteParcel` sonrası draft ilan kartındaki "📍 parsel adı" etiketi sessizce kayboluyor — kozmetik.
+- [ ] Landing page'de 8 ayrı rol-seçim butonu var (Nav, Hero, bölüm CTA'ları, Final CTA) — kolayca yanlış tıklanabiliyor (bir testte çiftçi/alıcı karıştı). İleride azaltmayı düşün.
+- [ ] Müzakere bottom bar, indoor form buton grid'i, parsel satırı, RoleSwitcher dev widget, login splash font — nice-to-have mobil cila, hepsi zaten düzeltildi ama gözden geçirilebilir.
 
 ---
 
 ## 🏗️ Lovable Build Sırası — TAMAMLANDI ✅
 
-> ~~F~~ → ~~H-Ext~~ → ~~G~~ → ~~I~~ → ~~H~~ → ~~Bug Fix Batch 4~~ → ~~J~~ → ~~Bug Fix Batch 3~~ → ~~Crop/Şehir Konsolidasyonu~~ → ~~Draft-İlan Pipeline'ı~~ → ~~D~~
->
-> **P16 serisinin tamamı bitti (2026-07-08).** Artık build sırasında bekleyen madde yok. Sıradaki gerçek öncelik: **Ağustos E2E test kapsamı** — GTM'den önce platformun uçtan uca çalıştığının doğrulanması.
+> P16 serisinin tamamı + mobil audit + bireysel alıcı desteği bitti (2026-07-08). Sıradaki gerçek öncelik: **Ağustos E2E test kapsamı** — GTM'den önce platformun uçtan uca çalıştığının doğrulanması.
+
+---
+
+### ✅ Bireysel Alıcı Desteği *(Tamamlandı — 2026-07-08)*
+
+Canlı buyer onboarding testinde fark edildi: akış tamamen B2B varsayımıyla kurulmuştu (zorunlu "Şirket Adı" + 5 işletme tipinden biri). Lovable'a plan-mode audit yaptırıldı.
+
+**Uygulanan:**
+1. `company_type` enum'una `bireysel` eklendi
+2. `onboarding.buyer.tsx` step 1'e **Şirket/Bireysel sekmesi** — Bireysel seçilince "Şirket Adı" → "Adınız Soyadınız" olur, işletme tipi grid'i tamamen gizlenir; step 3'te "Şirket Adresi" → "Adres" olur
+3. `BuyerType` tipi genişletildi, çiftçi sipariş listesi + alıcı hesap sayfasında nötr **"👤 Bireysel"** rozeti eklendi
+4. **Bonus bulgu ve düzeltme:** `queries.ts`'de alıcı tipi var olmayan bir kolondan (`profiles.buyer_type`) okunmaya çalışılıyordu ve her zaman sessizce "Restoran"a düşüyordu — yani daha önce **hangi tip alıcı olursa olsun çiftçiye hep Restoran gösteriliyordu**. `buyer_profiles` RLS'i sadece alıcının kendisine okuma izni verdiği için basit bir join yeterli olmadı; `profiles.buyer_type` kolonu eklenip mevcut `buyer_profiles.company_type`'tan backfill edildi, artık çiftçi gerçek alıcı tipini görüyor.
+
+**Canlı doğrulama:** Backfill kontrol edildi, mevcut 2 alıcı (Zeynep: ihracatçı, test hesabı: diğer) doğru şekilde `profiles.buyer_type`'a yansımış. tsgo temiz.
+
+---
+
+### ✅ Mobil Responsiveness Audit + Düzeltmeleri *(Tamamlandı — 2026-07-08)*
+
+Lovable'a 360px viewport'ta tüm rotaları ve paylaşılan component'leri tarayan bir plan-mode audit yaptırıldı — satır numaralarıyla somut, önceliklendirilmiş bir liste döndü.
+
+**Must-fix (kırık/kullanılamaz):**
+1. Login OTP kutuları 360px'i aşıyordu, son kutu kesiliyordu
+2. Alıcı alt nav 6 sekmeyi `grid-cols-5`'e sıkıştırıyordu, ikinci satıra taşıyordu → çiftçi nav'daki gibi 5 slot + "Daha" taşma sheet'ine çevrildi
+3. AI chat balonu ile Storefront/Fiyatlar FAB'ları aynı bölgede çakışıyor, tıklanamıyordu → FAB'lar `bottom-36`'ya taşındı
+4. Uzun header başlıkları bildirim zilini ekran dışına itiyordu → `min-w-0` + `truncate` eklendi
+
+**Nice-to-have (cila):** müzakere bottom bar buton etiketi, landing hero mobil font ölçeği, indoor form buton grid'i, parsel satırı truncate, dev RoleSwitcher widget konumu, login splash font — hepsi de uygulandı.
+
+**Sonuç:** Tüm 10 madde tamamlandı, tsgo temiz. Zaten sorunsuz olanlar: ToS/Privacy, onboarding sayfaları, çiftçi alt nav, günlük chip'leri, keşfet, teklif/sipariş sayfaları, batch sayfası — hiçbir yerde `<table>` yok.
 
 ---
 
 ### ✅ P16-D — ToS + Gizlilik *(Tamamlandı — 2026-07-08)*
 
-**Uygulanan:**
-- `/terms` — 10 bölüm: platform tanımı, %5 GMV komisyonu, çiftçi/alıcı sorumlulukları, ödeme/iade (48 saat itiraz penceresi), ihtilaf çözümü (mesajlaşma → destek arabuluculuğu → İstanbul mahkemeleri), hesap askıya alma, sorumluluk sınırı
-- `/privacy` — 9 bölüm: toplanan veriler, telefon numarası kullanımı (pazarlama amaçlı paylaşılmadığı açıkça belirtilmiş), Supabase/Twilio üçüncü taraf açıklaması, veri saklama süreleri (aktif hesap boyunca, silme sonrası 30 gün, mali kayıtlar 10 yıl), KVKK/GDPR hakları, çerez politikası
-- Landing page footer'ına ve login ekranına link eklendi
-- Tasarım dili korundu (`--dark`, `--saffron`, `--gold`, serif başlıklar)
-- tsgo temiz geçti
+`/terms` (10 bölüm) + `/privacy` (9 bölüm), landing/login footer linkleri. Detay: %5 GMV komisyonu, KVKK/GDPR hakları, Supabase/Twilio üçüncü taraf açıklaması.
 
 ---
 
 ### ✅ Draft-İlan Otomasyon Pipeline'ı *(Tamamlandı — 2026-07-08)*
 
-Kullanıcı gözlemi: parsel oluşturma, vitrine ürün ekleme ve hasat kaydını ilana bağlama üç ayrı, birbirinden kopuk manuel adımdı. Lovable'a plan-mode'da tam bir audit yaptırıldı (edge case'ler: çok ürünlü parsel, mevcut parsellerin backfill'i, parsel düzenlemede yeni ürün eklenmesi, parsel silme, RLS güvenliği) — sonra onaylı implementasyon gönderildi.
-
-**Uygulanan:**
-1. `listing_status` enum'una `draft` eklendi (var olanlar: active/sold/expired)
-2. **Trigger — parsel INSERT:** Parselin `crops[]` dizisindeki **her ürün için ayrı** bir draft ilan otomatik oluşturuluyor (`parcel_id` bağlı, miktar=0, fiyat=`price_feed`'den son ortalama veya 0)
-3. **Trigger — parsel UPDATE:** Sadece yeni eklenen ürünler için draft oluşturuyor, çıkarılan ürünlerin ilanlarına dokunmuyor
-4. **Trigger — hasat kaydı INSERT:** Aynı `parcel_id` + `crop` eşleşen ilan(lar)a (draft veya active, hepsine) otomatik `listing_harvest_entries` bağlantısı kuruyor
-5. **Backfill:** Mevcut tüm parseller ve hasat kayıtları için de geriye dönük draft/bağlantı oluşturuldu
-6. `listings.parcel_id` FK → `ON DELETE SET NULL`
-7. Vitrin: 3 sekme — **Ürünlerim / Taslak / Arşiv**. Taslak kartlarında "✓ Yayınla" butonu (miktar/fiyat 0 ise engelliyor)
-8. Manuel "+ Yeni Ürün" akışı değişmedi
-9. RLS zaten güvenliydi (doğrulandı, değişiklik gerekmedi)
-
-**Karşılaşılan ve düzeltilen hata:** "Çok ürün eklerken sadece biri kaydediliyor" ve "otomatik ilan görünmüyor" şikayetleri geldi. DB incelemesi gösterdi ki veri katmanı doğru çalışıyordu — asıl sorun `useCreateParcel`/`useUpdateParcel`/`useCreateEntry`'nin `farmerListings`/`listingStock`/`listingBatchEntries` cache'ini tazelememesiydi. Düzeltildi, canlı doğrulandı.
+Parsel oluşturma/düzenleme → her ürün için otomatik draft ilan (DB trigger) → hasat kaydı → otomatik `listing_harvest_entries` bağlantısı → manuel "Yayınla" ile aktife çekme. `listing_status` enum'una `draft` eklendi. Backfill yapıldı. Cache invalidation eksikliği (`farmerListings`/`listingStock`/`listingBatchEntries`) bulunup düzeltildi.
 
 ---
 
 ### ✅ Crop/Şehir Konsolidasyonu *(Tamamlandı — 2026-07-08)*
 
-**Bulunan:** 5 ayrı hardcoded crop listesi + 4 kopya emoji haritası, tutarsız şehir alanları.
-
-**Uygulanan:**
-- `src/lib/hasat/cities.ts` — `TR_PROVINCES` (81 il), tek kaynak
-- `crop-config.ts` — `useCropOptions()` (canlı `crop_config`'ten okuyor), `cropEmoji()`, 10 kategori emoji haritası
-- `CropChips.tsx` — paylaşılan, yükleme skeleton'lı chip seçici
-- 5 hardcoded liste + 4 kopya emoji haritası kaldırılıp merkezi hale getirildi
-- Settings profil şehir alanı → `TR_PROVINCES` dropdown
-- Parsel "Şehir/İlçe" → İl dropdown + İlçe serbest metin
+`useCropOptions()` (canlı `crop_config`'ten), `TR_PROVINCES` (81 il), `CropChips.tsx`, `cropEmoji()` — 5 hardcoded liste + 4 kopya emoji haritası kaldırılıp tek kaynağa bağlandı.
 
 ---
 
 ### ✅ Bug Fix Batch 3 *(Tamamlandı — 2026-07-08)*
 
-1. B2 — `JournalEntryCard` quality default → `initial.quality ?? "A"`
-2. B5 — crop slug gösterimi, merkezi `formatCrop()` 8 dosyaya uygulandı
-3. Çok ürünlü parselde Günlük "Yeni Kayıt" ekranına ürün seçici eklendi
+Quality default 'A', crop slug → display name (`formatCrop()`), çok ürünlü parselde Günlük ürün seçici.
 
 ---
 
-### ✅ P16-J (genişletilmiş) — Ana Tanıtım Landing Page + Indoor Farming Başvurusu *(Tamamlandı — 2026-07-07)*
+### ✅ P16-J (genişletilmiş) — Landing Page + Indoor Form *(Tamamlandı — 2026-07-07)*
 
-`/` rotası komple yeniden yazıldı: Hero, Sorun, Çiftçiyim (6 kart), Alıcıyım (5 kart), Nasıl Çalışır (Ahmet/Zeynep hikayeleri), Hasat AI (3 kart + chat örneği), Güven, Indoor Farming formu (`#indoor-basvuru` anchor), Footer. Auth-aware redirect düzeltmesi (gerçek Supabase session kontrolü). Indoor form'daki `SUPABASE_SERVICE_ROLE_KEY` hatası anon client'a geçirilerek düzeltildi. Canlı doğrulandı: form DB'ye yazıyor, Twilio SMS bildirimi geliyor.
+`/` rotası komple yeniden yazıldı — Hero, Sorun, Çiftçiyim/Alıcıyım bölümleri, Nasıl Çalışır, Hasat AI, Güven, Indoor Farming formu, Footer. Auth-aware redirect düzeltmesi. Service-role-key hatası düzeltildi.
 
 ---
 
 ### ✅ Bug Fix Batch 4 — Onboarding Kritik (GTM BLOCKER) *(Tamamlandı — 2026-07-07)*
 
-3 kritik bug düzeltildi: "Şimdilik atla" veri kaybı, crops/land hiç kaydedilmiyordu, parsel ekleme UI'ı yoktu. İki ayrı temiz hesapla (2026-07-07, 2026-07-08) doğrulandı.
+"Şimdilik atla" veri kaybı, crops/land kaydedilmiyordu, parsel ekleme UI'ı yoktu — üçü de düzeltildi, iki ayrı temiz hesapla doğrulandı.
 
 ---
 
 ### ✅ P16-F, P16-H Extension, P16-G, P16-I, P16-H, P16-E, P16-C
 
-Detaylar önceki TODO sürümlerinde — hepsi tamamlandı ve test edildi. Özet: topluluk mesajlaşma, stok takibi + batch sayfası, referral programı, crop config (70 kayıt), izlenebilirlik/coverage sistemi, gerçek zamanlı fiyat verisi, IBAN ödeme köprüsü (tam e2e testi hâlâ bekliyor, aşağıda).
+Detaylar önceki TODO sürümlerinde — hepsi tamamlandı ve test edildi.
 
 ---
 
@@ -194,15 +203,15 @@ Detaylar önceki TODO sürümlerinde — hepsi tamamlandı ve test edildi. Özet
 - [x] [C Web] Farmer onboarding E2E — 05421241011 ile tamamlandı, tüm bug'lar düzeltildi ve doğrulandı
 - [x] [C Web] Landing page E2E — anonim ziyaretçi/yeni kayıt/mevcut giriş senaryoları + indoor form
 - [x] [C Web] Parsel → Draft İlan → Hasat Bağlama → Yayınla pipeline'ı E2E test edildi
-- [ ] **Buyer onboarding E2E — 05398545295 ile — SIRADAKİ ADIM**
-- [ ] Uçtan uca senaryo: Ahmet'in yayınladığı bir ürüne Zeynep teklif versin → pazarlık → IBAN ödeme → sipariş tamamlansın (bu P16-C'nin tam havale testini de kapatır)
+- [x] [C Web] **Buyer onboarding E2E — 05398545294 ile tamamlandı** — `ON CONFLICT` trigger bug'ı bulundu ve düzeltildi; bireysel alıcı desteği eksikliği de bu testte fark edildi ve giderildi
+- [ ] **Uçtan uca senaryo — SIRADAKİ ADIM:** Ahmet'in yayınladığı bir ürüne Zeynep (veya yeni buyer hesabı) teklif versin → pazarlık → IBAN ödeme → sipariş tamamlansın (bu P16-C'nin tam havale testini de kapatır)
 - [ ] Kalan kapsam: sertifika, community+reply (buyer tarafı), AI chat, bildirimler, vitrin URL (buyer görünümü), referral, izlenebilirlik (buyer görünümü)
 
 ### Teknik Final
 - [ ] hasat.lovable.app → custom domain yayını
-- [x] ~~hasat.com.tr landing page~~ — P16-J ile birleştirilip tamamlandı, custom domain yayını hâlâ bekliyor
+- [x] ~~hasat.com.tr landing page~~ — P16-J ile birleştirilip tamamlandı
 - [ ] iyzico canlı ödeme testi + tam entegrasyon
-- [ ] P16-C tam havale e2e testi (pending_transfer → farmer confirm) — yukarıdaki senaryoyla kapanacak
+- [ ] P16-C tam havale e2e testi (pending_transfer → farmer confirm) — sıradaki senaryoyla kapanacak
 
 ### İlk Kullanıcılar
 - [ ] İlk 3 farmer beyaz eldiven onboarding (telefonda birlikte)
@@ -255,6 +264,8 @@ Detaylar önceki TODO sürümlerinde — hepsi tamamlandı ve test edildi. Özet
 12. "İlk öğeyi sessizce varsay" deseninden kaçın — çok değerli alanlarda seçim UI'ı şart
 13. Yeni bir DB trigger otomasyon zinciri kurulduğunda, ilgili client mutasyonlarının cache invalidation'ını da güncelle
 14. Karmaşık, çok dosyalı değişiklik öncesi Lovable'a **plan-mode'da audit** yaptırmak çok değerli
+15. **`ON CONFLICT` yazarken çakışma hedefinin (`id` mi, doğal bir unique kolon mu) doğru olduğunu sorgula** — yanlış kolonda çakışma kontrolü, ilgisiz bir satırla çakışınca yeni kaydın sessizce hiç oluşmamasına yol açabilir (bkz. `handle_new_user` fix)
+16. RLS bir tabloyu (örn. `buyer_profiles`) sadece sahibine açıyorsa, o veriye **başka bir rolün** (çiftçi gibi) ihtiyacı varsa join yetmez — ilgili alanı, geniş okumaya açık bir tabloya (örn. `profiles`) denormalize etmeyi düşün
 
 ---
 
@@ -269,6 +280,7 @@ Detaylar önceki TODO sürümlerinde — hepsi tamamlandı ve test edildi. Özet
 | Sosyal medya | Berkin yapıyor, Claude içerik desteği |
 | Alan adı | Belirsiz — araştırılacak, "Hasat" ismiyle sınırlı değil |
 | Ürün kapsamı | Sadece özel/nadir ürünlerle sınırlı değil — 70 crop_config kaydı, her tür tarım ürünü |
+| Alıcı kapsamı | Sadece B2B değil — **Bireysel Alıcı** segmenti resmi olarak destekleniyor (2026-07-08) |
 | Hasat Deneyimi / Korm Marketplace | Phase 2 |
 | İzlenebilirlik birimi | İki katmanlı: Tier 1 (listing_harvest_entries) + Tier 2 (parcel_id + parsel-sezon penceresi) |
 | Listing = tek parsel | Blend yok — 2 parselden satış = 2 ayrı listing |
@@ -279,42 +291,55 @@ Detaylar önceki TODO sürümlerinde — hepsi tamamlandı ve test edildi. Özet
 | AI kutuları | crop-agnostic — P16-I ile düzeltildi |
 | Claude Web araçları | Lovable MCP + Supabase MCP + GitHub MCP (READ ONLY, yazma 403 veriyor) |
 | Vault sync | `hasat-vault` reposu bilinçli olarak PUBLIC tutuluyor — GitHub MCP private repo'ya erişemediği için |
-| Onboarding test numaraları | Çiftçi: 05421241011 · Alıcı: 05398545295 (henüz test edilmedi) |
+| Onboarding test numaraları | Çiftçi: 05421241011 · Alıcı: 05398545294 (dikkat: sonu 5 değil 4 — tamamlandı, `role=buyer` doğru) |
 | Landing page tasarım referansları | bevel.health (UI) + hilberts.ai (persona-segmented içerik) |
 | İletişim numarası | Berkin: +905421241011 — `BERKIN_NOTIFY_PHONE` + `HASAT_WHATSAPP_NUMBER` |
 | İlan durumu (listing_status) | 4 değerli enum: `draft`, `active`, `sold`, `expired`. Draft'lar RLS ile buyer'lardan gizli. |
 | Draft ilan otomasyonu | Parsel oluşturulunca/düzenlenince her ürün için otomatik draft; hasat kaydı → otomatik bağlanıyor; manuel "Yayınla" ile aktif ediliyor |
 | Hukuki sayfalar | `/terms`, `/privacy` — %5 komisyon, ihtilaf çözümü İstanbul mahkemeleri, KVKK/GDPR hakları |
+| Alıcı tipi (company_type) | 6 değerli enum: `restoran`, `otel`, `organik_market`, `ihracatci`, `diger`, `bireysel`. `profiles.buyer_type` kolonu çiftçi tarafında gösterim için denormalize edilmiş durumda. |
 
 ---
 
 ## 📋 Son Test Sonuçları
 
-### P16-D — ToS + Gizlilik (2026-07-08) ✅
-| Test | Sonuç |
-|---|---|
-| `/terms` ve `/privacy` route'ları | ✅ |
-| Landing + login footer linkleri | ✅ |
-| tsgo typecheck | ✅ |
-
-### Draft-İlan Otomasyon Pipeline'ı (2026-07-08) ✅
+### Buyer Onboarding E2E — 05398545294 (2026-07-08) ⚠️ 2 bulgu → düzeltildi ✅
 | Test | Sonuç | Not |
 |---|---|---|
-| `listing_status` enum'una `draft` eklendi | ✅ | |
-| Parsel oluşturunca her ürün için draft ilan | ✅ | Çok ürünlü parselde her ürün ayrı ilan alıyor |
-| Hasat kaydı → otomatik bağlantı | ✅ | parcel_id + crop eşleşmesiyle |
-| Backfill mevcut veriler için | ✅ | |
-| RLS güvenliği | ✅ | Zaten güvenliydi |
-| Vitrin 3 sekme + Yayınla akışı | ✅ | |
-| Cache invalidation eksikti | ❌ → ✅ | Düzeltildi, tekrar test edildi |
+| SMS OTP gönderimi + doğrulama | ✅ | |
+| İlk denemede `.single()` hatası | ❌ → ✅ | `handle_new_user` trigger'ındaki `ON CONFLICT (phone)` bug'ı bulundu, `ON CONFLICT (id)`'ye düzeltildi |
+| Rol seçimi (Alıcıyım) | ✅ | Doğru buton tıklanınca `role=buyer` doğru geçiyor |
+| Onboarding — sadece B2B akış | ⚠️ | Bireysel alıcı seçeneği yoktu — ayrı bir özellik olarak eklendi |
+| Hesap oluşturma | ✅ | `role=buyer`, `referral_code` doğru üretildi |
 
+### Bireysel Alıcı Desteği (2026-07-08) ✅
+| Test | Sonuç | Not |
+|---|---|---|
+| `company_type` enum'una `bireysel` | ✅ | |
+| Onboarding Şirket/Bireysel sekmesi | ✅ | |
+| Çiftçi tarafında "👤 Bireysel" rozeti | ✅ | |
+| Bonus: alıcı tipi her zaman "Restoran" gösterme bug'ı | ❌ → ✅ | `profiles.buyer_type` denormalize edilip düzeltildi, backfill doğrulandı |
+| tsgo typecheck | ✅ | |
+
+### Mobil Responsiveness Audit + Düzeltmeleri (2026-07-08) ✅
+| Test | Sonuç |
+|---|---|
+| Login OTP kutuları 360px | ✅ |
+| Alıcı nav 5 slot + Daha sheet | ✅ |
+| FAB/AI balonu çakışması | ✅ |
+| Header truncate | ✅ |
+| Nice-to-have (6 madde) | ✅ |
+| tsgo typecheck | ✅ |
+
+### P16-D — ToS + Gizlilik (2026-07-08) ✅
+### Draft-İlan Otomasyon Pipeline'ı (2026-07-08) ✅
 ### Crop/Şehir Konsolidasyonu (2026-07-08) ✅
 ### Bug Fix Batch 3 (2026-07-08) ✅
 ### P16-J (genişletilmiş) — Landing Page + Indoor Form (2026-07-07) ✅
-### Bug Fix Batch 4 — Onboarding Kritik Düzeltmeler (2026-07-07, 2026-07-08 tekrar teyit) ✅
+### Bug Fix Batch 4 — Onboarding Kritik Düzeltmeleri (2026-07-07, 2026-07-08 tekrar teyit) ✅
 ### P16-H, P16-I, P16-G, P16-H Extension, P16-F, P16-E (Temmuz 2026) ✅
 
 ### P16-C — IBAN Ödeme Köprüsü ✅ kısmi
 | Test | Sonuç |
 |---|---|
-| Tam havale e2e (pending_transfer → farmer confirm) | ⏳ Ağustos E2E turunda kapanacak |
+| Tam havale e2e (pending_transfer → farmer confirm) | ⏳ Sıradaki uçtan uca senaryoda kapanacak |
