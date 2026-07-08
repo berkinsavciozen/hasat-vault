@@ -25,6 +25,7 @@ tags:
 - [x] P15-Completion A1-A4: backfill, accept guard, withdrawCounter, buyer Aktif tab
 - [x] Auth/profiles fix: orphan cleanup, UNIQUE constraint, phone normalize, ON CONFLICT(id) düzeltmesi
 - [x] Mobil responsiveness auditi ve düzeltmeleri (tüm uygulama)
+- [x] Landing page premium yeniden tasarımı (v2) — "güven altyapısı" konumlandırması
 
 ### P16 — TÜM SERİ TAMAMLANDI ✅
 - [x] [C] P16-A: Ürün (max 3) + Parsel (max 5) fotoğraf upload
@@ -37,13 +38,14 @@ tags:
 - [x] [C Web] P16-I: Crop config + production method + crop-agnostic AI
 - [x] [C Web] P16-H: Ürün yaşam döngüsü / izlenebilirlik
 - [x] [C Web] Bug Fix Batch 4: Onboarding kritik düzeltmeler (GTM blocker giderildi)
-- [x] [C Web] P16-J (genişletilmiş): Ana tanıtım landing page + indoor farming başvuru formu
+- [x] [C Web] P16-J (genişletilmiş): Ana tanıtım landing page + indoor farming başvuru formu (v1)
 - [x] [C Web] Bug Fix Batch 3: quality default, crop slug, çok-ürünlü parsel seçici
 - [x] [C Web] Crop/Şehir Konsolidasyonu: tek doğruluk kaynağı (`crop_config` + `TR_PROVINCES`) tüm uygulamada
 - [x] [C Web] Draft-İlan Otomasyon Pipeline'ı: parsel → otomatik draft ilan → hasat kaydı → otomatik bağlama → Yayınla
 - [x] [C Web] P16-D: ToS + Gizlilik sayfaları (`/terms`, `/privacy`)
 - [x] [C Web] Mobil Responsiveness Audit + Düzeltmeleri
 - [x] [C Web] Bireysel Alıcı Desteği: Şirket/Bireysel onboarding ayrımı + alıcı tipi gösterim düzeltmesi
+- [x] [C Web] Landing Page v2 — Premium "Güven Altyapısı" Yeniden Tasarımı
 
 ### Bug Fixes — Tamamlanan
 - [x] B1: Journal tag rendering (`[key:value]` chips)
@@ -70,18 +72,19 @@ tags:
 - [x] Şehir alanları bazı yerlerde serbest metin, bazı yerlerde dropdown'dı
 - [x] Parsel oluşturunca vitrinde otomatik ilan oluşmuyordu — üç ayrı manuel adım gerekiyordu
 - [x] Parsel/hasat kaydı sonrası Vitrin sayfası tazelenmiyordu (`farmerListings` invalidation eksikti)
-- [x] **`handle_new_user()` trigger'ında `ON CONFLICT (phone) DO NOTHING`** — telefon çakışması olursa yeni kullanıcı için profil sessizce hiç oluşmuyordu (`.single()` hatası). `ON CONFLICT (id)`'ye düzeltildi. Canlı testte bir buyer signup'ında gerçekleşti, temizlendi ve düzeltmeyle tekrar test edildi.
-- [x] Login OTP kutuları 360px'de taşıyordu (6. kutu ekran dışı kesiliyordu)
-- [x] Alıcı alt navigasyonu 6 sekmeyi `grid-cols-5`'e sıkıştırıyordu, ikinci satıra taşıyordu
-- [x] AI chat balonu ile Storefront/Fiyatlar sayfası FAB'ları çakışıyordu (tıklanamıyordu)
+- [x] `handle_new_user()` trigger'ında `ON CONFLICT (phone) DO NOTHING` — `ON CONFLICT (id)`'ye düzeltildi
+- [x] Login OTP kutuları 360px'de taşıyordu
+- [x] Alıcı alt navigasyonu 6 sekmeyi `grid-cols-5`'e sıkıştırıyordu
+- [x] AI chat balonu ile Storefront/Fiyatlar sayfası FAB'ları çakışıyordu
 - [x] Header'larda uzun başlıklar bildirim zilini ekran dışına itiyordu
-- [x] Alıcı tipi her zaman "Restoran" gösteriliyordu — `profiles.buyer_type` diye var olmayan bir kolondan okunuyordu, gerçek `buyer_profiles.company_type`'a hiç bağlı değildi
+- [x] Alıcı tipi her zaman "Restoran" gösteriliyordu — `profiles.buyer_type` denormalize edilerek düzeltildi
 
 ### Araştırma & Planlama
 - [x] Saffron fiyat/yield araştırması · Financial model v0.5 (4-kat indoor) · GTM planı · Vault yeniden yapılandırma
 - [x] P16-H şema kararı: iki katmanlı model çözüldü (Tier 1: listing_harvest_entries + Tier 2: parcel_id)
-- [x] Landing page tasarım auditı: bevel.health (UI) + hilberts.ai (içerik zenginliği) referans alındı
-- [x] Lovable'a plan-mode audit'ler yaptırıldı: crop/şehir tutarsızlıkları, parsel→ilan→hasat bağlama boşluğu, mobil responsiveness, bireysel alıcı desteği için
+- [x] Landing page tasarım auditı v1: bevel.health (UI) + hilberts.ai (içerik zenginliği) referans alındı
+- [x] Landing page tasarım auditı v2: kullanıcı brief'i ("Hasat sebze değil güven satıyor") — Stripe/Linear/Vercel/Apple referanslı premium yeniden konumlandırma
+- [x] Lovable'a plan-mode audit'ler yaptırıldı: crop/şehir tutarsızlıkları, parsel→ilan→hasat bağlama boşluğu, mobil responsiveness, bireysel alıcı desteği, landing page v2 tasarımı için
 
 ---
 
@@ -100,80 +103,103 @@ tags:
 - [ ] `farmer.journal.new.tsx` içindeki "Önce bir parsel ekle" metni hâlâ tıklanamaz statik yazı. Kritik değil, iki başka çalışan yol var.
 - [ ] `formatCrop()` gerçekte `crop_config.display_name`'i okumuyor, slug'ı title-case'e çeviren bir heuristik.
 - [ ] `useDeleteParcel` sonrası draft ilan kartındaki "📍 parsel adı" etiketi sessizce kayboluyor — kozmetik.
-- [ ] Landing page'de 8 ayrı rol-seçim butonu var (Nav, Hero, bölüm CTA'ları, Final CTA) — kolayca yanlış tıklanabiliyor (bir testte çiftçi/alıcı karıştı). İleride azaltmayı düşün.
-- [ ] Müzakere bottom bar, indoor form buton grid'i, parsel satırı, RoleSwitcher dev widget, login splash font — nice-to-have mobil cila, hepsi zaten düzeltildi ama gözden geçirilebilir.
+- [ ] Landing page'de birden fazla rol-seçim butonu var (Nav, Hero, bölüm CTA'ları, Final CTA) — kolayca yanlış tıklanabiliyor (bir testte çiftçi/alıcı karıştı). İleride azaltmayı düşün.
+- [ ] Landing v2'nin kendi planında flag'lenen "ilk pas" sadeleştirmeleri: Türkiye haritası 6-8 pin'le sınırlı (zoom/pan yok), tedarik zinciri animasyonu tam node-tween değil scroll-crossfade, izlenebilirlik telefon mock'u scroll-scrub değil sıralı reveal, hero fotoğrafı tek bir Unsplash görseli. İstersen sonraki iterasyonda zenginleştirilebilir.
+- [ ] Landing v2'nin canlı önizlemesi tarayıcıda görsel olarak henüz gözden geçirilmedi (Lovable'ın screenshot servisi gecikmeli önbellekliyor) — Berkin'in preview'i açıp onaylaması bekleniyor.
 
 ---
 
 ## 🏗️ Lovable Build Sırası — TAMAMLANDI ✅
 
-> P16 serisinin tamamı + mobil audit + bireysel alıcı desteği bitti (2026-07-08). Sıradaki gerçek öncelik: **Ağustos E2E test kapsamı** — GTM'den önce platformun uçtan uca çalıştığının doğrulanması.
+> P16 serisi + mobil audit + bireysel alıcı desteği + landing page v2 bitti (2026-07-08). Sıradaki gerçek öncelik: **Ağustos E2E test kapsamı** — GTM'den önce platformun uçtan uca çalıştığının doğrulanması.
+
+---
+
+### ✅ Landing Page v2 — Premium "Güven Altyapısı" Yeniden Tasarımı *(Tamamlandı — 2026-07-08)*
+
+Kullanıcıdan gelen kapsamlı bir tasarım brief'i işlendi: "Hasat sebze satmıyor, güven satıyor — marketplace bunun sadece aracı." Landing page'in "B2B tarım pazarı" gibi değil, Stripe/Linear/Vercel/Apple'a yakın premium bir SaaS gibi görünmesi hedeflendi. Prompt yazılmadan önce 5 kritik karar netleştirildi ve onaylandı, sonra Lovable'a plan-mode'da gönderilip planı onaylandıktan sonra build edildi.
+
+**Netleştirilen kararlar (build öncesi):**
+1. Yeni "premium" palet **sadece `/` landing page'e** uygulandı — uygulamanın geri kalanı (`--dark`/`--saffron`/`--gold`) değişmedi
+2. Framer-motion veya harita kütüphanesi eklenmedi — Tailwind/CSS keyframes + IntersectionObserver + özel inline SVG Türkiye haritası
+3. Gerçek çiftçi fotoğrafı yok — kimliksiz/watermark'sız stok görseller (toprak, safran, zeytin, lavanta, fındık) atmosfer için; illüstratif kartlar (Ahmet/Zeynep) açıkça "Örnek ilan"/"Örnek senaryo" etiketiyle işaretlendi
+4. Güven Skoru isimleri tamamen Türkçe ve uygulamadaki gerçek sistemle birebir aynı: Belgeleniyor → Temel → İyi Belgelenmiş → Tam İzlenebilir
+5. Sahte sosyal kanıt sayaçları (uydurma kullanıcı/çiftlik sayısı) **hiç eklenmedi** — dürüstlük gerekçesiyle tamamen atlandı
+
+**Uygulanan (`src/routes/index.tsx` komple yeniden yazıldı, sadece bu dosya):**
+1. Yeni local palet (`--lp-*` CSS değişkenleri, sadece bu route'a scope'lu): Deep Green `#1B3A2B`, Fresh Green accent `#4A9B5E`, Earth Brown `#6B4A32`, Cream `#F5F1E6`
+2. Hero — desatüre/karartılmış tarla fotoğrafı arka plan, glassmorphism ürün kartı (Ahmet örneği, "Tam İzlenebilir" rozeti), sıralı çizilen 4 adımlı mini tarla günlüğü timeline'ı
+3. Değer direkleri (Doğrudan Üreticiden / Tam İzlenebilir / Adil Fiyat)
+4. Tedarik zinciri karşılaştırması — geleneksel 6 halkalı zincir (değer kaybı vurgusu) vs. Hasat'ın kısa direkt yolu
+5. İzlenebilirlik bölümü — telefon mockup'ında sıralı açılan tarla günlüğü satırları
+6. Pazar yeri önizlemesi — 4 "Örnek ilan" etiketli premium ürün kartı
+7. İnteraktif Türkiye haritası — özel çizilmiş SVG anahat + 7 pulslayan pin (Safranbolu, Isparta, Ayvalık, Giresun, Malatya, İzmir, Antalya), tıkla-aç bilgi kartı
+8. Çiftçi hikayesi — Ahmet'e atfedilen açıkça illüstratif alıntı + atmosferik toprak/el fotoğrafı (kimliksiz)
+9. Alıcı personaları — 5 kart (Restoran/Kafe, Otel, Market/Manav, İhracatçı, Bireysel Tüketici)
+10. Hasat AI — WhatsApp tarzı 2 örnek diyalog (soru-cevap + "bugün hasat yaptım" otomatik ilan güncellemesi)
+11. Güven Skoru merdiveni — 4 gerçek tier, animasyonlu progress bar
+12. Indoor Farming bölümü — form/DB/SMS bağlantısı korunarak yeni palette restyle edildi
+13. Footer — `/terms`, `/privacy`, WhatsApp linkleri korunarak restyle edildi
+
+**Korunan işlevsellik (doğrulandı):** Auth-aware session redirect, "Çiftçiyim"/"Alıcıyım" → `/login?role=` yönlendirmesi, `#indoor-basvuru` formu ve DB/SMS bağlantısı, `/terms` + `/privacy` footer linkleri — hiçbiri bozulmadı.
+
+**tsgo:** Temiz geçti.
+
+**Bekleyen:** Ekran görüntüsü servisi gecikmeli önbellekliyor, Berkin'in canlı preview'de görsel olarak gözden geçirip onaylaması gerekiyor.
 
 ---
 
 ### ✅ Bireysel Alıcı Desteği *(Tamamlandı — 2026-07-08)*
 
-Canlı buyer onboarding testinde fark edildi: akış tamamen B2B varsayımıyla kurulmuştu (zorunlu "Şirket Adı" + 5 işletme tipinden biri). Lovable'a plan-mode audit yaptırıldı.
+Canlı buyer onboarding testinde fark edildi: akış tamamen B2B varsayımıyla kurulmuştu. Lovable'a plan-mode audit yaptırıldı.
 
 **Uygulanan:**
 1. `company_type` enum'una `bireysel` eklendi
-2. `onboarding.buyer.tsx` step 1'e **Şirket/Bireysel sekmesi** — Bireysel seçilince "Şirket Adı" → "Adınız Soyadınız" olur, işletme tipi grid'i tamamen gizlenir; step 3'te "Şirket Adresi" → "Adres" olur
-3. `BuyerType` tipi genişletildi, çiftçi sipariş listesi + alıcı hesap sayfasında nötr **"👤 Bireysel"** rozeti eklendi
-4. **Bonus bulgu ve düzeltme:** `queries.ts`'de alıcı tipi var olmayan bir kolondan (`profiles.buyer_type`) okunmaya çalışılıyordu ve her zaman sessizce "Restoran"a düşüyordu — yani daha önce **hangi tip alıcı olursa olsun çiftçiye hep Restoran gösteriliyordu**. `buyer_profiles` RLS'i sadece alıcının kendisine okuma izni verdiği için basit bir join yeterli olmadı; `profiles.buyer_type` kolonu eklenip mevcut `buyer_profiles.company_type`'tan backfill edildi, artık çiftçi gerçek alıcı tipini görüyor.
-
-**Canlı doğrulama:** Backfill kontrol edildi, mevcut 2 alıcı (Zeynep: ihracatçı, test hesabı: diğer) doğru şekilde `profiles.buyer_type`'a yansımış. tsgo temiz.
+2. `onboarding.buyer.tsx` step 1'e **Şirket/Bireysel sekmesi**
+3. `BuyerType` tipi genişletildi, "👤 Bireysel" rozeti eklendi
+4. **Bonus fix:** alıcı tipi her zaman "Restoran" gösteriliyordu — `profiles.buyer_type` denormalize edilerek düzeltildi
 
 ---
 
 ### ✅ Mobil Responsiveness Audit + Düzeltmeleri *(Tamamlandı — 2026-07-08)*
 
-Lovable'a 360px viewport'ta tüm rotaları ve paylaşılan component'leri tarayan bir plan-mode audit yaptırıldı — satır numaralarıyla somut, önceliklendirilmiş bir liste döndü.
-
-**Must-fix (kırık/kullanılamaz):**
-1. Login OTP kutuları 360px'i aşıyordu, son kutu kesiliyordu
-2. Alıcı alt nav 6 sekmeyi `grid-cols-5`'e sıkıştırıyordu, ikinci satıra taşıyordu → çiftçi nav'daki gibi 5 slot + "Daha" taşma sheet'ine çevrildi
-3. AI chat balonu ile Storefront/Fiyatlar FAB'ları aynı bölgede çakışıyor, tıklanamıyordu → FAB'lar `bottom-36`'ya taşındı
-4. Uzun header başlıkları bildirim zilini ekran dışına itiyordu → `min-w-0` + `truncate` eklendi
-
-**Nice-to-have (cila):** müzakere bottom bar buton etiketi, landing hero mobil font ölçeği, indoor form buton grid'i, parsel satırı truncate, dev RoleSwitcher widget konumu, login splash font — hepsi de uygulandı.
-
-**Sonuç:** Tüm 10 madde tamamlandı, tsgo temiz. Zaten sorunsuz olanlar: ToS/Privacy, onboarding sayfaları, çiftçi alt nav, günlük chip'leri, keşfet, teklif/sipariş sayfaları, batch sayfası — hiçbir yerde `<table>` yok.
+360px viewport'ta tüm rotalar tarandı. Must-fix: login OTP kutuları, alıcı nav 5 slot + Daha sheet, AI/FAB çakışması, header truncate. Nice-to-have: 6 madde. Tümü uygulandı, tsgo temiz.
 
 ---
 
 ### ✅ P16-D — ToS + Gizlilik *(Tamamlandı — 2026-07-08)*
 
-`/terms` (10 bölüm) + `/privacy` (9 bölüm), landing/login footer linkleri. Detay: %5 GMV komisyonu, KVKK/GDPR hakları, Supabase/Twilio üçüncü taraf açıklaması.
+`/terms` (10 bölüm) + `/privacy` (9 bölüm), landing/login footer linkleri.
 
 ---
 
 ### ✅ Draft-İlan Otomasyon Pipeline'ı *(Tamamlandı — 2026-07-08)*
 
-Parsel oluşturma/düzenleme → her ürün için otomatik draft ilan (DB trigger) → hasat kaydı → otomatik `listing_harvest_entries` bağlantısı → manuel "Yayınla" ile aktife çekme. `listing_status` enum'una `draft` eklendi. Backfill yapıldı. Cache invalidation eksikliği (`farmerListings`/`listingStock`/`listingBatchEntries`) bulunup düzeltildi.
+Parsel oluşturma/düzenleme → her ürün için otomatik draft ilan → hasat kaydı → otomatik bağlantı → manuel "Yayınla".
 
 ---
 
 ### ✅ Crop/Şehir Konsolidasyonu *(Tamamlandı — 2026-07-08)*
 
-`useCropOptions()` (canlı `crop_config`'ten), `TR_PROVINCES` (81 il), `CropChips.tsx`, `cropEmoji()` — 5 hardcoded liste + 4 kopya emoji haritası kaldırılıp tek kaynağa bağlandı.
+`useCropOptions()`, `TR_PROVINCES`, `CropChips.tsx`, `cropEmoji()` — tek kaynağa bağlandı.
 
 ---
 
 ### ✅ Bug Fix Batch 3 *(Tamamlandı — 2026-07-08)*
 
-Quality default 'A', crop slug → display name (`formatCrop()`), çok ürünlü parselde Günlük ürün seçici.
+Quality default 'A', crop slug → display name, çok ürünlü parselde Günlük ürün seçici.
 
 ---
 
-### ✅ P16-J (genişletilmiş) — Landing Page + Indoor Form *(Tamamlandı — 2026-07-07)*
+### ✅ P16-J (v1) — Landing Page + Indoor Form *(Tamamlandı — 2026-07-07, sonradan v2 ile üzerine yazıldı)*
 
-`/` rotası komple yeniden yazıldı — Hero, Sorun, Çiftçiyim/Alıcıyım bölümleri, Nasıl Çalışır, Hasat AI, Güven, Indoor Farming formu, Footer. Auth-aware redirect düzeltmesi. Service-role-key hatası düzeltildi.
+İlk landing page yeniden yazımı — Landing Page v2 tarafından supersede edildi (2026-07-08).
 
 ---
 
 ### ✅ Bug Fix Batch 4 — Onboarding Kritik (GTM BLOCKER) *(Tamamlandı — 2026-07-07)*
 
-"Şimdilik atla" veri kaybı, crops/land kaydedilmiyordu, parsel ekleme UI'ı yoktu — üçü de düzeltildi, iki ayrı temiz hesapla doğrulandı.
+"Şimdilik atla" veri kaybı, crops/land kaydedilmiyordu, parsel ekleme UI'ı yoktu.
 
 ---
 
@@ -201,15 +227,16 @@ Detaylar önceki TODO sürümlerinde — hepsi tamamlandı ve test edildi.
 
 ### E2E Test — devam ediyor
 - [x] [C Web] Farmer onboarding E2E — 05421241011 ile tamamlandı, tüm bug'lar düzeltildi ve doğrulandı
-- [x] [C Web] Landing page E2E — anonim ziyaretçi/yeni kayıt/mevcut giriş senaryoları + indoor form
+- [x] [C Web] Landing page E2E (v1) — anonim ziyaretçi/yeni kayıt/mevcut giriş senaryoları + indoor form
 - [x] [C Web] Parsel → Draft İlan → Hasat Bağlama → Yayınla pipeline'ı E2E test edildi
-- [x] [C Web] **Buyer onboarding E2E — 05398545294 ile tamamlandı** — `ON CONFLICT` trigger bug'ı bulundu ve düzeltildi; bireysel alıcı desteği eksikliği de bu testte fark edildi ve giderildi
+- [x] [C Web] Buyer onboarding E2E — 05398545294 ile tamamlandı — `ON CONFLICT` trigger bug'ı ve bireysel alıcı eksikliği bulundu, düzeltildi
+- [ ] **Landing page v2 görsel doğrulama — Berkin'in canlı preview'de gözden geçirmesi bekleniyor**
 - [ ] **Uçtan uca senaryo — SIRADAKİ ADIM:** Ahmet'in yayınladığı bir ürüne Zeynep (veya yeni buyer hesabı) teklif versin → pazarlık → IBAN ödeme → sipariş tamamlansın (bu P16-C'nin tam havale testini de kapatır)
 - [ ] Kalan kapsam: sertifika, community+reply (buyer tarafı), AI chat, bildirimler, vitrin URL (buyer görünümü), referral, izlenebilirlik (buyer görünümü)
 
 ### Teknik Final
 - [ ] hasat.lovable.app → custom domain yayını
-- [x] ~~hasat.com.tr landing page~~ — P16-J ile birleştirilip tamamlandı
+- [x] ~~hasat.com.tr landing page~~ — P16-J ile birleştirilip tamamlandı, v2 ile geliştirildi
 - [ ] iyzico canlı ödeme testi + tam entegrasyon
 - [ ] P16-C tam havale e2e testi (pending_transfer → farmer confirm) — sıradaki senaryoyla kapanacak
 
@@ -238,6 +265,7 @@ Detaylar önceki TODO sürümlerinde — hepsi tamamlandı ve test edildi.
 - [ ] **Hasat Deneyimi Rezervasyonu** — tarla ziyareti slotu; takvim + rezervasyon ödemesi
 - [ ] **Korm Marketplace** — farmer→farmer safran soğanı alım-satımı
 - [ ] **Otomatik Fiyat Toplama** — pg_cron + crop_config.auto_price_source; İzmir BB Hal API vb.
+- [ ] **Landing v2 zenginleştirme** — Türkiye haritası bölge vurgulaması, tam node-tween tedarik zinciri animasyonu, scroll-scrub telefon mock'u, özel üretilmiş hero görseli
 
 ### Finansal Hedefler
 - [ ] MRR ₺5K+ (Aralık 2026) · MRR ₺15K+ (Mart 2027 — M8) · MRR ₺50K+ (M18) · MRR ₺230K+ → **QUIT TETİKLEYİCİSİ** (M23)
@@ -264,8 +292,10 @@ Detaylar önceki TODO sürümlerinde — hepsi tamamlandı ve test edildi.
 12. "İlk öğeyi sessizce varsay" deseninden kaçın — çok değerli alanlarda seçim UI'ı şart
 13. Yeni bir DB trigger otomasyon zinciri kurulduğunda, ilgili client mutasyonlarının cache invalidation'ını da güncelle
 14. Karmaşık, çok dosyalı değişiklik öncesi Lovable'a **plan-mode'da audit** yaptırmak çok değerli
-15. **`ON CONFLICT` yazarken çakışma hedefinin (`id` mi, doğal bir unique kolon mu) doğru olduğunu sorgula** — yanlış kolonda çakışma kontrolü, ilgisiz bir satırla çakışınca yeni kaydın sessizce hiç oluşmamasına yol açabilir (bkz. `handle_new_user` fix)
-16. RLS bir tabloyu (örn. `buyer_profiles`) sadece sahibine açıyorsa, o veriye **başka bir rolün** (çiftçi gibi) ihtiyacı varsa join yetmez — ilgili alanı, geniş okumaya açık bir tabloya (örn. `profiles`) denormalize etmeyi düşün
+15. `ON CONFLICT` yazarken çakışma hedefinin (`id` mi, doğal bir unique kolon mu) doğru olduğunu sorgula
+16. RLS bir tabloyu sadece sahibine açıyorsa, o veriye başka bir rolün ihtiyacı varsa join yetmez — geniş okumaya açık bir tabloya denormalize et
+17. **Büyük görsel/tasarım değişikliklerinde, palet/kapsam kararlarını (hangi route'lar etkilenecek, marka kimliği değişecek mi) prompt yazmadan önce netleştir** — Landing v2'de "sadece landing page" kararı erken netleştirilmeseydi tüm uygulamanın marka kimliği riske girebilirdi
+18. Sahte veri/sosyal kanıt (kullanıcı sayısı, testimonial) gösterme baskısı olduğunda, gerçek veri yoksa **bölümü tamamen atla**, gizli placeholder bile bırakma — dürüstlük ilkesi
 
 ---
 
@@ -280,7 +310,11 @@ Detaylar önceki TODO sürümlerinde — hepsi tamamlandı ve test edildi.
 | Sosyal medya | Berkin yapıyor, Claude içerik desteği |
 | Alan adı | Belirsiz — araştırılacak, "Hasat" ismiyle sınırlı değil |
 | Ürün kapsamı | Sadece özel/nadir ürünlerle sınırlı değil — 70 crop_config kaydı, her tür tarım ürünü |
-| Alıcı kapsamı | Sadece B2B değil — **Bireysel Alıcı** segmenti resmi olarak destekleniyor (2026-07-08) |
+| Alıcı kapsamı | Sadece B2B değil — **Bireysel Alıcı** segmenti resmi olarak destekleniyor |
+| Marka konumlandırması | "Hasat sebze satmıyor, güven satıyor" — tarımsal ticaret için güven altyapısı, marketplace sadece mekanizma |
+| Landing page palet kapsamı | Yeni "premium" palet (`--lp-*`) **sadece `/` route'una scope'lu** — uygulamanın geri kalanı `--saffron`/`--gold`/`--dark` kimliğinde kalıyor |
+| Landing page görsel politikası | Gerçek olmayan kişi/testimonial gösterilmiyor; kimliksiz/watermark'sız stok görsel + açıkça "örnek" etiketli illüstratif kartlar |
+| Sahte sosyal kanıt | Asla — gerçek kullanıcı sayısı olmadan sayaç/testimonial bölümü hiç eklenmiyor |
 | Hasat Deneyimi / Korm Marketplace | Phase 2 |
 | İzlenebilirlik birimi | İki katmanlı: Tier 1 (listing_harvest_entries) + Tier 2 (parcel_id + parsel-sezon penceresi) |
 | Listing = tek parsel | Blend yok — 2 parselden satış = 2 ayrı listing |
@@ -291,51 +325,46 @@ Detaylar önceki TODO sürümlerinde — hepsi tamamlandı ve test edildi.
 | AI kutuları | crop-agnostic — P16-I ile düzeltildi |
 | Claude Web araçları | Lovable MCP + Supabase MCP + GitHub MCP (READ ONLY, yazma 403 veriyor) |
 | Vault sync | `hasat-vault` reposu bilinçli olarak PUBLIC tutuluyor — GitHub MCP private repo'ya erişemediği için |
-| Onboarding test numaraları | Çiftçi: 05421241011 · Alıcı: 05398545294 (dikkat: sonu 5 değil 4 — tamamlandı, `role=buyer` doğru) |
-| Landing page tasarım referansları | bevel.health (UI) + hilberts.ai (persona-segmented içerik) |
+| Onboarding test numaraları | Çiftçi: 05421241011 · Alıcı: 05398545294 |
+| Landing page tasarım referansları | v1: bevel.health + hilberts.ai · v2: Stripe/Linear/Vercel/Apple (kullanıcı brief'i) |
 | İletişim numarası | Berkin: +905421241011 — `BERKIN_NOTIFY_PHONE` + `HASAT_WHATSAPP_NUMBER` |
 | İlan durumu (listing_status) | 4 değerli enum: `draft`, `active`, `sold`, `expired`. Draft'lar RLS ile buyer'lardan gizli. |
 | Draft ilan otomasyonu | Parsel oluşturulunca/düzenlenince her ürün için otomatik draft; hasat kaydı → otomatik bağlanıyor; manuel "Yayınla" ile aktif ediliyor |
 | Hukuki sayfalar | `/terms`, `/privacy` — %5 komisyon, ihtilaf çözümü İstanbul mahkemeleri, KVKK/GDPR hakları |
-| Alıcı tipi (company_type) | 6 değerli enum: `restoran`, `otel`, `organik_market`, `ihracatci`, `diger`, `bireysel`. `profiles.buyer_type` kolonu çiftçi tarafında gösterim için denormalize edilmiş durumda. |
+| Alıcı tipi (company_type) | 6 değerli enum: `restoran`, `otel`, `organik_market`, `ihracatci`, `diger`, `bireysel`. `profiles.buyer_type` denormalize. |
+| Güven Skoru tier isimleri | Tüm platformda (uygulama + landing) tutarlı: Belgeleniyor → Temel → İyi Belgelenmiş → Tam İzlenebilir |
 
 ---
 
 ## 📋 Son Test Sonuçları
 
+### Landing Page v2 — Premium Yeniden Tasarım (2026-07-08) ✅ (görsel onay bekliyor)
+| Test | Sonuç | Not |
+|---|---|---|
+| Plan-mode audit + onay akışı | ✅ | Kullanıcı 5 kritik kararı build öncesi netleştirdi |
+| Palet sadece `/` route'una scope'lu | ✅ | `--lp-*` local CSS değişkenleri, global tokenlara dokunulmadı |
+| 12 bölüm tam uygulandı | ✅ | Hero, değer direkleri, tedarik zinciri, izlenebilirlik, pazar yeri, harita, çiftçi hikayesi, alıcı personaları, AI, güven skoru, indoor, footer |
+| Auth-redirect / CTA / indoor form / footer linkleri korundu | ✅ | Kod incelemesiyle doğrulandı |
+| Sahte sosyal kanıt eklenmedi | ✅ | Talimata uygun, hiç bölüm yok |
+| Güven Skoru Türkçe tier isimleri | ✅ | Mevcut sistemle birebir aynı |
+| tsgo typecheck | ✅ | |
+| Görsel doğrulama (canlı preview) | ⏳ | Ekran görüntüsü servisi gecikmeli, Berkin'in tarayıcıda gözden geçirmesi bekleniyor |
+
 ### Buyer Onboarding E2E — 05398545294 (2026-07-08) ⚠️ 2 bulgu → düzeltildi ✅
 | Test | Sonuç | Not |
 |---|---|---|
 | SMS OTP gönderimi + doğrulama | ✅ | |
-| İlk denemede `.single()` hatası | ❌ → ✅ | `handle_new_user` trigger'ındaki `ON CONFLICT (phone)` bug'ı bulundu, `ON CONFLICT (id)`'ye düzeltildi |
-| Rol seçimi (Alıcıyım) | ✅ | Doğru buton tıklanınca `role=buyer` doğru geçiyor |
-| Onboarding — sadece B2B akış | ⚠️ | Bireysel alıcı seçeneği yoktu — ayrı bir özellik olarak eklendi |
-| Hesap oluşturma | ✅ | `role=buyer`, `referral_code` doğru üretildi |
+| İlk denemede `.single()` hatası | ❌ → ✅ | `ON CONFLICT (phone)` → `ON CONFLICT (id)` |
+| Onboarding — sadece B2B akış | ⚠️ → ✅ | Bireysel alıcı desteği eklendi |
+| Hesap oluşturma | ✅ | |
 
 ### Bireysel Alıcı Desteği (2026-07-08) ✅
-| Test | Sonuç | Not |
-|---|---|---|
-| `company_type` enum'una `bireysel` | ✅ | |
-| Onboarding Şirket/Bireysel sekmesi | ✅ | |
-| Çiftçi tarafında "👤 Bireysel" rozeti | ✅ | |
-| Bonus: alıcı tipi her zaman "Restoran" gösterme bug'ı | ❌ → ✅ | `profiles.buyer_type` denormalize edilip düzeltildi, backfill doğrulandı |
-| tsgo typecheck | ✅ | |
-
 ### Mobil Responsiveness Audit + Düzeltmeleri (2026-07-08) ✅
-| Test | Sonuç |
-|---|---|
-| Login OTP kutuları 360px | ✅ |
-| Alıcı nav 5 slot + Daha sheet | ✅ |
-| FAB/AI balonu çakışması | ✅ |
-| Header truncate | ✅ |
-| Nice-to-have (6 madde) | ✅ |
-| tsgo typecheck | ✅ |
-
 ### P16-D — ToS + Gizlilik (2026-07-08) ✅
 ### Draft-İlan Otomasyon Pipeline'ı (2026-07-08) ✅
 ### Crop/Şehir Konsolidasyonu (2026-07-08) ✅
 ### Bug Fix Batch 3 (2026-07-08) ✅
-### P16-J (genişletilmiş) — Landing Page + Indoor Form (2026-07-07) ✅
+### P16-J (v1) — Landing Page + Indoor Form (2026-07-07) ✅ — v2 ile supersede edildi
 ### Bug Fix Batch 4 — Onboarding Kritik Düzeltmeleri (2026-07-07, 2026-07-08 tekrar teyit) ✅
 ### P16-H, P16-I, P16-G, P16-H Extension, P16-F, P16-E (Temmuz 2026) ✅
 
