@@ -1,0 +1,154 @@
+---
+title: Hasat — E2E QA Test Dokümanı
+updated: 2026-07-09
+tags:
+  - hasat
+  - qa
+  - e2e
+  - test
+---
+
+# Hasat — E2E QA Test Dokümanı
+
+**Bu bir "yaşayan" dokümandır.** Her yeni feature/prompt sonrası, ilgili test senaryosu bu dosyaya eklenir ve gerçekten çalıştırılır. Berkin ve Claude bu dosyayı birlikte kullanır — Claude senaryoyu tasarlar+çalıştırır, Berkin sonucu görür ve gerekince müdahale eder.
+
+**Tasarım ilkesi: Berkin'in müdahalesi minimum olmalı.** Bu yüzden otomasyonun merkezi, **sabit OTP'li seed hesaplar** (Ahmet/Zeynep) — bunlarla Claude, Berkin'in hiçbir SMS/tıklama işlemi olmadan rol değiştirip uçtan uca senaryo koşabilir.
+
+---
+
+## Otomasyon Mimarisi
+
+Claude'un elinde iki ayrı MCP bağlantısı var, ikisi de farklı amaçlara hizmet ediyor:
+
+| Araç | Ne için | Kim gibi çalışır |
+|---|---|---|
+| **Hasat MCP** (`hasat.lovable.app/mcp`) | Gerçek kullanıcı aksiyonları (ilan oluştur, teklif ver, ödeme onayla) | O an OAuth ile bağlı olan **tek bir gerçek kullanıcı** (RLS ile doğal sınırlı) |
+| **Supabase MCP** (admin, proje `efuqpiaavrzimvstpdpm`) | DB doğrulama, test verisi temizliği, şema/trigger kontrolü, RLS/güvenlik denetimi | Admin/service-role — **asla kullanıcı aksiyonu simülasyonu için kullanılmaz**, sadece okuma/doğrulama/temizlik |
+
+**Kritik kural:** Hasat MCP'nin tool'ları, kullanıcının UI'da yapabileceğinin dışına çıkamaz (RLS + `confirm:true` zorunluluğu hassas işlemlerde). Supabase MCP ise sadece **gözlemci/hakem** rolünde — bir kullanıcı adına asla yazma işlemi yapmaz. Bu ayrım, testin gerçek sistemi doğru şekilde sınadığını garanti eder.
+
+---
+
+## Test Hesapları
+
+### 🟢 Birincil otomasyon hesapları (SABİT OTP — Berkin müdahalesi gerekmez)
+| Rol | Telefon | OTP | Not |
+|---|---|---|---|
+| Çiftçi | `05001234567` | `123456` | Ahmet Yılmaz — onboarding tamamlanmış, aktif ilanları var |
+| Alıcı | `05009876543` | `123456` | Zeynep Kaya — onboarding tamamlanmış |
+
+Bu ikisi **seed data** — onboarding akışını test etmek için uygun değil (zaten tamamlanmış), ama **her şeyin ötesindeki tüm akışlar** (parsel, ilan, teklif, pazarlık, ödeme, günlük, topluluk vb.) için birincil test hesapları.
+
+### 🟡 İkincil hesaplar (DİNAMİK OTP — Berkin'in SMS'i gerekir)
+| Rol | Telefon | Not |
+|---|---|---|
+| Çiftçi | `05421241011` | Sıfırdan onboarding testi için — Berkin gerçek SMS kodu görüp Claude'a iletir |
+| Alıcı | `05398545294` | Aynı şekilde |
+
+**Kullanım kuralı:** Sadece "yeni kullanıcı onboarding'i" veya "trigger'ların sıfırdan tetiklenmesi" test edilmesi gerektiğinde bu hesaplar kullanılır — ve testten sonra **DB'den temizlenir** (bkz. Temizlik bölümü) ki tekrar "sıfır" durumda kullanılabilsin.
+
+---
+
+## Rol Değiştirme Prosedürü (Hasat MCP)
+
+Claude'un tek bir Hasat MCP bağlantısı olabilir, tek kullanıcıya bağlı. Çiftçi↔Alıcı geçişi için:
+
+1. Berkin: Claude ayarları → Connectors → Hasat → **Disconnect**
+2. Berkin: **Add custom connector** (aynı URL: `https://hasat.lovable.app/mcp`) → Connect
+3. Hasat login ekranı açılır → ilgili sabit-OTP hesabın telefonunu gir → `123456` → İzin Ver
+4. Claude: `tool_search` ile tool listesini tazele (yeni oturum tool cache'i sıfırlar)
+
+Sabit OTP'li hesaplar arasında bu geçiş ~30 saniye sürer, Berkin'in tek işi 2 tıklama + telefon numarası yazmak.
+
+---
+
+## Test Senaryo Kataloğu
+
+> Her senaryo: **Ön koşul → Adımlar (hangi tool, hangi parametre) → Beklenen sonuç → Doğrulama (Supabase MCP sorgusu) → Son çalıştırma tarihi/sonucu**
+
+### S1 — Çiftçi: Parsel → Otomatik Draft İlan → Günlük Kaydı → Yayınla
+- **Ön koşul:** Ahmet hesabına bağlı Hasat MCP
+- **Adımlar:**
+  1. `create_parcel(name, city, area, crops[])`
+  2. `list_my_parcels()` → yeni parseli doğrula
+  3. `list_my_listings(status:"draft")` → her crop için draft ilan oluştuğunu doğrula
+  4. `create_harvest_entry(parcel_id, crop, quantity, quality, harvest_date)`
+  5. Supabase MCP: `listing_harvest_entries`'de otomatik bağlantı oluştuğunu doğrula
+  6. `publish_listing(listing_id, quantity, price_per_unit)`
+  7. `list_my_listings(status:"active")` → yayınlandığını doğrula
+- **Beklenen:** Her adım hatasız, draft→active geçişi doğru, otomatik bağlantı çalışıyor
+- **Son çalıştırma:** 2026-07-09 ✅ (bu oturumda, create_harvest_entry ile test edildi — parsel/publish adımları henüz tam koşulmadı)
+
+### S2 — Uçtan Uca Teklif/Pazarlık/Ödeme Akışı
+- **Ön koşul:** Ahmet'in aktif bir ilanı var (örn. Kekik, 5kg, ₺100)
+- **Adımlar:**
+  1. [Alıcıya geç] `browse_marketplace()` → ilanı bul
+  2. `create_offer(listing_id, quantity, offered_price)`
+  3. [Çiftçiye geç] `list_offers_on_my_listings(status:"pending")` → teklifi gör
+  4. `respond_to_offer(offer_id, action:"counter", counter_price, confirm:true)`
+  5. [Alıcıya geç] `list_my_offers()` → karşı teklifi gör
+  6. `respond_to_counter(offer_id, action:"accept", confirm:true)`
+  7. Supabase MCP: `offers.status`, stok kilidi (`trg_enforce_offer_stock`) tetiklendiğini doğrula
+  8. `mark_transfer_sent(order_id, confirm:true)`
+  9. [Çiftçiye geç] `confirm_payment_received(order_id, confirm:true)`
+  10. Supabase MCP: `orders.status` tamamlandığını doğrula
+- **Beklenen:** Her adımda doğru state geçişi, stok kilidi doğru zamanda, hassas tool'lar `confirm:true` olmadan reddediyor (bunu da ayrıca test et: `confirm` göndermeden çağırıp reddedildiğini doğrula)
+- **Son çalıştırma:** Henüz koşulmadı — bir sonraki adım
+
+### S3 — Fiyat Özeti / Rekabet Hukuku Bariyerleri
+- **Ön koşul:** Yok
+- **Adımlar:**
+  1. Supabase MCP: `SELECT * FROM get_price_feed_summary('safran')` — az veri varken `insufficient_data:true` dönüyor mu
+  2. En az 5 farklı çiftçiden veri girildiğinde agregat döndüğünü doğrula (gerekirse test verisi ekleyip sonra temizle)
+  3. Farmer UI/MCP üzerinden fiyat sayfasının tekil kayıt göstermediğini, sadece bandı gösterdiğini doğrula
+- **Son çalıştırma:** 2026-07-09 ✅ (RPC fonksiyonu + insufficient_data testi yapıldı, ambiguous column bug'ı bulunup düzeltildi)
+
+### S4 — Onboarding (Çiftçi/Alıcı, Sıfırdan) — Berkin'in SMS'i Gerekir
+- **Ön koşul:** Dinamik OTP hesabı DB'den temiz olmalı (`auth.users`, `profiles`, `parcels`, `farms` sıfır satır)
+- **Adımlar:** Berkin gerçek SMS akışını UI'dan yürütür, Claude her adımda Supabase MCP ile doğrular (profil oluşumu, `referral_code`, otomatik parsel, vb.)
+- **Son çalıştırma:** 2026-07-08 ✅ (Bug Fix Batch 4 sonrası, hem çiftçi hem alıcı için)
+
+### S5 — Topluluk Moderasyonu (Fiyat Koordinasyonu Filtresi)
+- **Ön koşul:** Ahmet hesabı (MCP'de topluluk post tool'u yok — bu senaryo **hibrit**, Supabase MCP ile doğrudan insert simülasyonu + gerçek UI kontrolü gerekebilir)
+- **Adımlar:**
+  1. Supabase MCP ile `community_posts`'a "₺500 sabit fiyat yapalım, anlaşalım" içerikli bir test satırı ekle (gerçek insert mantığını taklit ederek — trigger'lar zaten DB seviyesinde çalışır)
+  2. `flagged_for_review` kolonunun `true` olduğunu doğrula
+  3. Farklı bir kullanıcı POV'undan (RLS ile) postun maskeli göründüğünü doğrula
+- **Son çalıştırma:** Henüz koşulmadı
+
+### S6 — Landing Page / Auth-Aware Redirect
+- **Ön koşul:** Yok (bu MCP ile test edilemez, tarayıcı gerekli)
+- **Not:** Bu senaryo **tamamen manuel** — Claude sadece kod incelemesi yapabilir, gerçek tıklama/scroll/görsel kontrol Berkin'de kalır.
+- **Son çalıştırma:** 2026-07-08-09 ✅ (manuel, ekran görüntüleriyle)
+
+---
+
+## Feature Sonrası Süreç (Yeni Senaryo Ekleme)
+
+1. Yeni bir Lovable prompt'u tamamlanınca, Claude bu dosyaya **yeni bir S-numarası** ile senaryo ekler (ön koşul/adım/beklenen/doğrulama formatında)
+2. Mümkünse hemen çalıştırılır (MCP tool'ları yeterliyse otomatik, değilse hibrit/manuel olarak işaretlenir)
+3. Sonuç (✅/❌ + tarih) senaryonun altına not edilir
+4. Eğer test bir bug bulursa: TODO.md'ye bug olarak eklenir, düzeltme sonrası bu dosyada senaryo tekrar koşulup ✅ işaretlenir
+5. Dosya, TODO.md ile aynı workflow'la vault'a commit edilir (Claude hazırlar, Berkin GitHub web arayüzünden yapıştırır)
+
+---
+
+## Test Verisi Temizlik Kuralları
+
+- **Sabit-OTP hesaplar (Ahmet/Zeynep):** Temizlenmez — bunlar kalıcı seed data, testler onların üzerine "ekleme" yapar (yeni parsel, yeni ilan vb.), bu birikim sorun değil çünkü zaten senaryo bazlı izole edilebiliyor
+- **Dinamik-OTP hesaplar (05421241011 / 05398545294):** Her onboarding testi sonrası, bir sonraki teste "sıfır" başlamak için Supabase MCP ile temizlenir: `auth.users`, `profiles`, `parcels`, `farms`, ilgili `listings`/`harvest_entries` sırayla silinir (bkz. bu oturumda daha önce yapılan temizlik sorguları)
+- **Test amaçlı oluşturulan diğer veri** (örn. S3'teki price_feed test satırları, S5'teki topluluk test postu) — senaryo sonunda hemen silinir, kalıcı veri kirliliği bırakılmaz
+
+---
+
+## Bilinen Kısıtlar
+
+- **Bir MCP bağlantısı = bir kullanıcı.** Aynı anda hem çiftçi hem alıcı olarak bağlı olunamaz — S2 gibi iki taraflı senaryolarda sürekli disconnect/reconnect gerekir (sabit OTP ile hızlı, ama sıfır değil)
+- **Topluluk post/reply, sertifika/fotoğraf upload, WhatsApp AI chat, referral link ziyareti, veri indirme butonu** için henüz MCP tool'u yok — bu akışlar hibrit (Supabase MCP simülasyonu) veya tamamen manuel (Berkin'in UI'da yapması) kalıyor
+- **Landing page, mobil responsiveness, görsel/animasyon doğrulaması** hiçbir zaman MCP ile test edilemez — bunlar için Berkin'in ekran görüntüsü/gözden geçirmesi her zaman gerekecek
+- **Yayın gecikmesi:** Yeni MCP tool'u eklendiğinde, Lovable'da **Publish** yapılmadan canlı `hasat.lovable.app` güncellenmez; connector da tool listesini önbelleğe aldığı için disconnect/reconnect gerekebilir
+
+---
+
+## Değişiklik Geçmişi
+- **2026-07-09:** Doküman oluşturuldu. S1 (kısmi), S3, S4, S6 geçmiş oturumlarda zaten koşulmuş olarak işaretlendi. S2, S5 sırada.
