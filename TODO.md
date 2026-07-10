@@ -20,24 +20,20 @@ tags:
 - [x] P15 Teklif/Müzakere state machine + P15-Completion
 - [x] Auth/profiles fix'leri (orphan cleanup, ON CONFLICT düzeltmesi)
 - [x] Mobil responsiveness auditi · Landing page v2 (premium "güven altyapısı")
-- [x] **Hasat MCP Server** — `hasat.lovable.app/mcp`, OAuth 2.1 (Supabase issuer), 16 tool (çiftçi+alıcı, okuma+yazma, hassas işlemlerde `confirm:true` zorunlu)
-- [x] **Rekabet Hukuku Risk Denetimi + Düzeltmeleri** (bkz. detaylı bölüm aşağıda)
-- [x] **Kapsamlı RLS Güvenlik Denetimi + 4 Kritik/Orta Düzeltme** (bkz. detaylı bölüm aşağıda)
-- [x] **E2E-QA Dokümanı** oluşturuldu (`Build/E2E-QA`) — Hasat MCP + Supabase MCP ile otomasyon mimarisi
+- [x] **Hasat MCP Server** — `hasat.lovable.app/mcp`, OAuth 2.1 (Supabase issuer), 16 tool
+- [x] **Rekabet Hukuku Risk Denetimi + Düzeltmeleri**
+- [x] **Kapsamlı RLS Güvenlik Denetimi + 4 Kritik/Orta Düzeltme**
+- [x] **E2E-QA Dokümanı** (`Build/E2E-QA`) — Hasat MCP + Supabase MCP otomasyon mimarisi
+- [x] **Landing Page Kopya + SEO + AI-SEO Denetimi** (bkz. detaylı bölüm aşağıda)
+- [x] **Tedarik Zinciri Görsel Yeniden Tasarımı** (2 iterasyon — bkz. aşağıda)
 
 ### P16 — TÜM SERİ TAMAMLANDI ✅
-(P16-A/B/C/D/E/F/G/H/H-Ext/I/J + Bug Fix Batch 3/4 + Crop/Şehir Konsolidasyonu + Draft-İlan Pipeline'ı + Bireysel Alıcı Desteği + Landing v2 — hepsi tamamlandı, detaylar önceki sürümlerde)
-
-### Bug Fixes — Tamamlanan (özet, tam liste önceki sürümlerde)
-- [x] Onboarding/parsel/draft-ilan/crop-şehir tutarsızlıkları (2026-07-08)
-- [x] `handle_new_user` ON CONFLICT, buyer_type denormalizasyonu
-- [x] Landing page v2 görsel bug'ları (2026-07-09, bkz. aşağıda)
-- [x] **4 kritik/orta güvenlik açığı** (2026-07-10, bkz. aşağıda)
+(Detaylar önceki sürümlerde)
 
 ### Araştırma & Planlama
-- [x] Landing page tasarım auditleri v1/v2
-- [x] **Rekabet Kurumu risk denetimi** — algoritmik fiyatlama, e-pazaryeri sektör raporu (2021) referansları
-- [x] **MCP server'dan nasıl faydalanılacağı** planlandı — E2E otomasyon + ürün farklılaştırıcı olarak
+- [x] Landing page tasarım auditleri v1/v2 + **kopya/SEO denetimi (v3)**
+- [x] Rekabet Kurumu risk denetimi
+- [x] MCP server kullanım planı
 
 ---
 
@@ -51,87 +47,69 @@ tags:
 - [ ] `farmer.journal.new.tsx` "Önce bir parsel ekle" statik metni
 - [ ] `formatCrop()` heuristik (crop_config'ten canlı okumuyor)
 - [ ] Landing page'de çok fazla rol-seçim butonu (karışma riski, bir testte yaşandı)
-- [ ] Landing v2 "ilk pas" sadeleştirmeleri (harita pin sayısı, tedarik zinciri animasyon zenginliği)
-- [ ] MCP yazma tool'larında aralıklı **"No approval received"** hatası — retry ile geçiyor, kök neden izleniyor
+- [ ] MCP yazma tool'larında aralıklı **"No approval received"** hatası — retry ile geçiyor
 - [ ] `profiles`/`certifications` güvenlik düzeltmeleri için canlı exploit testi henüz yapılmadı (kod seviyesinde doğrulandı, düşük öncelik)
+- [ ] **Lovable platform bug'ı (bilinen, bizim tarafımızdan düzeltilemez):** `plan_mode=false` (build moduna geçiş) sinyali bazen agent'ın kendi kod düzenleme tool'larına (code--line_replace vb.) yansımıyor — agent "hâlâ plan mode kısıtlaması var" diye fark edip bir sonraki turda aynı mesajın tekrar gönderilmesini istiyor. Bu oturumda 3+ kez yaşandı, her seferinde 1 ekstra mesajla çözüldü, veri kaybı/tutarsızlık yaratmadı. Lovable'a feedback olarak bildirildi (2026-07-10).
 
 ---
 
 ## 🏗️ Lovable Build Sırası — TAMAMLANDI ✅
 
-> P16 serisi + mobil audit + bireysel alıcı + landing v2 + MCP server + rekabet hukuku düzeltmeleri + güvenlik denetimi bitti. Sıradaki: **Ağustos E2E test kapsamının tamamlanması** (buyer-tarafı özellikler: sertifika, community reply, AI chat, bildirimler).
+> P16 serisi + mobil audit + bireysel alıcı + landing v2/v3 + MCP server + rekabet hukuku + güvenlik denetimi bitti. Sıradaki: **Ağustos E2E test kapsamının tamamlanması** (buyer-tarafı özellikler: sertifika, community reply, AI chat, bildirimler).
+
+---
+
+### ✅ Tedarik Zinciri Görsel Yeniden Tasarımı *(Tamamlandı — 2026-07-10, 2 iterasyon)*
+
+Berkin'in canlı gözden geçirmesi sonucu iki ayrı sorun bulundu ve çözüldü:
+
+**Sorun 1 — Kavramsal karışıklık:** "Geleneksel" ve "Hasat ile" toggle durumları iki farklı metriği aynı görsel dille (bar+%) gösteriyordu, kafa karıştırıyordu. **Çözüm:** Her iki durum da aynı metriğe ("alıcının ödediğin ₺100'ün üreticiye kalan payı") indirildi — Hasat ile artık sadece 2 düğüm (Çiftçi 100% → Alıcı 95%, "Hasat" kendi barı olan bir düğüm değil, bir mekanizma). Üstte büyük, animasyonlu **%14 vs %95** karşılaştırma kartı eklendi (`CountUp` component'i).
+
+**Sorun 2 — Görsel "wow" eksikliği + teknik kırılganlık:** Toggle kaldırılıp iki zincir yan yana/üst üste gösterilmesi istendi, animasyonla güçlendirilmesi istendi.
+- **1. deneme:** SVG + SMIL `<animate>` particle'ları (geleneksel zincirde küçülen/soluklaşan ₺ parçacıkları, Hasat'ta kesintisiz akan parçacıklar). **Tarayıcıda kırıldı** — kök neden: `preserveAspectRatio="none"` ile non-uniform stretch edilen viewBox içinde SMIL hesaplamaları React re-render'larla çakışıp particle'ları görünmez alt-piksel boyutuna küçültüyordu.
+- **2. deneme (kalıcı çözüm):** SVG/SMIL tamamen kaldırılıp **sadece düz CSS**'e geçildi — her zincir tek, kompakt bir yatay çubuk (6 sütunlu grid'den ~%50 daha az düşey yer), segmentler kademeli soluklaşan renkle "erime" hissi veriyor, tek bir ₺ işaretli `<span>` marker `@keyframes` ile (`left` + `transform: scale`) geziniyor — geleneksel'de her sınırda küçülüyor, Hasat'ta sabit boyutta akıyor. `prefers-reduced-motion` desteği korundu.
+
+**Öğrenilen ders:** SVG SMIL animasyonları, özellikle `preserveAspectRatio="none"` ile stretch edilmiş viewBox'larda ve React'in re-render döngüsüyle etkileşimde güvenilmez olabilir — karmaşık/çok-parçalı animasyon ihtiyaçlarında düz CSS `@keyframes` (tek element, `left`/`transform`) daha sağlam bir birinci tercih.
+
+---
+
+### ✅ Landing Page Kopya + SEO + AI-SEO Denetimi *(Tamamlandı — 2026-07-10)*
+
+Kullanıcı talebiyle tüm landing page metni denetlendi: çiftçi/basit alıcı dilinde akıcı Türkçe, SEO avantajı, AI/LLM SEO (Generative Engine Optimization), ilk gelen ziyaretçiler için açıklayıcılık, ve "prototip/test" hissi vermeme.
+
+**Dil/akıcılık düzeltmeleri:** Hero alt metni (abstrakt→somut), meta description (garip cümle yapısı düzeltildi), "Adil Fiyat" kart metni (istatistik jargonu→sade dil), AI chat balonu ("→" yerine "'den...'ye"), Nav CTA tutarlılığı ("girişi"→"-yim", Hero ile eşleşti).
+
+**Ton değişikliği (dürüstlük korunarak):** "Örnek ilan"/"Örnek senaryo" gibi özür diler tondaki etiketler → "Gösterim" gibi kendinden emin, ürün-tanıtımı tonunda etiketlere çevrildi — hiçbir sahte veri sinyali kaldırılmadı, sadece dili güçlendirildi. Ayrıca aynı örnek kullanıcının (Ahmet/Safranbolu/Safran) 4 farklı bölümde tekrarlanması "tek örnek var, gerisi boş" hissi verdiği için çeşitlendirildi: Hero+Timeline Safran/Safranbolu kalırken, İzlenebilirlik mockup'ı Zeytin/Ayvalık'a, Çiftçi Hikayesi Lavanta/Isparta'ya çevrildi (gerçekçi mevsim tarihleriyle).
+
+**Teknik SEO:** Title tag arama niyetine uygun hale getirildi ("Hasat \| Çiftçiden Doğrudan Alışveriş — İzlenebilir Tarım Pazarı"), `ValuePillars`'a eksik olan `<h2>` eklendi (H1→H3 boşluğu kapatıldı), boş `alt=""` etiketleri dolduruldu, **JSON-LD structured data** eklendi (Organization + FAQPage şemaları).
+
+**AI/LLM SEO (Generative Engine Optimization):** Yeni bir **SSS (FAQ) bölümü** eklendi (6 soru-cevap: Hasat nedir, komisyon, izlenebilirlik hesaplama, bireysel alıcı, ödeme, çiftçi başlangıcı) — hem geleneksel SEO (featured snippet potansiyeli) hem AI arama modellerinin (ChatGPT, Perplexity vb.) net, alıntılanabilir gerçekler bulması için. FAQPage JSON-LD ile eşleştirildi.
+
+**Tümü tek bir plan-mode onayı sonrası tek build'de uygulandı, tsgo temiz.**
 
 ---
 
 ### ✅ Kapsamlı RLS Güvenlik Denetimi + Düzeltmeleri *(Tamamlandı — 2026-07-10)*
 
-Kullanıcı talebiyle "tüm QA bitene kadar" sistematik bir güvenlik taraması yapıldı: tüm 24 `public` şema tablosunun RLS policy'leri tek tek incelendi (`with_check IS NULL` deseni arandı — "kim yazabilir" var ama "ne yazabilir" kısıtı yok).
-
-**Bulgular ve düzeltmeler:**
-1. 🔴 **KRİTİK — `offers` tablosu:** Alıcı/çiftçi, `payment_status`/fiyat/miktar/durum alanlarını resmi akışı (respond_to_offer/mark_transfer_sent/confirm_payment_received) atlayıp direkt API isteğiyle **hiçbir kısıtlama olmadan** değiştirebiliyordu. En ciddi somut risk: bir alıcı hiç ödeme yapmadan `payment_status='paid'` yazabilirdi. **Düzeltme:** `enforce_offer_transitions_trg` — tam state machine'i (ödeme geçişleri, fiyat/miktar sadece karşı-teklif sırasında ve sırası olan tarafça, durum geçiş whitelist'i) DB seviyesinde kodladı.
-2. 🔴 **KRİTİK — `community_posts`:** Fiyat-koordinasyon moderasyon filtresi (`looksLikePriceCoordination`) sadece client-side JS'te çalışıyordu, direkt API isteğiyle tamamen bypass edilebiliyordu. **Düzeltme:** `enforce_community_moderation_trg` — aynı mantık artık DB'de, client'ın gönderdiği değeri her zaman geçersiz kılıp kendi hesaplıyor.
-3. 🟠 **ORTA-YÜKSEK — `profiles`:** Kullanıcı kendi `role`/`tier`/`premium`/`referred_by`/`buyer_type` alanlarını sınırsız self-update edebiliyordu (rol yükseltme, ücretsiz premium riski). **Düzeltme:** `enforce_profile_self_update_restrictions_trg`.
-4. 🟡 **ORTA — `certifications`:** Çiftçi kendi sertifikasını `verified_at` ile self-doğrulayabiliyordu. **Düzeltme:** `enforce_cert_verification_trg` + UI'da "Doğrulama bekleniyor" fallback metni.
-5. ✅ **Güvenli doğrulanan tablolar:** `orders` (UPDATE policy'si yok), `offer_messages`, `order_timeline`, `listing_harvest_entries`, `crop_config`, `price_points`, `listings.status/quantity`'nin statik kalması (tasarım gereği, dinamik stok hesaplamasıyla tutarlı).
-
-**Canlı doğrulama (en değerli kısım):** Supabase MCP admin oturumunda `auth.uid()` her zaman `NULL` döndüğü için (trigger'lar bu durumda enforcement'ı atlıyor, tasarım gereği), gerçek exploit testleri **`set_config('request.jwt.claims',...)` ile gerçek bir buyer JWT'si impersonate edilerek**, sonu kasıtlı `RAISE EXCEPTION` ile rollback edilen bir transaction içinde yapıldı:
-- `unpaid→paid` atlama denemesi → **bloklandı** ("Gecersiz odeme durumu gecisi")
-- Sırası olmayanın fiyat değiştirme denemesi → **bloklandı**
-- Pending teklifte fiyat değiştirme denemesi → **bloklandı**
-- Topluluk moderasyon bypass denemesi (direkt INSERT) → tekrar denendi, artık **doğru yakalanıyor**
-
-**Regresyon testi:** Yeni trigger'lar aktifken S2 (uçtan uca teklif/pazarlık/ödeme) senaryosu Hasat MCP üzerinden gerçek OAuth oturumlarıyla (Ahmet↔Zeynep) sıfırdan tekrar koşuldu — **sıfır regresyon**, meşru akış tamamen sorunsuz.
-
-**Sonuç: Gün sonunda bilinen kritik/yüksek öncelikli bug kalmadı.**
+(Detaylar önceki sürümde — 2 kritik + 2 orta bulgu, JWT impersonasyonuyla canlı exploit testi, S2 regresyon testi sıfır hatayla geçti)
 
 ---
 
 ### ✅ Rekabet Hukuku Risk Denetimi + Düzeltmeleri *(Tamamlandı — 2026-07-09)*
 
-Kullanıcı talebiyle Rekabet Kurumu (4054 sayılı Kanun) açısından risk denetimi yapıldı — Kurum'un 2026 algoritmik fiyatlama/dijital platform denetim önceliği ve 2021 E-Pazaryeri Sektör Raporu (öz-tercihlendirme, algoritmik fiyatlama, MFN, veri kilitleme) referans alındı. **Not: Bu bir hukuki görüş değildir, gerçek bir avukatla teyit edilmeli.**
-
-**Bulunan riskler ve uygulanan azaltmalar:**
-1. **`price_feed` RLS tamamen açıktı** (herkes ham, tekil, farmer-ID'li kayıtları görebiliyordu) → `get_price_feed_summary()` RPC'si eklendi: sadece agregat (30 gün, min. 5 farklı çiftçi eşiği), ham okuma kapatıldı
-2. **AI fiyat uyarısı doğrudan sayı öneriyordu (rakip fiyat sinyali riski)** → band-based (YÜKSEK/UYGUN/DÜŞÜK) sisteme çevrildi, hiçbir zaman spesifik sayı önermiyor
-3. **WhatsApp AI + in-app AI chat** → sistem promptlarına aynı band-based çerçeve + "asla spesifik fiyat önerme" talimatı eklendi
-4. **ToS'a** fiyat/arz/müşteri koordinasyonu yasağı maddesi eklendi
-5. **Topluluk moderasyonu** — ilk versiyon (client-side keyword flag) eklendi, sonradan 2026-07-10'da DB trigger'ına taşınarak güçlendirildi (bkz. yukarı)
-6. **Sıralama şeffaflığı** — landing/storefront/discover'a kısa açıklama eklendi
-7. **Veri dışa aktarma** — farmer.settings'e "Verilerimi İndir" JSON export butonu eklendi (KVKK/taşınabilirlik savunması)
-
-**Karşılaşılan ve düzeltilen bug:** `get_price_feed_summary()` ilk halinde "ambiguous column" hatası veriyordu (RETURNS TABLE çıktı adı, tablo kolonuyla çakışıyordu) — düzeltildi, canlı doğrulandı.
+(Detaylar önceki sürümde)
 
 ---
 
 ### ✅ Hasat MCP Server Kurulumu + Genişletmesi *(Tamamlandı — 2026-07-09/10)*
 
-Uygulama, `hasat.lovable.app/mcp` adresinde OAuth 2.1 korumalı (Supabase Auth issuer, Dynamic Client Registration) bir MCP server olarak yayınlandı. Herhangi bir MCP istemcisi (Claude dahil), gerçek bir kullanıcı hesabıyla OAuth yapıp, RLS'in doğal sınırladığı işlemleri yapabiliyor.
-
-**İlk 4 tool** (okuma + 1 yazma) → **plan-mode audit sonrası 16 tool'a genişletildi** (çiftçi: parsel/ilan/teklif yönetimi; alıcı: keşfet/teklif/ödeme — ilk kez eklendi). Her hassas tool (`respond_to_offer`, `respond_to_counter`, `confirm_payment_received`, `mark_transfer_sent`) Zod seviyesinde `confirm: z.literal(true)` zorunluluğu taşıyor.
-
-**Güvenlik tasarımı:** Hiçbir tool service-role kullanmıyor, hepsi kullanıcının kendi bearer token'ıyla çalışıyor (RLS tek güvence). Kullanıcının UI'da yapabileceğinin dışına çıkamıyor.
-
-**Kullanım alanı:** Hem gerçek ürün özelliği (WhatsApp dışında herhangi bir AI asistanı Hasat hesabına bağlanabilir) hem de Claude'un E2E test otomasyonu için birincil araç — bkz. `Build/E2E-QA`.
-
-**Bilinen kısıt:** Bir connector bağlantısı = bir kullanıcı kimliği; çiftçi↔alıcı geçişi disconnect/reconnect gerektiriyor (sabit-OTP seed hesaplarla ~30 saniye).
+(Detaylar önceki sürümde — 16 tool, OAuth 2.1, S1/S2 canlı test)
 
 ---
 
 ### ✅ Landing Page v2 — Görsel Düzeltmeler *(Tamamlandı — 2026-07-09)*
 
-Canlı gözden geçirme sonrası (Berkin'in ekran görüntüleri) bulunan 8 sorun düzeltildi:
-1. Hero mini "Tarla Günlüğü" kartı sıkışıklığı → padding/spacing artırıldı
-2. Tedarik Zinciri bölümü (bozuk "→değer" glyph'leri) → value-bar karşılaştırma (toggle: Geleneksel/Hasat ile) ile yeniden inşa edildi
-3. İzlenebilirlik telefon mockup'ı → aynı premium spacing
-4. Pazar yeri kartları: "Örnek ilan" pill'i kaldırıldı, çiftçi isimleri maskelendi (örn. "A. Y.")
-5. **Ürün-fotoğraf uyumsuzluğu** (zeytinyağı→orman, lavanta→okyanus, fındık→soğan fotoğrafı) → doğru Unsplash görselleriyle değiştirildi
-6. Türkiye haritası (tanınmaz blob) → gerçek basitleştirilmiş Türkiye anahatı
-7. **Bug:** Sticky Nav'ın `backdrop-blur`'ı, scroll'da bölümler arası "sızma"/boş şerit görünümüne sebep oluyordu → Nav opak yapıldı, her section'a explicit background verildi
-8. **Bug:** `RoleSwitcher` (dev widget'ı) public landing'de sızıyordu → `/` route'unda gizlendi
-
----
-
-### Sosyal Medya / Çiftçi Ağı (değişmedi, bkz. önceki sürümler)
+(Detaylar önceki sürümde — 8 madde)
 
 ---
 
@@ -139,74 +117,54 @@ Canlı gözden geçirme sonrası (Berkin'in ekran görüntüleri) bulunan 8 soru
 
 ### E2E Test — devam ediyor
 - [x] Farmer/Buyer onboarding E2E · Landing page E2E · Draft-İlan pipeline E2E
-- [x] **S1 (Parsel→Draft→Günlük→Yayınla)** — Hasat MCP ile tam koşuldu ✅
-- [x] **S2 (Teklif→Pazarlık→Ödeme)** — Hasat MCP ile 2 kez tam koşuldu (güvenlik düzeltmesi öncesi + regresyon testi) ✅
-- [x] **S3 (Fiyat özeti/rekabet hukuku)** ✅ · **S5 (Topluluk moderasyonu)** ✅ (bug bulundu+düzeltildi) · **S7 (RLS güvenlik denetimi)** ✅
-- [ ] Kalan kapsam: sertifika (foto upload), community+reply UI, AI chat kalitesi, bildirimler, referral tam akış — MCP tool'u olmayan alanlar, hibrit/manuel test gerekiyor
+- [x] S1, S2, S3, S5, S7 — bkz. `Build/E2E-QA`
+- [ ] Kalan kapsam: sertifika (foto upload), community+reply UI, AI chat kalitesi, bildirimler, referral tam akış — MCP tool'u olmayan alanlar
 
 ### Teknik Final
 - [ ] hasat.lovable.app → custom domain yayını · iyzico canlı ödeme testi
-- [x] P16-C tam havale e2e testi — **S2 ile kapandı** ✅
-
-### İlk Kullanıcılar
-(değişmedi, bkz. önceki sürümler)
+- [x] P16-C tam havale e2e testi — S2 ile kapandı ✅
 
 ---
 
 ## 🔵 SAFRAN SEZONU / ⬜ SONRAKI FAZLAR
 
-(değişmedi, bkz. önceki sürümler — Landing v2 zenginleştirme roadmap'te kalıyor)
+(değişmedi, bkz. önceki sürümler)
 
 ---
 
 ## 📋 Lovable Prompt Yazma Kuralları
 
-(1-18 önceki sürümde — devam:)
-19. **RLS `with_check IS NULL` sistematik olarak taranmalı** — özellikle iki tarafın (buyer+farmer gibi) aynı satırı güncelleyebildiği tablolarda, "kim yazabilir" kısıtı "ne yazabilir" kısıtı garantisi vermez. Business-kritik alan geçişleri (ödeme durumu, rol, doğrulama) için ayrı bir `BEFORE UPDATE` trigger gerekir.
-20. **Güvenlik düzeltmesi sonrası canlı exploit testi için:** Supabase MCP admin oturumu `auth.uid()=NULL` döndürür, trigger'lar genelde bunu atlar (service-role bypass tasarımı) — gerçek testin `set_config('request.jwt.claims',...)` ile kullanıcı JWT'si impersonate edilip, sonu kasıtlı `RAISE EXCEPTION`'la rollback edilen bir transaction içinde yapılması gerekir.
-21. **Rekabet hukuku hassasiyeti olan özelliklerde** (fiyat şeffaflığı, AI önerileri, topluluk forumları) bilgilendirici dil ile tavsiye edici dil arasındaki çizgi net tutulmalı — spesifik sayı önermek yerine bant/aralık göstermek tercih edilmeli.
+(1-21 önceki sürümde — devam:)
+22. **SVG SMIL animasyonlarına dikkat** — özellikle `preserveAspectRatio="none"` ile non-uniform stretch edilen viewBox'larda ve React re-render'larıyla etkileşimde güvenilmez/kırılgan olabiliyor. Karmaşık/çok-elemanlı animasyon ihtiyaçlarında önce düz CSS `@keyframes` (tek element, `left`/`transform`/`opacity`) denenmeli — daha sağlam, daha az bağımlılık.
+23. **Landing/pazarlama metni yazdırırken** dürüstlük ilkesini (sahte veri/sosyal kanıt yok) korumakla "kendinden emin ton" arasında gerginlik olabilir — çözüm dürüstlük sinyalini kaldırmak değil, **tonunu** değiştirmek (özür diler dilden → ürün-tanıtımı diline).
+24. **Bilinen Lovable platform hatası:** `plan_mode` API parametresi bazen agent'ın kod düzenleme tool'larının izin durumuna senkronize yansımıyor — build moduna geçiş mesajı bazen 2 kez gönderilmesi gerekiyor. Bizim tarafımızdan düzeltilemez, Lovable'a bildirildi.
 
 ---
 
 ## 📌 Kararlar
 
 (önceki tablo + eklenenler:)
-| İlan durumu, Draft otomasyonu, Hukuki sayfalar, Alıcı tipi, Güven Skoru isimleri | *(değişmedi)* |
-| **MCP server** | `hasat.lovable.app/mcp`, OAuth 2.1, 16 tool, hem ürün özelliği hem E2E test aracı olarak kullanılıyor |
-| **Rekabet hukuku duruşu** | Fiyat verisi her zaman agregat+geciktirilmiş+min-N-eşikli; AI hiçbir zaman spesifik fiyat önermez, sadece bant gösterir |
-| **Güvenlik ilkesi** | RLS tek güvence yeterli değil — iki-taraflı paylaşımlı tablolarda (offers gibi) her zaman ek bir state-machine trigger'ı olmalı |
-| **QA otomasyon mimarisi** | Hasat MCP (gerçek kullanıcı aksiyonu) + Supabase MCP (sadece doğrulama/temizlik) ayrımı — `Build/E2E-QA` dokümanında detaylı |
+| **Landing page dil ilkesi** | Çiftçi/basit alıcı dilinde akıcı Türkçe; dürüstlük sinyalleri (Gösterim, örnek vb.) korunur ama kendinden emin/ürün-tanıtımı tonunda yazılır, özür diler gibi değil |
+| **SEO/AI-SEO** | Title/meta/H2 hiyerarşisi + JSON-LD (Organization+FAQPage) + SSS bölümü — hem geleneksel arama hem AI arama modelleri için |
+| **Animasyon tercihi** | Düz CSS `@keyframes` > SVG SMIL (kırılganlık riski nedeniyle) |
 
 ---
 
 ## 📋 Son Test Sonuçları
 
-### RLS Güvenlik Denetimi (2026-07-10) ✅
+### Tedarik Zinciri Görsel Yeniden Tasarımı (2026-07-10) ✅ (2 iterasyon)
 | Test | Sonuç |
 |---|---|
-| 24 tablo sistematik RLS taraması | ✅ 2 kritik + 2 orta bulgu |
-| `offers` — 3 exploit denemesi (JWT impersonasyonu) | ✅ Hepsi bloklandı |
-| `community_posts` — bypass denemesi | ✅ Artık yakalanıyor |
-| S2 regresyon (yeni trigger'lar aktifken) | ✅ Sıfır regresyon |
+| Metrik birleştirme (%14 vs %95 headline) | ✅ |
+| SVG/SMIL particle denemesi | ❌ Kırıldı, kök neden teşhis edildi |
+| CSS-only tek çubuk + marker yeniden tasarımı | ✅ Berkin tarafından canlı onaylandı ("Much better") |
+| tsgo | ✅ (her iki denemede de) |
+
+### Landing Page Kopya + SEO Denetimi (2026-07-10) ✅
+| Test | Sonuç |
+|---|---|
+| Plan-mode onayı → tek build | ✅ Hiçbir madde atlanmadı (kod incelemesiyle doğrulandı) |
+| Dil/ton/SEO/FAQ/JSON-LD (tüm madde) | ✅ |
 | tsgo | ✅ |
 
-### Rekabet Hukuku Düzeltmeleri (2026-07-09) ✅
-| Test | Sonuç |
-|---|---|
-| `get_price_feed_summary` RPC | ❌→✅ (ambiguous column bug düzeltildi) |
-| Band-based AI nudge | ✅ |
-| ToS + moderasyon + sıralama şeffaflığı + veri export | ✅ |
-
-### Hasat MCP Server (2026-07-09/10) ✅
-| Test | Sonuç |
-|---|---|
-| 4 ilk tool (okuma+create_harvest_entry) | ✅ Gerçek OAuth ile test edildi |
-| 12 ek tool (16 toplam) | ✅ tsgo temiz, tüm hassas tool'larda confirm zorunlu |
-| S1, S2 canlı MCP testi | ✅ Tam geçti |
-
-### Landing Page v2 Görsel Düzeltmeleri (2026-07-09) ✅
-| Test | Sonuç |
-|---|---|
-| 8 madde (spacing, tedarik zinciri, foto uyumu, harita, Nav bug, RoleSwitcher leak) | ✅ Hepsi düzeltildi |
-
-### (Önceki tüm test sonuçları — P16 serisi, Bireysel Alıcı, Mobil Audit, Landing v1, Bug Fix Batch 3/4 — değişmedi, önceki sürümlerde)
+### (Önceki tüm test sonuçları — RLS Güvenlik, Rekabet Hukuku, MCP Server, Landing v2, P16 serisi vb. — değişmedi, önceki sürümlerde)
