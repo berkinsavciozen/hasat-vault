@@ -18,108 +18,104 @@ tags:
 
 ## Otomasyon Mimarisi
 
-Claude'un elinde iki ayrı MCP bağlantısı var, ikisi de farklı amaçlara hizmet ediyor:
-
 | Araç | Ne için | Kim gibi çalışır |
 |---|---|---|
-| **Hasat MCP** (`hasat.lovable.app/mcp`) | Gerçek kullanıcı aksiyonları (ilan oluştur, teklif ver, ödeme onayla) | O an OAuth ile bağlı olan **tek bir gerçek kullanıcı** (RLS ile doğal sınırlı) |
-| **Supabase MCP** (admin, proje `efuqpiaavrzimvstpdpm`) | DB doğrulama, test verisi temizliği, şema/trigger kontrolü, RLS/güvenlik denetimi | Admin/service-role — **asla kullanıcı aksiyonu simülasyonu için kullanılmaz**, sadece okuma/doğrulama/temizlik |
-
-**Kritik kural:** Hasat MCP'nin tool'ları, kullanıcının UI'da yapabileceğinin dışına çıkamaz (RLS + `confirm:true` zorunluluğu hassas işlemlerde). Supabase MCP ise sadece **gözlemci/hakem** rolünde — bir kullanıcı adına asla yazma işlemi yapmaz. Bu ayrım, testin gerçek sistemi doğru şekilde sınadığını garanti eder.
+| **Hasat MCP** (`hasat.lovable.app/mcp`) | Gerçek kullanıcı aksiyonları | O an OAuth ile bağlı **tek bir gerçek kullanıcı** (RLS ile doğal sınırlı) |
+| **Supabase MCP** (admin) | DB doğrulama, temizlik, RLS denetimi | Admin/service-role — **asla kullanıcı simülasyonu için kullanılmaz** |
 
 ---
 
 ## Test Hesapları
 
-### 🟢 Birincil otomasyon hesapları (SABİT OTP — Berkin müdahalesi gerekmez)
-| Rol | Telefon | OTP | Not |
-|---|---|---|---|
-| Çiftçi | `05001234567` | `123456` | Ahmet Yılmaz — onboarding tamamlanmış, aktif ilanları var |
-| Alıcı | `05009876543` | `123456` | Zeynep Kaya — onboarding tamamlanmış |
+### 🟢 Birincil otomasyon hesapları (SABİT OTP)
+| Rol | Telefon | OTP |
+|---|---|---|
+| Çiftçi | `05001234567` | `123456` (Ahmet Yılmaz) |
+| Alıcı | `05009876543` | `123456` (Zeynep Kaya) |
 
 ### 🟡 İkincil hesaplar (DİNAMİK OTP — Berkin'in SMS'i gerekir)
-| Rol | Telefon | Not |
-|---|---|---|
-| Çiftçi | `05421241011` | Sıfırdan onboarding testi için |
-| Alıcı | `05398545294` | Aynı şekilde |
+| Rol | Telefon |
+|---|---|
+| Çiftçi | `05421241011` |
+| Alıcı | `05398545294` |
 
 ---
 
 ## Rol Değiştirme Prosedürü (Hasat MCP)
 
-1. Berkin: Claude ayarları → Connectors → Hasat → **Disconnect**
-2. Berkin: **Add custom connector** (aynı URL: `https://hasat.lovable.app/mcp`) → Connect
-3. Hasat login ekranı açılır → ilgili sabit-OTP hesabın telefonunu gir → `123456` → İzin Ver
-4. Claude: `tool_search` ile tool listesini tazele (yeni oturum tool cache'i sıfırlar)
+1. Berkin: Connectors → Hasat → Disconnect → Add custom connector (aynı URL) → Connect
+2. İlgili sabit-OTP hesabın telefonunu gir → `123456` → İzin Ver
+3. Claude: `tool_search` ile tool listesini tazele
 
-**Bilinen tuhaflık (2026-07-10):** MCP yazma tool'larında (`create_parcel`, `create_offer`) aralıklı olarak **"No approval received"** hatası görüldü — hiçbir onay ekranı görünmeden, 1-2 retry sonrası kendiliğinden geçiyor. Kök neden belirsiz (OAuth token yenileme race condition şüphesi). Etkisi düşük (retry ile çözülüyor) ama not edilmeli.
+**Bilinen tuhaflık:** MCP yazma tool'larında aralıklı **"No approval received"** hatası — hiçbir onay ekranı görünmeden, 1-2 retry sonrası kendiliğinden geçiyor. Kök neden belirsiz, etkisi düşük.
 
 ---
 
 ## Test Senaryo Kataloğu
 
-### S1 — Çiftçi: Parsel → Otomatik Draft İlan → Günlük Kaydı → Yayınla
-- **Adımlar:** `create_parcel` → `list_my_parcels` → draft ilan doğrulama → `create_harvest_entry` → otomatik `listing_harvest_entries` bağlantı doğrulama → `publish_listing` → `active` durumunu doğrulama
-- **Son çalıştırma:** 2026-07-10 ✅ **TAM GEÇTİ.** "QA Test Parseli" (Safran+Lavanta) ile baştan sona koşuldu — parsel oluşturuldu, 2 draft ilan otomatik oluştu, hasat kaydı doğru ilana bağlandı, `publish_listing` ile `status:active, quantity:15, price:900` doğru şekilde yayınlandı.
+### S1 — Parsel → Otomatik Draft İlan → Günlük → Yayınla
+- **Son çalıştırma:** 2026-07-10 ✅ **TAM GEÇTİ** ("QA Test Parseli", Safran+Lavanta)
 
-### S2 — Uçtan Uca Teklif/Pazarlık/Ödeme Akışı
-- **Adımlar:** `browse_marketplace` → `create_offer` (Zeynep, ₺700) → `list_offers_on_my_listings` → `respond_to_offer` (Ahmet, counter ₺800) → `confirm:false` reddi doğrulama → `respond_to_counter` (Zeynep, accept) → stok kilidi + sipariş doğrulama → `mark_transfer_sent` → `confirm_payment_received` → final state doğrulama
-- **Son çalıştırma:** 2026-07-10 ✅ **TAM GEÇTİ.** Offer `77906770...`, Order `HT-2026-1040`. Her state geçişi doğru (`pending→counter→accepted`, `unpaid→pending_transfer→paid`). `confirm:true` güvenlik bariyeri Zod seviyesinde doğru reddetti. `listings.status/quantity`'nin statik kalması araştırıldı ve **tasarım gereği doğru** olduğu doğrulandı (gerçek stok `useListingStock`'ta dinamik hesaplanıyor, trigger ile birebir aynı formül).
-- **Bulgu → S7'ye taşındı:** Bu senaryo sırasında `offers` tablosunun RLS'inde kritik bir boşluk fark edildi (bkz. S7 #1).
+### S2 — Uçtan Uca Teklif/Pazarlık/Ödeme
+- **Son çalıştırma (fix öncesi):** 2026-07-10 ✅ Geçti, ama bu sırada S7 #1 bulgusu ortaya çıktı
+- **Son çalıştırma (fix sonrası regresyon):** 2026-07-10 ✅ **TAM GEÇTİ** — Kekik ilanı (5kg), yeni `enforce_offer_transitions` trigger'ı aktifken tam pazarlık döngüsü (`create_offer→respond_to_offer counter→respond_to_counter accept→mark_transfer_sent→confirm_payment_received`) sıfır regresyonla tamamlandı. Final: `status:accepted, payment_status:paid, current_price:95`.
 
 ### S3 — Fiyat Özeti / Rekabet Hukuku Bariyerleri
-- **Son çalıştırma:** 2026-07-09 ✅ (RPC fonksiyonu + insufficient_data testi, ambiguous column bug'ı bulunup düzeltildi)
+- **Son çalıştırma:** 2026-07-09 ✅
 
-### S4 — Onboarding (Çiftçi/Alıcı, Sıfırdan)
+### S4 — Onboarding (Sıfırdan)
 - **Son çalıştırma:** 2026-07-08 ✅
 
-### S5 — Topluluk Moderasyonu (Fiyat Koordinasyonu Filtresi)
-- **Adımlar:** Supabase MCP ile `community_posts`'a doğrudan (client bypass simülasyonu) "hepimiz ₺500 sabit fiyat üzerinden anlaşalım" içerikli satır eklendi
-- **Son çalıştırma:** 2026-07-10 ❌ **BUG BULUNDU.** `flagged_for_review` sütunu `false` kaldı — moderasyon mantığı (`looksLikePriceCoordination`) sadece client-side JS'te, DB'de hiçbir zorunluluk yok. Direkt API isteğiyle tamamen bypass edilebiliyor. Test verisi temizlendi. → **S7 #2'ye taşındı, düzeltme bekliyor.**
+### S5 — Topluluk Moderasyonu
+- **Son çalıştırma (fix öncesi):** 2026-07-10 ❌ Bug bulundu (client-only bypass)
+- **Son çalıştırma (fix sonrası):** 2026-07-10 ✅ **DOĞRULANDI** — aynı bypass denemesi (`"hepimiz ₺500 sabit fiyat üzerinden anlaşalım"`, direkt INSERT) bu sefer `flagged_for_review:true` döndü. Test verisi temizlendi.
 
 ### S6 — Landing Page / Auth-Aware Redirect
-- **Son çalıştırma:** 2026-07-08-09 ✅ (manuel, ekran görüntüleriyle)
+- **Son çalıştırma:** 2026-07-08-09 ✅ (manuel)
 
-### S7 — Sistematik RLS / Güvenlik Denetimi *(YENİ — 2026-07-10)*
-- **Kapsam:** Tüm 24 `public` şema tablosunun RLS policy'leri tek tek tarandı (`pg_policies`), özellikle `UPDATE`/`ALL` politikalarında `with_check IS NULL` deseni arandı (bu, "kim yazabilir" kısıtlı ama "ne yazabilir" kısıtsız anlamına gelir).
-- **Bulgular:**
-  1. ❌ **KRİTİK — `offers` tablosu:** "Both parties update offer" politikası `payment_status`, `price_per_unit`, `quantity`, `status`, `ball_side` gibi alanları resmi akış (respond_to_offer/mark_transfer_sent/confirm_payment_received) dışında, doğrudan API isteğiyle **hiçbir kısıtlama olmadan** değiştirilebilir hale getiriyor. En ciddi somut risk: **bir alıcı hiç ödeme yapmadan kendi teklifinin `payment_status`'unu `'paid'` yapabilir.** `enforce_offer_accept_turn` trigger'ı sadece `status='accepted'` geçişini koruyor, `payment_status`'a hiç dokunmuyor.
-  2. ❌ **KRİTİK — `community_posts`:** S5'te bulunan bug, buraya da bağlı — moderasyon tamamen client-side.
-  3. ⚠️ **ORTA-YÜKSEK — `profiles` tablosu:** "Users update own profile" politikası, kullanıcının kendi `role`, `tier`, `premium`, `referred_by`, `buyer_type` alanlarını **sınırsız şekilde self-update etmesine** izin veriyor. Somut riskler: rol yükseltme (buyer↔farmer), ücretsiz premium/tier alma (ileride monetizasyon başlayınca gelir kaybı), `referred_by`'ı keyfi bir kullanıcıya işaret edecek şekilde değiştirme.
-  4. ⚠️ **ORTA — `certifications` tablosu:** "Farmers manage own certs" politikası, çiftçinin kendi sertifikasının `verified_at` alanını **kendi kendine doğrulayabilmesine** izin veriyor — admin/insan onayı DB seviyesinde hiç zorlanmıyor.
-  5. ✅ **Güvenli olduğu doğrulanan tablolar:** `orders` (UPDATE policy'si hiç yok), `offer_messages`, `order_timeline` (sender kimliği INSERT'te doğrulanıyor), `listing_harvest_entries` (sadece ilan sahibi yazabiliyor), `crop_config`/`price_points` (herkese salt-okunur), `listings.status/quantity`'nin statik kalması (bkz. S2).
-- **Not:** Postgres'in "WITH CHECK belirtilmezse USING kullanılır" davranışı dikkatlice hesaba katıldı — bu davranış bile yukarıdaki 4 bulguyu değiştirmiyor, çünkü USING ifadeleri (`buyer_id=auth.uid()` gibi) zaten sahiplik alanlarını koruyor ama iş-kritik alanları (payment_status, role, verified_at vb.) hiç referans almıyor.
-- **Son çalıştırma:** 2026-07-10 — 2 kritik + 2 orta bulgu, düzeltme prompt'u onay bekliyor.
+### S7 — Sistematik RLS / Güvenlik Denetimi
+- **Kapsam:** Tüm 24 `public` tablonun RLS policy'leri tarandı (`pg_policies`), `UPDATE`/`ALL` politikalarında `with_check IS NULL` deseni arandı.
+- **Bulgular ve düzeltme durumu:**
+
+| # | Bulgu | Ciddiyet | Düzeltme | Canlı Doğrulama |
+|---|---|---|---|---|
+| 1 | `offers`: payment_status/fiyat/miktar/status direkt API ile manipüle edilebiliyordu | 🔴 Kritik | `enforce_offer_transitions_trg` eklendi | ✅ Gerçek buyer JWT impersonasyonuyla 3 exploit denemesi (unpaid→paid atlama, sırası olmayanın fiyat değiştirmesi, pending teklifte fiyat değiştirme) — **hepsi bloklandı**, hata mesajları teyit edildi. Ayrıca meşru akış (S2 regresyon) sıfır hatayla geçti. |
+| 2 | `community_posts`: fiyat-koordinasyon filtresi client-only | 🔴 Kritik | `enforce_community_moderation_trg` eklendi | ✅ Aynı bypass denemesi tekrarlandı, artık doğru yakalanıyor |
+| 3 | `profiles`: role/tier/premium/referred_by self-escalation | 🟠 Orta-Yüksek | `enforce_profile_self_update_restrictions_trg` eklendi | ⏳ Kod incelemesiyle doğrulandı, canlı exploit testi henüz yapılmadı |
+| 4 | `certifications`: farmer self-verification | 🟡 Orta | `enforce_cert_verification_trg` eklendi + UI fallback ("Doğrulama bekleniyor") | ⏳ Kod incelemesiyle doğrulandı, canlı exploit testi henüz yapılmadı |
+| 5 | `orders`, `offer_messages`, `order_timeline`, `listing_harvest_entries`, `crop_config`, `price_points` | — | Gerek yok | ✅ Güvenli olduğu doğrulandı |
+
+- **Doğrulama tekniği notu:** Supabase MCP admin/service-role oturumunda `auth.uid()` her zaman `NULL` döner, bu yüzden trigger'lar (tasarım gereği) enforcement'ı atlıyor — bu yüzden gerçek exploit testleri `set_config('request.jwt.claims', ...)` ile gerçek bir kullanıcı JWT'si impersonate edilerek, sonu `RAISE EXCEPTION` ile bilerek rollback edilen bir `DO` bloğu içinde yapıldı (hiçbir veri kalıcı değişmedi).
+- **Sonuç:** 2 kritik bulgu tam doğrulandı, 2 orta bulgu kod seviyesinde doğrulandı (canlı exploit testi opsiyonel, düşük öncelik — bir sonraki oturumda tamamlanabilir).
 
 ---
 
-## Feature Sonrası Süreç (Yeni Senaryo Ekleme)
+## Feature Sonrası Süreç
 
-1. Yeni bir Lovable prompt'u tamamlanınca, Claude bu dosyaya **yeni bir S-numarası** ile senaryo ekler
-2. Mümkünse hemen çalıştırılır, sonuç (✅/❌ + tarih) not edilir
-3. Bug bulunursa: TODO.md'ye eklenir, düzeltme sonrası senaryo tekrar koşulup ✅ işaretlenir
-4. Dosya, TODO.md ile aynı workflow'la vault'a commit edilir
+1. Yeni prompt tamamlanınca yeni S-numarası eklenir
+2. Mümkünse hemen çalıştırılır, sonuç not edilir
+3. Bug bulunursa TODO.md'ye eklenir, düzeltme sonrası tekrar koşulup ✅ işaretlenir
+4. Vault'a aynı workflow'la commit edilir
 
 ---
 
 ## Test Verisi Temizlik Kuralları
-
-- **Sabit-OTP hesaplar (Ahmet/Zeynep):** Temizlenmez — birikim sorun değil
-- **Dinamik-OTP hesaplar:** Her onboarding testi sonrası sıfırlanır
-- **Geçici test verisi** (S3/S5'teki gibi): senaryo sonunda hemen silinir
+- Sabit-OTP hesaplar: temizlenmez (birikim sorun değil)
+- Dinamik-OTP hesaplar: her onboarding testi sonrası sıfırlanır
+- Geçici test verisi (S5 gibi): senaryo sonunda hemen silinir
 
 ---
 
 ## Bilinen Kısıtlar
-
-- Bir MCP bağlantısı = bir kullanıcı — rol değişimi disconnect/reconnect gerektirir
-- Topluluk post/reply, sertifika/fotoğraf upload, WhatsApp AI chat, referral link ziyareti, veri indirme butonu için MCP tool'u yok — hibrit/manuel kalıyor
-- Landing page, mobil responsiveness, görsel/animasyon doğrulaması MCP ile test edilemez
-- Yeni MCP tool'u eklendiğinde Publish + connector reconnect gerekiyor
-- MCP yazma tool'larında aralıklı "No approval received" (bkz. yukarı)
+- Bir MCP bağlantısı = bir kullanıcı
+- Topluluk post/reply, sertifika/foto upload, WhatsApp AI, referral ziyareti, veri indirme — MCP tool'u yok, hibrit/manuel
+- Landing page/mobil/görsel doğrulama MCP ile test edilemez
+- Yeni MCP tool'u → Publish + connector reconnect gerekiyor
+- MCP yazma tool'larında aralıklı "No approval received"
 
 ---
 
 ## Değişiklik Geçmişi
 - **2026-07-09:** Doküman oluşturuldu.
-- **2026-07-10:** S1 ve S2 tam koşuldu ve geçti (MCP üzerinden gerçek OAuth). S5 koşuldu, bug bulundu. **S7 (sistematik RLS denetimi) eklendi** — 2 kritik + 2 orta güvenlik bulgusu. Tüm bulgular için tek bir düzeltme prompt'u hazırlanıp onay bekliyor.
+- **2026-07-10 (sabah):** S1, S2 tam koşuldu ve geçti. S5 koşuldu, bug bulundu. S7 eklendi — 2 kritik + 2 orta güvenlik bulgusu.
+- **2026-07-10 (öğleden sonra):** Tüm 4 S7 bulgusu için düzeltme prompt'u gönderildi ve uygulandı (4 yeni trigger + 1 UI fallback). **2 kritik bulgu canlı exploit testiyle (gerçek JWT impersonasyonu) doğrulandı — ikisi de artık bloklanıyor.** S2, yeni trigger'lar aktifken sıfır regresyonla tekrar koşuldu. S5 bypass'ı tekrar denendi, artık doğru yakalanıyor. **Günün sonunda bilinen kritik/yüksek öncelikli bug kalmadı.**
