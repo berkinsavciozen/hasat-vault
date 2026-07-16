@@ -24,6 +24,7 @@ tags:
 - [x] **Tam Konuşma Denetimi (Audit)** — bu oturumun tamamı TODO ile karşılaştırılıp 6 eksik madde bulunup eklendi (bkz. aşağıdaki yeni maddeler)
 - [x] **BENCHMARK.md** — 4 katmanlı rakip analizi + 10 use-case matrisi + KPI çerçevesi (§5) + 12 maddelik gap listesi
 - [x] **Finansal Model v0.6** — gelir modeli redesign (ücretsiz çekirdek + tek tier AI premium ₺149 + %2,5 komisyon), driver tablosu, Base/Bear/Bull (`Finance/Model.md`)
+- [x] **Audit Takibi — MCP Rate Limiting + Tool Genişletmesi + Temizlik** (2026-07-16) — bkz. detaylı bölüm aşağıda
 
 ### P16 — TÜM SERİ TAMAMLANDI ✅
 (Detaylar önceki sürümlerde)
@@ -54,16 +55,27 @@ tags:
 - [ ] Storage bucket public/private ayarını her zaman canlı doğrula (Lovable'ın tool'u migration'a yansımayabiliyor)
 - [ ] `Supabase:list_tables` tool'u aralıklı "No approval received" veriyor, `execute_sql` ile `information_schema.tables` sorgusuna geçilerek atlatılabiliyor
 - [ ] `useHasat` (Zustand mock store) referansları için **tüm codebase'de bir kez daha tarama** yapılmalı — Üretici Detay ve Abonelik Oluştur sayfalarında bulundu, başka yerde de olabilir
-- [ ] **[Audit'te bulundu] MCP tool setine rate limiting eklenmesi** — orijinal MCP güvenlik tasarımında not edilmişti ("düşük öncelik ama not edilmeli"), henüz uygulanmadı. Özellikle `create_offer`/`respond_to_offer` gibi yazma tool'larının kötüye kullanım potansiyeli var.
-- [ ] **[Audit'te bulundu] `crop_requests` tablosu için admin inceleme arayüzü** — tablo + kullanıcı-tarafı form var ama bilinçli olarak "bu turda gerek yok" denip ertelenmişti, hiçbir zaman ileriye dönük bir görev olarak işaretlenmedi. Kullanıcılar ürün talebi bıraktıkça bunları görüp `crop_config`'e taşıyacak bir arayüz gerekiyor. *(Not: P17-E ile birleşebilir — aşağıda.)*
-- [ ] **[Audit'te bulundu] MCP tool setini genişletme** — topluluk paylaşımı, sertifika yükleme, **abonelik oluşturma** (UI/mutation düzeltildi ama hâlâ MCP tool'u yok) için hiç tool yok. Tam E2E otomasyon kapsamı için gerekli.
-- [ ] **[Audit'te bulundu] Berkin'in eski test hesabındaki (`d040fc98`, "Berkin Savcıözen") tek başına kalan "Domates" ilanı** — S9'da zararsız bulundu ama temizlik listesine hiç eklenmemişti, temizlenmeli.
+- [ ] **[Audit'te bulundu] `crop_requests` tablosu için admin inceleme arayüzü** — tablo + kullanıcı-tarafı form var ama bilinçli olarak "bu turda gerek yok" denip ertelenmişti. **Karar (2026-07-16): ayrı bir Lovable prompt'u/arayüzü yerine, Claude talep üzerine periyodik Supabase MCP sorgusuyla kontrol edecek** (P17-E'de yapılandırılmış RFQ genişlemesiyle birlikte kalıcı admin arayüzüne dönüşecek).
 
 ---
 
 ## 🏗️ Lovable Build Sırası — TAMAMLANDI ✅
 
 > Sıradaki: **Ağustos E2E test kapsamının tamamlanması** (sertifika foto, community reply UI, AI chat kalitesi, bildirimler, referral tam akış) + yukarıdaki audit maddeleri → sonrasında **P17 Güven Çekirdeği**.
+
+---
+
+### ✅ Audit Takibi — MCP Rate Limiting + Tool Genişletmesi + Temizlik *(Tamamlandı — 2026-07-16)*
+
+"Tam Konuşma Denetimi"nde bulunan 6 maddeden 3'ü bu turda kapatıldı — 2'si **Lovable'a hiç gönderilmeden**, Claude tarafından doğrudan halledilerek kredi tasarrufu sağlandı:
+
+- **Berkin'in eski test hesabındaki (`d040fc98`) unutulmuş "Domates" ilanı** → Claude tarafından doğrudan SQL ile silindi. **0 kredi.**
+- **`crop_requests` admin arayüzü** → Ayrı bir Lovable prompt'u yerine, Claude'un talep üzerine periyodik Supabase MCP sorgusuyla kontrol etmesi kararlaştırıldı (P17-E'ye kadar). **0 kredi, tam bir prompt tasarrufu.**
+- **MCP rate limiting** → `mcp_tool_calls` tablosu + `check_and_record_mcp_call()` SECURITY DEFINER fonksiyonu: kullanıcı başına 10 dakikada 30 çağrı (8 yazma tool'u için ortak/paylaşımlı bütçe). Gerçek JWT impersonasyonuyla canlı doğrulandı (31. çağrı doğru Türkçe hata mesajıyla reddedildi). **3.2 kredi.**
+- **MCP tool set genişletmesi** → 5 yeni tool eklendi: `create_community_post`, `list_community_posts`, `create_subscription`, `list_my_subscriptions`, `cancel_subscription` (toplam 16→21 tool). Gerçek `queries.ts` mutasyonlarıyla birebir eşleştirildi; **çiftçi-taraflı abonelik listeleme/iptali gerçek uygulamada olmadığı için uydurulmadı**, sadece alıcı-taraflı bırakıldı (mevcut `useMySubscriptions`/`useCancelSubscription` davranışıyla birebir). Sertifika yükleme MCP'ye bilinçli olarak eklenmedi (dosya yükleme UX'i uygulama-içi kalmalı). **1 kredi.**
+- **Toplam maliyet: 4.2 kredi** — 6 maddenin 2'si tamamen atlanarak (0 kredi) tasarruf sağlandı.
+
+**Kalan:** Yeni 5 tool'un kullanılabilmesi için Publish + connector reconnect gerekiyor, henüz canlı MCP oturumuyla test edilmedi.
 
 ---
 
@@ -96,6 +108,7 @@ tags:
 - [x] Fiyatlandırma sistemi tam E2E · Alıcı Fiyatlar/Keşfet/Mesajlar/Raporlar/Abonelikler/Üretici Detay/Fotoğraflar — hepsi canlı test edildi, bulunan buglar düzeltildi
 - [ ] Kalan kapsam: sertifika (foto upload — journal'daki gibi sahte olabilir, kontrol edilmeli), community+reply UI, AI chat kalitesi, bildirimler, referral tam akış
 - [ ] `useHasat` mock store taraması (yukarıdaki not)
+- [ ] Yeni 5 MCP tool'unun (topluluk + abonelik) Publish sonrası canlı testi
 
 ### Teknik Final
 - [ ] hasat.lovable.app → custom domain yayını · iyzico canlı ödeme testi
@@ -136,6 +149,7 @@ tags:
 33. **[Audit'te eklendi] Bir özellik "bu turda gerek yok" diye bilinçli olarak ertelendiğinde, mutlaka bir TODO maddesi olarak işaretle** — `crop_requests` admin arayüzü tam olarak bu şekilde kayboldu: doğru bir karardı (kapsamı şişirmemek), ama hiçbir yerde "gelecekte yapılacak" olarak yazılmadığı için oturumlar arasında unutuldu.
 34. **[Audit'te eklendi] Bir teknik/güvenlik denetiminin "önerilen aksiyon" kısmı, teknik düzeltme kadar önemlidir ve ayrıca takip edilmeli** — Rekabet Hukuku denetiminin en kritik önerisi ("bir avukata danış") teknik mitigasyonlar tamamlanınca gözden kayboldu. Bir denetim hem "biz ne yaptık" hem "kullanıcının hâlâ yapması gereken" olarak iki ayrı listede tutulmalı.
 35. **[Benchmark re-audit'te eklendi] Her benchmark/finansal model revizyonundan sonra TODO'ya karşı re-audit yapılmalı** — strateji dokümanlarındaki gap'ler ve kararlar kendiliğinden backlog'a düşmüyor; bu turda 5 P0 gap'in TODO'da hiç olmadığı görüldü.
+36. **[Bu turda eklendi] "Lovable'a gerek yok, Claude/kullanıcı halleder" diye kapatılan maddeler de TODO'da hangi kararla ve kim tarafından kapatıldığı açıkça yazılmalı** — aksi halde "neden bu madde hiç yapılmamış" karışıklığı oluşabilir; madde 33'ün doğal bir uzantısı.
 
 ---
 
@@ -147,10 +161,19 @@ tags:
 | **Tam konuşma denetimi (2026-07-16)** | Ayrı geçmiş konuşma bulunamadı (proje kapsamında tek uzun oturum) — denetim, bu oturumun sıkıştırılmış özeti dahil tam içeriğinin TODO ile karşılaştırılmasıyla yapıldı, 6 eksik madde bulundu ve eklendi |
 | **Gelir modeli (Temmuz 2026)** | Çekirdek ürün tamamen ücretsiz · AI fiyat bandı herkese açık · tek tier AI premium ₺149/ay (test edilecek) · ilk 6 ay early adopter'lara ücretsiz (feature-flag) · referral 3 kullanıcı → 12 ay ücretsiz · %2,5 komisyon ana gelir — detay: `Finance/Model.md` §0 |
 | **Benchmark re-audit (Temmuz 2026)** | BENCHMARK 12 gap + KPI çerçevesi TODO ile karşılaştırıldı; 5 eksik P0 gap → P17 serisi kuruldu, 3 mevcut madde gap etiketiyle eşlendi, reviews kararı revize edildi |
+| **Audit takibi maliyet optimizasyonu (2026-07-16)** | 6 maddeden 2'si (unutulmuş ilan temizliği, crop_requests admin arayüzü) Lovable'a hiç gönderilmeden Claude/kullanıcı tarafından halledildi — sadece 2 madde (rate limiting, tool genişletmesi) toplam 4.2 kredi karşılığında Lovable'a gönderildi |
 
 ---
 
 ## 📋 Son Test Sonuçları
+
+### Audit Takibi — MCP Rate Limiting + Tool Genişletmesi (2026-07-16) ✅
+| Görev | Kim | Maliyet | Sonuç |
+|---|---|---|---|
+| Unutulmuş "Domates" ilanı temizliği | Claude (doğrudan SQL) | 0 kredi | ✅ |
+| `crop_requests` admin arayüzü | Ertelendi → P17-E'ye bağlandı, Claude periyodik kontrol edecek | 0 kredi | ✅ Karar verildi |
+| MCP rate limiting (30 çağrı/10 dk) | Lovable | 3.2 kredi | ✅ JWT impersonasyonuyla canlı doğrulandı |
+| MCP tool genişletmesi (5 yeni tool, 16→21) | Lovable | 1 kredi | ✅ tsgo temiz, gerçek mutasyonlarla eşleşti |
 
 ### Detaylı E2E Devam Turu (2026-07-16) ✅
 | Senaryo/Bug | Sonuç |
