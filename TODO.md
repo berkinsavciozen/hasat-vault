@@ -17,14 +17,15 @@ tags:
 
 ### Teknik Build
 - [x] Supabase schema + seed data · Farmer/Buyer akışları · AI özellikleri · Bildirim sistemi
-- [x] Hasat MCP Server (16 tool) · Rekabet Hukuku Risk Denetimi · Kapsamlı RLS Güvenlik Denetimi
+- [x] Hasat MCP Server (16→21 tool) · Rekabet Hukuku Risk Denetimi · Kapsamlı RLS Güvenlik Denetimi
 - [x] E2E-QA Dokümanı (`Build/E2E-QA`) · Tedarik Zinciri Görsel Yeniden Tasarımı
 - [x] Fiyatlandırma Sistemi Tam Yeniden İnşası · 10+10 Mock Data (2 yıllık) · Alıcı Sayfaları Bug Düzeltmeleri
 - [x] Detaylı E2E Devam Turu — 6 Yeni Senaryo (S8-S13) + 4 Kritik "Sahte Veri/Kırık Akış" Bug'ı
-- [x] **Tam Konuşma Denetimi (Audit)** — bu oturumun tamamı TODO ile karşılaştırılıp 6 eksik madde bulunup eklendi (bkz. aşağıdaki yeni maddeler)
+- [x] **Tam Konuşma Denetimi (Audit)** — bu oturumun tamamı TODO ile karşılaştırılıp 6 eksik madde bulunup eklendi
 - [x] **BENCHMARK.md** — 4 katmanlı rakip analizi + 10 use-case matrisi + KPI çerçevesi (§5) + 12 maddelik gap listesi
 - [x] **Finansal Model v0.6** — gelir modeli redesign (ücretsiz çekirdek + tek tier AI premium ₺149 + %2,5 komisyon), driver tablosu, Base/Bear/Bull (`Finance/Model.md`)
-- [x] **Audit Takibi — MCP Rate Limiting + Tool Genişletmesi + Temizlik** (2026-07-16) — bkz. detaylı bölüm aşağıda
+- [x] **Audit Takibi — MCP Rate Limiting + Tool Genişletmesi + Temizlik** (2026-07-16)
+- [x] **Sertifika Foto + `useHasat` Taraması + Gelir Modeli Gating Denetimi + Premium Persistence Bug'ı** (2026-07-16) — bkz. detaylı bölüm aşağıda
 
 ### P16 — TÜM SERİ TAMAMLANDI ✅
 (Detaylar önceki sürümlerde)
@@ -41,10 +42,11 @@ tags:
 
 ### Yasal & Altyapı
 - [ ] Şahıs şirketi kur · iyzico başvurusu · Alan adı araştır · Twilio Verify service · **WhatsApp Business başvurusu → hemen başla**
-- [ ] **[Audit'te bulundu] Rekabet hukuku uzmanına gerçek danışma** — Rekabet Kurumu risk denetiminin asıl önerisiydi ("fiyat uyarı sistemi + AI fiyat tavsiyeleri özelliklerini bir avukata göster"). Teknik önlemler (band-based AI, RLS, moderasyon trigger'ı) uygulandı ama **gerçek hukuki onay hâlâ alınmadı** — Ekim safran sezonu / gerçek GMV başlamadan önce mutlaka yapılmalı.
-- [ ] **[Audit'te bulundu — kontrol edilmeli] Çerez onay banner'ı** — `/privacy` sayfası "çerez politikası" bölümü içeriyor ama gerçek bir çerez onay mekanizması (banner) olup olmadığı hiç konuşulmadı/kontrol edilmedi. KVKK/GDPR açısından potansiyel bir boşluk olabilir — önce mevcut durumu kontrol et, gerekirse ekle.
-- [ ] **[Benchmark re-audit] iyzico başvurusunda pazaryeri (alt-üye işyeri) modelini talep et + komisyon oranı teklifini al** — Model v0.6'nın en kritik girdisi: PSP maliyeti %1,25 varsayımı doğrulanmadan net take rate bilinmiyor (Gap #1 ön koşulu, `Finance/Model.md` §10).
-- [ ] **[Benchmark re-audit] Gelir modeli kararlarının üründe doğrulanması** — (a) premium gating'in **sadece AI feature'larını** kapsadığını denetle (başka hiçbir şey paywall arkasında kalmamalı), (b) fiyat bandı nudge'ının tüm kullanıcılara açık olduğunu doğrula, (c) "ilk 6 ay premium ücretsiz" feature-flag ile değiştirilebilir mi kontrol et (Model §0 kararları).
+- [ ] **[Audit'te bulundu] Rekabet hukuku uzmanına gerçek danışma** — Rekabet Kurumu risk denetiminin asıl önerisiydi. Teknik önlemler uygulandı ama **gerçek hukuki onay hâlâ alınmadı** — Ekim safran sezonu / gerçek GMV başlamadan önce mutlaka yapılmalı.
+- [ ] **[Audit'te bulundu — kontrol edilmeli] Çerez onay banner'ı** — `/privacy` sayfası "çerez politikası" bölümü içeriyor ama gerçek bir çerez onay mekanizması olup olmadığı hiç kontrol edilmedi.
+- [ ] **[Benchmark re-audit] iyzico başvurusunda pazaryeri (alt-üye işyeri) modelini talep et + komisyon oranı teklifini al** — Model v0.6'nın en kritik girdisi (Gap #1 ön koşulu, `Finance/Model.md` §10).
+- [x] ~~**[Benchmark re-audit] Gelir modeli kararlarının üründe doğrulanması (a) ve (b)**~~ — **Tamamlandı (2026-07-16):** (a) premium gating'in gerçekten sadece AI chat kotasında olduğu, hiçbir başka özelliğin (fiyat verisi, ilanlar, teklifler, abonelikler, topluluk, analytics) paywall'a takılmadığı kod taramasıyla doğrulandı. (b) `MarketDeviationAlert`'te hiç tier kontrolü olmadığı, fiyat bandının herkese açık olduğu doğrulandı. **(c) hâlâ açık** — aşağıda ayrı madde olarak devam ediyor.
+- [ ] **[Benchmark re-audit, (c)] "İlk 6 ay premium ücretsiz" feature-flag tasarımı** — artık `activatePremium()` sunucu fonksiyonu (aşağıya bkz.) sayesinde `tier` gerçekten kalıcı hale getirilebiliyor; ama toplu/otomatik bir feature-flag (örn. "ilk 500 kullanıcıya otomatik 6 ay premium") mekanizması henüz tasarlanmadı — bu fonksiyon şu an sadece tekil (checkout/trial-toggle) çağrılar için var.
 - [ ] **[Benchmark re-audit] Referral suistimal koruması** — 3 sahte kayıt = 12 ay bedava premium riski; min. doğrulama eşiği (telefon onayı + ilk gerçek eylem) tasarlanmalı (Model §10'dan ürüne aktarıldı).
 - [ ] **[Benchmark re-audit] AI kredi/limit mekanizması tasarımı** — premium aylık kredi tavanı; `ai_usage_tracking` verisiyle ₺30/ay COGS varsayımının kalibrasyonu (Model §1).
 
@@ -52,50 +54,40 @@ tags:
 - [ ] `farmer.journal.new.tsx` "Önce bir parsel ekle" statik metni · `formatCrop()` heuristik · Landing page'de çok fazla rol-seçim butonu
 - [ ] MCP yazma tool'larında aralıklı "No approval received" hatası — retry ile geçiyor
 - [ ] **Lovable platform bug'ı (bilinen, düzeltilemez):** `plan_mode=false` sinyali agent'ın kod tool'larına bazen yansımıyor.
-- [ ] Storage bucket public/private ayarını her zaman canlı doğrula (Lovable'ın tool'u migration'a yansımayabiliyor)
-- [ ] `Supabase:list_tables` tool'u aralıklı "No approval received" veriyor, `execute_sql` ile `information_schema.tables` sorgusuna geçilerek atlatılabiliyor
-- [ ] `useHasat` (Zustand mock store) referansları için **tüm codebase'de bir kez daha tarama** yapılmalı — Üretici Detay ve Abonelik Oluştur sayfalarında bulundu, başka yerde de olabilir
-- [ ] **[Audit'te bulundu] `crop_requests` tablosu için admin inceleme arayüzü** — tablo + kullanıcı-tarafı form var ama bilinçli olarak "bu turda gerek yok" denip ertelenmişti. **Karar (2026-07-16): ayrı bir Lovable prompt'u/arayüzü yerine, Claude talep üzerine periyodik Supabase MCP sorgusuyla kontrol edecek** (P17-E'de yapılandırılmış RFQ genişlemesiyle birlikte kalıcı admin arayüzüne dönüşecek).
+- [ ] Storage bucket public/private ayarını her zaman canlı doğrula
+- [ ] `Supabase:list_tables` tool'u aralıklı "No approval received" veriyor, `execute_sql` ile atlatılabiliyor
+- [x] ~~`useHasat` (Zustand mock store) referansları için tüm codebase'de tarama~~ — **Tamamlandı (2026-07-16), temiz** — bkz. detaylı bölüm aşağıda
+- [ ] **[Audit'te bulundu] `crop_requests` tablosu için admin inceleme arayüzü** — **Karar (2026-07-16): Claude periyodik Supabase MCP sorgusuyla kontrol edecek** (P17-E'de kalıcı admin arayüzüne dönüşecek).
+- [ ] **[Bu turda bulundu] `notifPrefs` sadece localStorage'da tutuluyor** — cihazlar arası senkron olmuyor. Düşük öncelik, DB tablosu gerektirir (yan bulgu, `useHasat` taramasından).
 
 ---
 
 ## 🏗️ Lovable Build Sırası — TAMAMLANDI ✅
 
-> Sıradaki: **Ağustos E2E test kapsamının tamamlanması** (sertifika foto, community reply UI, AI chat kalitesi, bildirimler, referral tam akış) + yukarıdaki audit maddeleri → sonrasında **P17 Güven Çekirdeği**.
+> Sıradaki: **Ağustos E2E test kapsamının tamamlanması** (community reply UI, AI chat kalitesi, bildirimler, referral tam akış) + yukarıdaki audit maddeleri → sonrasında **P17 Güven Çekirdeği**.
+
+---
+
+### ✅ Sertifika Foto + `useHasat` Taraması + Gelir Modeli Gating Denetimi + Premium Persistence Bug'ı *(Tamamlandı — 2026-07-16)*
+
+Audit/Benchmark takibinin üçüncü turu — çoğunlukla "temiz" sonuçlar + **1 yeni, bağımsız olarak iki kez ortaya çıkan gerçek bug**:
+
+- **Sertifika fotoğraf/döküman yükleme** → Kod incelendi, `useUploadCertification()` gerçekten storage'a yüklüyor, gerçek `document_url` yazıyor, hata durumunda orphan dosyayı temizliyor. **Bug yok, journal'daki gibi sahte değil.**
+- **`useHasat` mock store — tüm codebase taraması** (Lovable'a gönderildi, 1 kredi) → Sahte veri (producers, listings, orders vb.) okuyan **başka hiçbir yer bulunamadı**. Kalan tüm kullanımlar meşru (rol/oturum durumu, geçici teklif taslağı, bildirim tercihleri).
+- **Gelir modeli gating denetimi** — (a) Premium gating gerçekten sadece AI chat kotasında (`FarmerAIChat.tsx`), başka hiçbir özellik paywall'a takılmıyor — kod taramasıyla doğrulandı (1 kredi). (b) `MarketDeviationAlert` fiyat bandı nudge'ında hiç tier kontrolü yok, herkese açık — doğrulandı.
+- **🔴 Bulunan yeni bug — Premium "satın alma" hiçbir zaman kalıcı olmuyordu:** Hem `farmer.billing.tsx` (checkout başarı ekranı) hem `onboarding.buyer.tsx` (30 gün ücretsiz deneme anahtarı) sadece local Zustand `setPremium(true)` çağırıyordu — **`profiles.tier` hiçbir zaman `'premium'` olarak Supabase'e yazılmıyordu.** Daha da ilginci: bu, sabah kurduğumuz kendi güvenlik trigger'ımızın (`enforce_profile_self_update_restrictions`) normal bir client-side güncellemeyi zaten engelleyeceği anlamına geliyordu. **Düzeltme:** Lovable, service-role admin client kullanan yeni bir sunucu fonksiyonu (`activatePremium`, `src/lib/api/premium.functions.ts`) yazdı — trigger'ın "güvenilir sunucu yolu" istisnasını doğru şekilde kullanıyor. Her iki çağrı noktası da artık bunu awaited şekilde çağırıyor, hata durumunda toast gösteriyor.
+- **Canlı doğrulama (Claude tarafından):** Ahmet'in `tier`'ı Supabase MCP ile manuel `premium` yapıldı, `FarmerAIChat.tsx`'teki `limited = tier==="free" && ...` mantığı kod üzerinden izlenerek artık `false` döneceği (sınırsız sohbet) doğrulandı, sonra `tier` `free`'ye geri döndürüldü (temizlik).
+- **Maliyet:** 2.6 + 1 + 1 = **4.6 kredi** (2 madde — sertifika kontrolü, gating denetimi — sıfır ek kod değişikliği gerektirmedi, sadece doğrulama).
 
 ---
 
 ### ✅ Audit Takibi — MCP Rate Limiting + Tool Genişletmesi + Temizlik *(Tamamlandı — 2026-07-16)*
 
-"Tam Konuşma Denetimi"nde bulunan 6 maddeden 3'ü bu turda kapatıldı — 2'si **Lovable'a hiç gönderilmeden**, Claude tarafından doğrudan halledilerek kredi tasarrufu sağlandı:
-
-- **Berkin'in eski test hesabındaki (`d040fc98`) unutulmuş "Domates" ilanı** → Claude tarafından doğrudan SQL ile silindi. **0 kredi.**
-- **`crop_requests` admin arayüzü** → Ayrı bir Lovable prompt'u yerine, Claude'un talep üzerine periyodik Supabase MCP sorgusuyla kontrol etmesi kararlaştırıldı (P17-E'ye kadar). **0 kredi, tam bir prompt tasarrufu.**
-- **MCP rate limiting** → `mcp_tool_calls` tablosu + `check_and_record_mcp_call()` SECURITY DEFINER fonksiyonu: kullanıcı başına 10 dakikada 30 çağrı (8 yazma tool'u için ortak/paylaşımlı bütçe). Gerçek JWT impersonasyonuyla canlı doğrulandı (31. çağrı doğru Türkçe hata mesajıyla reddedildi). **3.2 kredi.**
-- **MCP tool set genişletmesi** → 5 yeni tool eklendi: `create_community_post`, `list_community_posts`, `create_subscription`, `list_my_subscriptions`, `cancel_subscription` (toplam 16→21 tool). Gerçek `queries.ts` mutasyonlarıyla birebir eşleştirildi; **çiftçi-taraflı abonelik listeleme/iptali gerçek uygulamada olmadığı için uydurulmadı**, sadece alıcı-taraflı bırakıldı (mevcut `useMySubscriptions`/`useCancelSubscription` davranışıyla birebir). Sertifika yükleme MCP'ye bilinçli olarak eklenmedi (dosya yükleme UX'i uygulama-içi kalmalı). **1 kredi.**
-- **Toplam maliyet: 4.2 kredi** — 6 maddenin 2'si tamamen atlanarak (0 kredi) tasarruf sağlandı.
-
-**Kalan:** Yeni 5 tool'un kullanılabilmesi için Publish + connector reconnect gerekiyor, henüz canlı MCP oturumuyla test edilmedi.
+(Detaylar önceki sürümde — değişmedi)
 
 ---
 
-### ✅ Detaylı E2E Devam Turu — 6 Yeni Senaryo + 4 Kritik Bug *(Tamamlandı — 2026-07-16)*
-
-Önceki turda düzeltilen alıcı sayfaları + mock data üzerinden, Hasat MCP (Zeynep/Ahmet sabit-OTP) + Supabase MCP ile sistematik bir E2E devam turu yapıldı. 6 yeni senaryo eklendi (bkz. `Build/E2E-QA`), süreçte **4 yeni kritik bug** bulunup düzeltildi.
-
-**Yeni E2E senaryoları (hepsi ✅):** S8 Global Fiyatlar, S9 Keşfet üretici ismi (+ Ahmet şehir düzeltmesi), S10 Fotoğraf gösterimi (canlı SS ile), S11 Görüşmeler inbox, S12 Raporlar veri doğruluğu, S13 Abonelikler.
-
-**Bu turda bulunan 4 kritik bug (hepsi düzeltildi):**
-1. Günlük (journal) fotoğraf yükleme tamamen sahteydi — dosya seçici UI çalışıyormuş gibi görünüyordu ama `photos: []` hardcoded gönderiliyordu.
-2. Parti (Batch) sayfasında ilanın kapak fotoğrafı hiç gösterilmiyordu.
-3. **🔴 Üretici Detay sayfası hiç Supabase'e bağlı değildi** — eski prototip Zustand store'undan (`useHasat`) tamamen sahte veri (rating, yorumlar, verim geçmişi vb.) çekiyordu. "Alıcı Yorumları" özelliğinin DB'de hiç karşılığı olmadığı doğrulandı, kullanıcı kararıyla tamamen kaldırıldı.
-4. **🔴 Abonelik Oluştur sayfası hiçbir zaman gerçek bir abonelik oluşturmuyordu** — aynı sahte store + gerçek `useCreateSubscription()` mutasyonu hiç çağrılmıyordu.
-
-**tsgo:** Her düzeltme turunda temiz.
-
----
-
-### ✅ Alıcı Sayfaları Bug Düzeltmeleri + Redesign, 10+10 Mock Data, Fiyatlandırma Sistemi Tam Yeniden İnşası, Tedarik Zinciri, Landing Kopya+SEO, RLS Güvenlik Denetimi, Rekabet Hukuku Denetimi, Hasat MCP Server, Landing v2
+### ✅ Detaylı E2E Devam Turu — 6 Yeni Senaryo + 4 Kritik Bug, Alıcı Sayfaları Bug Düzeltmeleri + Redesign, 10+10 Mock Data, Fiyatlandırma Sistemi Tam Yeniden İnşası, Tedarik Zinciri, Landing Kopya+SEO, RLS Güvenlik Denetimi, Rekabet Hukuku Denetimi, Hasat MCP Server, Landing v2
 
 (Detaylar önceki sürümlerde — değişmedi)
 
@@ -105,9 +97,9 @@ tags:
 
 ### E2E Test — devam ediyor
 - [x] Farmer/Buyer onboarding · Landing page · Draft-İlan pipeline · S1-S13 (bkz. `Build/E2E-QA`) — hepsi ✅
-- [x] Fiyatlandırma sistemi tam E2E · Alıcı Fiyatlar/Keşfet/Mesajlar/Raporlar/Abonelikler/Üretici Detay/Fotoğraflar — hepsi canlı test edildi, bulunan buglar düzeltildi
-- [ ] Kalan kapsam: sertifika (foto upload — journal'daki gibi sahte olabilir, kontrol edilmeli), community+reply UI, AI chat kalitesi, bildirimler, referral tam akış
-- [ ] `useHasat` mock store taraması (yukarıdaki not)
+- [x] Fiyatlandırma sistemi tam E2E · Alıcı Fiyatlar/Keşfet/Mesajlar/Raporlar/Abonelikler/Üretici Detay/Fotoğraflar — hepsi canlı test edildi
+- [x] Sertifika foto upload doğrulaması, `useHasat` taraması, gelir modeli gating denetimi
+- [ ] Kalan kapsam: community+reply UI, AI chat kalitesi, bildirimler, referral tam akış
 - [ ] Yeni 5 MCP tool'unun (topluluk + abonelik) Publish sonrası canlı testi
 
 ### Teknik Final
@@ -118,81 +110,42 @@ tags:
 
 ## 🟣 P17 — GÜVEN ÇEKİRDEĞİ *(Eylül 2026, GTM sonrası ilk build serisi — Benchmark re-audit çıktısı)*
 
-> Kaynak: BENCHMARK gap listesi #1-#6 + KPI §5. Ortak tema: güven tezinin **anlatıdan altyapıya** taşınması. Bu seri bitmeden 5 çekirdek KPI ölçülemez ve fizibilite forecast'i kalibre edilemez. Sıralama bağımlılığa göre:
-
-- [ ] **P17-A · Bloke ödeme akışı (Gap #1, P0)** — iyzico pazaryeri modeliyle: `payments` tablosu + para platformda bloke → teslim onayı → çiftçiye aktarım → net iade politikası. *Use case: UC-5 (kapora dolandırıcılığına yapısal çözüm). KPI: "sipariş → para hesapta" süresi (hedef ≤3 gün → 24 saat, Ninjacart referansı).*
-- [ ] **P17-B · Teslim kabul + ihtilaf akışı (Gap #2, P0)** — teslim fotoğrafı, kabul/kısmi kabul/red, 24 saatlik itiraz penceresi, `disputes` tablosu; P17-A'daki serbest bırakmayı tetikler. *Use case: UC-8 ("fotoğraftaki mal gelen mal değil" — HoReCa'nın 1 numaralı tedarikçi değiştirme sebebi). KPI: ihtilaf oranı ≤%2, tam kabul ≥%95.*
-- [ ] **P17-C · Karşılıklı değerlendirme (Gap #3, P0)** — sipariş-sonrası iki yönlü puan+yorum, `reviews` tablosu, farmer profile'da agregat. E2E turunda kaldırılan sahte "Alıcı Yorumları"nın **gerçek** versiyonu; dürüstlük ilkesi gereği yalnızca tamamlanmış siparişe bağlı yorum. *Use case: UC-9 (ÇiftçidenEve "Yeşil Puan" karşılığı). KPI: NPS/puan ortalaması.*
-- [ ] **P17-D · Sipariş dekontu → fatura yolu (Gap #4, P0 B2B)** — önce PDF sipariş dekontu, sonra e-belge entegratörü araştırması (e-fatura/e-müstahsil makbuzu). *Use case: UC-10 — kurumsal alıcı faturasız çalışamaz; Haljet'in "sipariş+fatura tek ekran" standardına cevap. HoReCa onboarding'in ön koşulu.*
-- [ ] **P17-E · Yapılandırılmış RFQ (Gap #6, P1)** — `crop_requests`'i ürün/kalibre/miktar/il/tarih aralığı/hedef fiyat alanlarıyla genişlet + eşleşen çiftçilere bildirim + admin inceleme arayüzü (yukarıdaki audit maddesiyle birleşik). *Use case: UC-2 (DİTAP'ın talep bazlı modeli). KPI: fill rate ≥%40.*
-- [ ] **P17-F · Tekrar sipariş + şube adresleri (Gap #5, P0 HoReCa)** — "son siparişi tekrarla" + kayıtlı listeler + `buyer_addresses` (çoklu şube). *Use case: UC-7 (TazeKasam pattern'i — HoReCa retention'ının bel kemiği). KPI: haftalık sipariş sıklığı, tekrar alıcı %30-60 bandı.*
-- [ ] **P17-G · KPI ölçüm görünümü** — BENCHMARK §5.1-5.3 tablolarındaki metriklerin SQL view/dashboard olarak kurulması; bugün ölçülebilen 12 metrik hemen, P17-A/B/C/E bittikçe kalan 5'i. *Fizibilite forecast'inin veri kaynağı.*
+(Detaylar önceki sürümde — değişmedi: P17-A/B/C/D/E/F/G)
 
 ---
 
 ## 🔵 SAFRAN SEZONU / ⬜ SONRAKI FAZLAR
 
-(değişmedi + eklenen:)
-- [ ] Faz 2 — Otomatik Resmi Fiyat Veri Servisi (TEPGE/TÜİK/HKS) — **[Benchmark Gap #7, P1]** hal min-max'ının `price_history` yanında "referans bant" olarak gösterimi (soğuk başlangıç çözümü, UC-1)
-- [ ] **Gerçek bir "Alıcı Yorumları/Reviews" özelliği** — şimdilik tamamen kaldırıldı → **P17-C'ye taşındı** (Benchmark Gap #3 bunu P0 olarak işaretledi: güven tezli platformda review yokluğu tezle çelişiyor)
-- [ ] **[Benchmark Gap #8, P1]** Lojistik adımı — sipariş akışına "taşımayı kim üstleniyor" + araç tipi (frigorifik) + teslim tutanağı; ileride 3PL anlaşması (UC-6)
-- [ ] **[Benchmark Gap #9, P2]** "Parselden tabağa" QR menşe kartı — `public_parcel_cards` üstüne sipariş bağlantılı public görünüm; ihracatçı + premium HoReCa farklılaştırıcısı (UC-9)
-- [ ] **[Benchmark Gap #10, P2]** SMS/WhatsApp bildirim genişletmesi — Twilio üstünden teklif/sipariş bildirimleri; internete uzak çiftçi segmenti (TAGEM Tarımsal Pazaryeri'nin SMS pattern'i)
-- [ ] **[Benchmark Gap #11, P1→P2]** Onaylı alıcıya vade/cari — TazeKasam pattern'i; önce manuel onaylı pilot (UC-10)
-- [ ] **[Benchmark Gap #12, P2]** Hasat öncesi finansman — partner banka/fintech ile; `harvest_subscriptions` verisi teminat sinyali (ProducePay pattern'i, UC-4)
+(değişmedi — bkz. önceki sürüm)
 
 ---
 
 ## 📋 Lovable Prompt Yazma Kuralları
 
-(1-32 önceki sürümde — devam:)
-33. **[Audit'te eklendi] Bir özellik "bu turda gerek yok" diye bilinçli olarak ertelendiğinde, mutlaka bir TODO maddesi olarak işaretle** — `crop_requests` admin arayüzü tam olarak bu şekilde kayboldu: doğru bir karardı (kapsamı şişirmemek), ama hiçbir yerde "gelecekte yapılacak" olarak yazılmadığı için oturumlar arasında unutuldu.
-34. **[Audit'te eklendi] Bir teknik/güvenlik denetiminin "önerilen aksiyon" kısmı, teknik düzeltme kadar önemlidir ve ayrıca takip edilmeli** — Rekabet Hukuku denetiminin en kritik önerisi ("bir avukata danış") teknik mitigasyonlar tamamlanınca gözden kayboldu. Bir denetim hem "biz ne yaptık" hem "kullanıcının hâlâ yapması gereken" olarak iki ayrı listede tutulmalı.
-35. **[Benchmark re-audit'te eklendi] Her benchmark/finansal model revizyonundan sonra TODO'ya karşı re-audit yapılmalı** — strateji dokümanlarındaki gap'ler ve kararlar kendiliğinden backlog'a düşmüyor; bu turda 5 P0 gap'in TODO'da hiç olmadığı görüldü.
-36. **[Bu turda eklendi] "Lovable'a gerek yok, Claude/kullanıcı halleder" diye kapatılan maddeler de TODO'da hangi kararla ve kim tarafından kapatıldığı açıkça yazılmalı** — aksi halde "neden bu madde hiç yapılmamış" karışıklığı oluşabilir; madde 33'ün doğal bir uzantısı.
+(1-36 önceki sürümde — devam:)
+37. **[Bu turda eklendi] "Görsel olarak doğru kod" ile "gerçekten kalıcı olan kod" arasındaki fark tek bir dosyada bile değil, birbirinden bağımsız iki farklı yerde (checkout + onboarding trial) aynı anda tekrarlanabilir** — her iki `setPremium(true)` çağrısı da birbirinden habersiz aynı hatayı yapmıştı. Bir "local state güncelleniyor ama DB'ye yazılmıyor" deseni bulunduğunda, aynı deseni kullanan TÜM çağrı noktaları taranmalı, sadece ilk bulunan yer değil.
+38. **[Bu turda eklendi] Kendi güvenlik trigger'larımızın (örn. `enforce_profile_self_update_restrictions`) meşru sunucu-taraflı güncellemeleri de engelleyebileceği unutulmamalı** — bir alanı self-update'e kapattığımızda, o alanın **gerçekten** güncellenmesi gereken meşru senaryolar (örn. premium satın alma) için açıkça bir "güvenilir sunucu yolu" (service-role fonksiyon) tasarlanmalı, aksi halde özellik sessizce çalışmaz hale gelir.
 
 ---
 
 ## 📌 Kararlar
 
 (önceki tablo + eklenenler:)
-| **Alıcı Yorumları/Reviews özelliği** | DB'de hiç karşılığı yoktu, tamamen kaldırıldı — gerçek bir review tablosu istenirse Faz 2'de ayrı bir özellik olarak inşa edilecek → **revize: P17-C olarak öne alındı (Benchmark Gap #3, P0)** |
-| **Mock/sahte veri prensibi** | Bir UI elementi çalışıyormuş gibi görünse de, altındaki mutation/veri kaynağının gerçekten DB'ye bağlı olduğu ayrıca doğrulanmalı |
-| **Tam konuşma denetimi (2026-07-16)** | Ayrı geçmiş konuşma bulunamadı (proje kapsamında tek uzun oturum) — denetim, bu oturumun sıkıştırılmış özeti dahil tam içeriğinin TODO ile karşılaştırılmasıyla yapıldı, 6 eksik madde bulundu ve eklendi |
-| **Gelir modeli (Temmuz 2026)** | Çekirdek ürün tamamen ücretsiz · AI fiyat bandı herkese açık · tek tier AI premium ₺149/ay (test edilecek) · ilk 6 ay early adopter'lara ücretsiz (feature-flag) · referral 3 kullanıcı → 12 ay ücretsiz · %2,5 komisyon ana gelir — detay: `Finance/Model.md` §0 |
-| **Benchmark re-audit (Temmuz 2026)** | BENCHMARK 12 gap + KPI çerçevesi TODO ile karşılaştırıldı; 5 eksik P0 gap → P17 serisi kuruldu, 3 mevcut madde gap etiketiyle eşlendi, reviews kararı revize edildi |
-| **Audit takibi maliyet optimizasyonu (2026-07-16)** | 6 maddeden 2'si (unutulmuş ilan temizliği, crop_requests admin arayüzü) Lovable'a hiç gönderilmeden Claude/kullanıcı tarafından halledildi — sadece 2 madde (rate limiting, tool genişletmesi) toplam 4.2 kredi karşılığında Lovable'a gönderildi |
+| **Premium/tier persistence (2026-07-16)** | `setPremium(true)` (Zustand) hiçbir zaman `profiles.tier`'ı güncellemiyordu — yeni `activatePremium()` server function'ı (service-role, trigger'ın güvenilir-yol istisnasını kullanarak) her iki çağrı noktasına (billing checkout, buyer trial toggle) bağlandı |
+| **Gelir modeli gating (2026-07-16)** | Kod taramasıyla doğrulandı: premium sadece AI chat kotasını kapsıyor, fiyat verisi/ilanlar/teklifler/abonelikler/topluluk/analytics tamamen serbest |
 
 ---
 
 ## 📋 Son Test Sonuçları
 
-### Audit Takibi — MCP Rate Limiting + Tool Genişletmesi (2026-07-16) ✅
-| Görev | Kim | Maliyet | Sonuç |
-|---|---|---|---|
-| Unutulmuş "Domates" ilanı temizliği | Claude (doğrudan SQL) | 0 kredi | ✅ |
-| `crop_requests` admin arayüzü | Ertelendi → P17-E'ye bağlandı, Claude periyodik kontrol edecek | 0 kredi | ✅ Karar verildi |
-| MCP rate limiting (30 çağrı/10 dk) | Lovable | 3.2 kredi | ✅ JWT impersonasyonuyla canlı doğrulandı |
-| MCP tool genişletmesi (5 yeni tool, 16→21) | Lovable | 1 kredi | ✅ tsgo temiz, gerçek mutasyonlarla eşleşti |
-
-### Detaylı E2E Devam Turu (2026-07-16) ✅
-| Senaryo/Bug | Sonuç |
-|---|---|
-| S8-S13 (Fiyatlar, Keşfet, Fotoğraf, Görüşmeler, Raporlar, Abonelikler) | ✅ Hepsi geçti |
-| Bug: Günlük foto yükleme, Parti kapak fotoğrafı, Üretici Detay mock veri, Abonelik Oluştur hiç yazmıyordu | ✅ Hepsi düzeltildi |
-| tsgo (3 ayrı düzeltme turu) | ✅ Hepsi temiz |
-
-### Tam Konuşma Denetimi (2026-07-16) ✅
+### Sertifika Foto + `useHasat` Taraması + Gelir Modeli Gating + Premium Bug (2026-07-16) ✅
 | Kontrol | Sonuç |
 |---|---|
-| `conversation_search`/`recent_chats` ile ayrı geçmiş konuşma arandı | Bulunamadı — tek oturum |
-| Sıkıştırılmış özet + tüm oturum içeriği TODO ile karşılaştırıldı | ✅ 6 eksik madde bulundu, kullanıcı onayıyla eklendi |
+| Sertifika yükleme kod incelemesi | ✅ Gerçek, bug yok |
+| `useHasat` tam codebase taraması | ✅ Temiz, sadece meşru local state |
+| Premium gating = sadece AI mi? | ✅ Doğrulandı |
+| Fiyat bandı herkese açık mı? | ✅ Doğrulandı |
+| Premium satın alma DB'ye yazıyor mu? | ❌→✅ Bug bulundu (2 bağımsız yerde), `activatePremium()` server function ile düzeltildi |
+| Canlı doğrulama (Ahmet tier=premium→free) | ✅ Kod mantığı izlenerek doğrulandı, temizlendi |
 
-### Benchmark Re-Audit (Temmuz 2026) ✅
-| Kontrol | Sonuç |
-|---|---|
-| BENCHMARK 12 gap ↔ TODO karşılaştırması | 5 P0 gap eksikti → P17-A/B/C/D/F olarak eklendi; Gap #6 → P17-E; Gap #7-#12 → Sonraki Fazlar'a etiketle eklendi/eşlendi |
-| KPI §5 ölçüm altyapısı ↔ şema | 5 KPI ölçülemiyor (ödeme süresi, ihtilaf, tam kabul, fill rate, NPS) — tamamı P17'ye bağlandı, P17-G ölçüm görünümü eklendi |
-| Model v0.6 ürün yansımaları | 4 yeni madde: PSP pazaryeri teklifi, AI-only gating denetimi, referral koruması, AI kredi/limit tasarımı |
-
-### (Önceki tüm test sonuçları — Alıcı Sayfaları, Mock Data, Fiyatlandırma, Tedarik Zinciri, Landing, RLS, Rekabet Hukuku, MCP Server, P16 serisi — değişmedi, önceki sürümlerde)
+### (Önceki tüm test sonuçları — Audit Takibi, Detaylı E2E, Alıcı Sayfaları, Mock Data, Fiyatlandırma, Tedarik Zinciri, Landing, RLS, Rekabet Hukuku, MCP Server, Benchmark Re-Audit, P16 serisi — değişmedi, önceki sürümlerde)
