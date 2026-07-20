@@ -23,7 +23,8 @@ tags:
 - [x] **P18-A — Tema Katmanı + Ortak Component Seti** (2026-07-20)
 - [x] **P18-B — Çiftçi Ana Sayfa: Sohbet-Önde Giriş Akışı** (2026-07-20) + alıcı menüsünden "Fiyatlar" gizlendi
 - [x] **P18-H — Ana Sayfa Retention Katmanı (Çiftçi + Alıcı)** (2026-07-20)
-- [x] **P18-I — Basit Onboarding Tutorial (Çiftçi)** (2026-07-20) — bkz. detay aşağıda
+- [x] **P18-I — Basit Onboarding Tutorial (Çiftçi)** (2026-07-20)
+- [x] **P18-G — Ayarlar Yeniden Grupla + Mobil Bildirim Tablosu Düzeltmesi** (2026-07-20) — bkz. detay aşağıda
 
 ### P16 — TÜM SERİ TAMAMLANDI ✅
 (Detaylar önceki sürümlerde)
@@ -39,15 +40,16 @@ tags:
 (Değişmedi — bkz. önceki sürüm)
 
 ### Düşük öncelikli cila
-(Değişmedi — bkz. önceki sürüm, `price_points` temizlik notu dahil)
-- [ ] Lovable proje mesaj kuyruğu duraklatılmış (queue paused) olabilir — "queued but paused" hatasında Lovable editöründeki kuyruk durumu kontrol edilmeli.
-- [ ] **[Bu turda bulundu] Kuyruk "silinip" tekrar mesaj gönderildiğinde, önceki kuyruktaki mesajın arka planda daha önce işlenmiş olabileceği unutulmamalı** — dosya kontrolü yaparken TÜM ilgili dosya adlarının alfabetik konumu doğru sayfada aranmalı (bu turda `OnboardingTour.tsx` "O" harfiyle başladığı için yanlış sayfa kontrol edilmiş, dosya var olduğu halde "yok" sanılmıştı — şans eseri zararsız çıktı, ama dikkat edilmeli).
+(Değişmedi — bkz. önceki sürüm)
+- [ ] Lovable proje mesaj kuyruğu duraklatılmış (queue paused) olabilir — kontrol edilmeli.
+- [ ] Kuyruk temizleme sonrası dosya kontrolünde tüm alfabetik aralık taranmalı (bkz. önceki not).
+- [ ] **[Bu turda bulundu, kozmetik, düşük öncelik] `farmer.settings.tsx`'te "Çiftlik Bilgileri" accordion'u içindeki `Profil`/`Parsellerim`/`Sertifikalar` `Section`'ları kendi `border bg-card` kabuklarını koruyor** — Accordion'un dış kartıyla birlikte iç içe iki kart görünümü oluşabilir. Onaylanan plan bilerek Section'lara dokunmamıştı (kapsam: sadece wrapper), bu yüzden aktif bug değil — istenirse ayrı bir küçük cila turunda `Section` sarmalayıcıları accordion içinde kaldırılabilir.
 
 ---
 
 ## 🏗️ Lovable Build Sırası
 
-> Sıradaki: **P18-G** (Ayarlar Yeniden Grupla + Mobil Bildirim Tablosu Düzeltmesi). Sonra F → E → C → D. **Faz C / P17** (Eylül). **Faz D** (Piyasa Zaman Serisi backend'i) P18'e paralel, isteğe bağlı.
+> Sıradaki: **P18-F** (Piyasa & Performans Görünümü — Fiyatlar + Analitik). Sonra E → C → D. **Faz C / P17** (Eylül). **Faz D** (Piyasa Zaman Serisi backend'i) P18'e paralel, isteğe bağlı.
 
 ---
 
@@ -58,27 +60,25 @@ tags:
 ### ✅ P18-0 / P18-0.2 — Denetimler *(Tamamlandı)*
 (Değişmedi — bkz. önceki sürüm)
 
-### Faz Sıralaması: A ✅ → B ✅ → H ✅ → I ✅ → **G (şimdi)** → F → E → C → D
+### Faz Sıralaması: A ✅ → B ✅ → H ✅ → I ✅ → G ✅ → **F (şimdi)** → E → C → D
 
 ---
 
-### ✅ P18-A / P18-B / P18-H *(Tamamlandı — canlı doğrulandı)*
+### ✅ P18-A / P18-B / P18-H / P18-I *(Tamamlandı — canlı doğrulandı)*
 (Değişmedi — bkz. önceki sürüm)
 
-### ✅ P18-I — Basit Onboarding Tutorial (Çiftçi) *(Tamamlandı — 2026-07-20, canlı doğrulandı)*
+### ✅ P18-G — Ayarlar Yeniden Grupla + Mobil Bildirim Tablosu Düzeltmesi *(Tamamlandı — 2026-07-20, canlı doğrulandı)*
 **Doğrulanan sonuç:**
-- `src/components/hasat/OnboardingTour.tsx`: portal tabanlı spotlight tur component'i — hedef elemanın etrafında kesilmiş overlay (`box-shadow` spotlight tekniği), `getBoundingClientRect` ile ölçüm + resize/scroll dinleyicileri, viewport dışına taşmayı önleyen clamp, Escape ile atlama, `role="dialog"`/`aria-modal`/`aria-labelledby`.
-- `src/lib/hasat/onboarding-tour.ts`: `FARMER_TOUR_STEPS` (5 adım: AIBox, chat input, WhatsApp, Vitrin sekmesi, Fiyatlar sekmesi) + `FARMER_TOUR_STORAGE_KEY`.
-- `farmer.home.tsx`: `data-tour` attribute'ları eklendi, flag set değilse otomatik başlatma, `hasat:tour:restart` event dinleyicisi.
-- `farmer.tsx`: hem sidebar hem mobil "Daha" sheet'inde `HelpCircle` ikonlu "Nasıl Çalışır?" butonu — flag'i sıfırlayıp turu yeniden açıyor (gerekirse önce `/farmer/home`'a yönlendirip sonra tetikliyor). Vitrin/Fiyatlar sekmelerinde `data-tour` attribute'ları doğru yerde.
-- Token sistemi + 48px dokunma hedefi korunmuş. `tsgo` temiz.
+- `farmer.settings.tsx`: `Profil`, `Parsellerim`, `Sertifikalar` tek bir `Accordion` (`type="single" collapsible`, default value yok → kapalı başlıyor) içinde "Çiftlik Bilgileri" başlığı altında toplandı. `AccordionTrigger` `min-h-[48px]`. `Banka Bilgileri`, `AI Asistan`, `Bildirim Tercihleri` (link), `Verilerim`, `Hesap` sırası ve içerikleri değişmeden üst seviyede kaldı. Hiçbir state/hook/mutation mantığı değişmedi — sadece JSX yeniden gruplandı.
+- `farmer.settings.notifs.tsx`: mobil kart düzeni P18-A'da zaten eklenmişti, bu turda tekrar kontrol edildi ve gereksinimi tam karşıladığı doğrulandı — değişiklik gerekmedi (tekrar/duplikasyon yapılmadı).
+- `tsgo` temiz. Lovable planı doğru şekilde önce sadece plan aşamasında durdu, onay sonrası build etti — bu turda plan mode tutarlı çalıştı.
 
 ---
 
-### P18-G — Ayarlar Yeniden Grupla + Mobil Bildirim Tablosu Düzeltmesi *(sıradaki)*
-(Değişmedi — bkz. önceki sürüm)
+### P18-F — Piyasa & Performans Görünümü (Fiyatlar + Analitik) *(sıradaki)*
+(Değişmedi — bkz. önceki sürüm, sahte veri yasağı notu dahil)
 
-### P18-C, P18-D, P18-E, P18-F
+### P18-C, P18-D, P18-E
 (Değişmedi — bkz. önceki sürüm)
 
 ---
@@ -101,32 +101,31 @@ tags:
 
 ## 📋 Lovable Prompt Yazma Kuralları
 
-(1-52 önceki sürümde — devam:)
-53. **[Bu turda eklendi] Kuyrukla ilgili bir "silme/temizleme" işlemi sonrası dosya kontrolü yaparken, önceki (görünüşte başarısız) gönderimlerin arka planda işlenmiş olabileceği ihtimali göz önünde tutulmalı** — read-only doğrulama tek bir sayfa/aralıkla sınırlı kalmamalı, ilgili tüm dosya adları alfabetik konumlarına göre doğru şekilde aranmalı.
+(1-53 önceki sürümde — devam:)
+54. **[Bu turda eklendi] Lovable bazen plan mode'da gerçekten sadece plan üretiyor (build etmiyor) — bu durumda plan içeriği dikkatlice okunup değerlendirilmeli, onay ayrı bir mesajla (`plan_mode=false`, "Onaylıyorum, uygula") verilmeli**, otomatik build'e güvenilmemeli.
 
 ---
 
 ## 📌 Kararlar
 
 (önceki tablo + eklenenler:)
-| **P18-A/P18-B/P18-H/P18-I canlı doğrulandı (2026-07-20)** | Dördü de dosya okuma ile doğrulandı, gerçekten uygulanmış. |
+| **P18-A/B/H/I/G canlı doğrulandı (2026-07-20)** | Beşi de dosya okuma ile doğrulandı, gerçekten uygulanmış. |
 | **Build aracı: Lovable'da kalındı (2026-07-20)** | Değişmedi. |
 
 ---
 
 ## 📋 Son Test Sonuçları
 
-### P18-I (2026-07-20) ✅
+### P18-G (2026-07-20) ✅
 | Kontrol | Sonuç |
 |---|---|
-| `OnboardingTour.tsx` — spotlight, clamp, Escape, a11y | ✅ Dosya okumasıyla doğrulandı |
-| `onboarding-tour.ts` — 5 adım + storage key | ✅ |
-| `farmer.home.tsx` — otomatik başlatma + restart event dinleyicisi | ✅ |
-| `farmer.tsx` — sidebar + mobil "Nasıl Çalışır?" butonu, `data-tour` attributeları | ✅ |
-| Token/48px kuralına uyum | ✅ |
+| Accordion "Çiftlik Bilgileri" — kapalı başlıyor, 48px trigger | ✅ Dosya okumasıyla doğrulandı |
+| Profil/Parsellerim/Sertifikalar içerik/mantık değişmemiş | ✅ |
+| Diğer bölümlerin sırası korunmuş | ✅ |
+| Mobil bildirim kartı (tekrar kontrol, duplikasyon yok) | ✅ |
 | `tsgo` | ✅ Temiz |
 
-### P18-H (2026-07-20) ✅
+### P18-I (2026-07-20) ✅
 (Değişmedi — bkz. önceki sürüm)
 
 ### (Önceki tüm test sonuçları — değişmedi, önceki sürümlerde)
