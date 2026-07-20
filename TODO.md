@@ -57,16 +57,16 @@ tags:
 - [ ] **Lovable platform bug'ı (bilinen, düzeltilemez):** `plan_mode=false` sinyali agent'ın kod tool'larına bazen yansımıyor.
 - [ ] Storage bucket public/private ayarını her zaman canlı doğrula
 - [ ] **[Audit'te bulundu] `crop_requests` tablosu için admin inceleme arayüzü** — Claude periyodik kontrol edecek (P17-E'ye kadar)
-- [ ] **[Bu turda bulundu, düşük öncelik] `create_subscription` rol-temizliği eksik** — Faz B'de gönderildi, yanıt bekleniyor.
-- [ ] **[Bu turda bulundu, kozmetik] `FarmerAIChat.tsx` header'ı "Premium • sınırsız sohbet"** — Faz B'de gönderildi, yanıt bekleniyor.
-- [ ] **[Bu turda bulundu] `useHasat.setNotifPref` + store'daki `notifPrefs` slice'ı artık dead code** — Faz B'de gönderildi, yanıt bekleniyor.
+- [x] ~~`create_subscription` rol-temizliği eksik~~ — **Tamamlandı (2026-07-20):** `trg_enforce_subscription_buyer_role` trigger'ı eklendi, canlı doğrulandı.
+- [x] ~~`FarmerAIChat.tsx` header'ı "Premium • sınırsız sohbet"~~ — **Tamamlandı**, "ayda 500 mesaj" ile değiştirildi.
+- [x] ~~`useHasat.setNotifPref` dead code~~ — **Tamamlandı**, store'dan kaldırıldı.
 - [x] ~~AI chat'te "hava sor" ipucu tamamen kurgusal~~ — **Tamamlandı (2026-07-20):** ipucu kaldırıldı, "fiyat, pazar önerisi, günlük kaydı veya ürün önerisi" ile değiştirildi.
 
 ---
 
 ## 🏗️ Lovable Build Sırası — TAMAMLANDI ✅
 
-> Sıradaki: **Faz B** (gönderildi, yanıt bekleniyor) → **P18** (paralel yürüyebilir) → **Faz C / P17** (Eylül).
+> Sıradaki: **P18** (Arayüz Yenileme, hemen başlanabilir) → **Faz C / P17** (Eylül, ayrıca değerlendirilecek).
 
 ---
 
@@ -90,15 +90,15 @@ Ağustos E2E kapsamının resmi olarak kapanması için son 2 madde:
 
 ## 🧭 SIRADAKİ FAZ PLANI (2026-07-20 itibarıyla)
 
-**Faz A ✅ tamamlandı.** **Faz B** (aşağıdaki 4 madde) gönderildi, Lovable'ın yanıtı bekleniyor:
-1. SMS kapsamını genişletme (`offer_accepted_sms`, `payment_confirmed_sms`)
-2. `create_subscription` rol-temizliği CHECK'i
-3. `useHasat` dead code temizliği
-4. Kozmetik "Premium • sınırsız" düzeltmesi
+**Faz A ✅ ve Faz B ✅ tamamlandı.** Faz B'nin 4 maddesi de canlı doğrulandı:
+1. SMS kapsamı genişletildi (`offer_accepted_sms`, `payment_confirmed_sms`) — her ikisi için `dispatch_sms()`'in 200 döndürdüğü doğrulandı
+2. `create_subscription` rol-temizliği — `trg_enforce_subscription_buyer_role` trigger'ı eklendi, doğrulandı
+3. `useHasat` dead code temizliği — tamamlandı
+4. Kozmetik "Premium • sınırsız" → "ayda 500 mesaj" — tamamlandı
 
-*(5. madde — toplu premium feature-flag — bilinçli olarak Faz B'nin bu turundan çıkarıldı, "ŞİMDİ" bölümünde kendi satırında açık kalıyor.)*
+*(5. madde — toplu premium feature-flag — bilinçli olarak bu iki fazın dışında bırakıldı, "ŞİMDİ" bölümünde kendi satırında açık kalıyor.)*
 
-**Faz C (P17, Eylül)** hâlâ Faz A/B bitmeden başlamıyor. **P18 (Arayüz Yenileme)** üçüyle paralel yürüyebilir (UI-only, backend'e dokunmuyor).
+**Faz A + B'nin tamamlanmasıyla, TODO'daki bugüne kadarki tüm "sahte veri/kırık akış" bulgu zinciri (toplam 9 bağımsız örnek) resmi olarak kapandı.** Sıradaki: **P18 (Arayüz Yenileme)** — UI-only, backend'e dokunmuyor, hemen başlanabilir. **Faz C (P17, Eylül)** ayrıca değerlendirilecek.
 
 ---
 
@@ -203,6 +203,15 @@ Mevcut dosya ağacı, tema katmanı (`styles.css`), farmer shell (`farmer.tsx`),
 ---
 
 ## 📋 Son Test Sonuçları
+
+### Faz B — SMS Genişletme + Rol Temizliği + Cila (2026-07-20) ✅
+| Kontrol | Sonuç |
+|---|---|
+| `offer_accepted_sms`, `payment_confirmed_sms` kolonları | ✅ Doğrulandı |
+| `dispatch_sms()` her iki yeni olayda 200 dönüyor | ✅ Canlı doğrulandı |
+| `trg_enforce_subscription_buyer_role` trigger'ı | ✅ Doğrulandı |
+| `useHasat` dead code temizliği + kozmetik kopya düzeltmesi | ✅ |
+| tsgo | ✅ Temiz |
 
 ### Faz A — Community + Hava Sor (2026-07-20) ✅
 | Kontrol | Sonuç |
