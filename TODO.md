@@ -22,7 +22,8 @@ tags:
 - [x] P18-0.2 — Ana Sayfa Retention + Fiyat Verisi Doğruluk Denetimi (2026-07-20)
 - [x] **P18-A — Tema Katmanı + Ortak Component Seti** (2026-07-20)
 - [x] **P18-B — Çiftçi Ana Sayfa: Sohbet-Önde Giriş Akışı** (2026-07-20) + alıcı menüsünden "Fiyatlar" gizlendi
-- [x] **P18-H — Ana Sayfa Retention Katmanı (Çiftçi + Alıcı)** (2026-07-20) — bkz. detay aşağıda
+- [x] **P18-H — Ana Sayfa Retention Katmanı (Çiftçi + Alıcı)** (2026-07-20)
+- [x] **P18-I — Basit Onboarding Tutorial (Çiftçi)** (2026-07-20) — bkz. detay aşağıda
 
 ### P16 — TÜM SERİ TAMAMLANDI ✅
 (Detaylar önceki sürümlerde)
@@ -39,13 +40,14 @@ tags:
 
 ### Düşük öncelikli cila
 (Değişmedi — bkz. önceki sürüm, `price_points` temizlik notu dahil)
-- [ ] **[Bu turda bulundu] Lovable proje mesaj kuyruğu duraklatılmış (queue paused, reason: user) olabilir** — bir mesaj "queued but paused" hatası verirse, bu Lovable editöründeki kuyruk durumu kontrol edilmeli; kuyruk açılana kadar mesaj işlenmez.
+- [ ] Lovable proje mesaj kuyruğu duraklatılmış (queue paused) olabilir — "queued but paused" hatasında Lovable editöründeki kuyruk durumu kontrol edilmeli.
+- [ ] **[Bu turda bulundu] Kuyruk "silinip" tekrar mesaj gönderildiğinde, önceki kuyruktaki mesajın arka planda daha önce işlenmiş olabileceği unutulmamalı** — dosya kontrolü yaparken TÜM ilgili dosya adlarının alfabetik konumu doğru sayfada aranmalı (bu turda `OnboardingTour.tsx` "O" harfiyle başladığı için yanlış sayfa kontrol edilmiş, dosya var olduğu halde "yok" sanılmıştı — şans eseri zararsız çıktı, ama dikkat edilmeli).
 
 ---
 
 ## 🏗️ Lovable Build Sırası
 
-> Sıradaki: **P18-I** (Basit Onboarding Tutorial — Çiftçi). Sonra G → F → E → C → D. Build aracı Lovable MCP olarak devam ediyor (Claude Code'a geçiş denendi, sonra vazgeçildi — bkz. Kararlar). **Faz C / P17** (Eylül). **Faz D** (Piyasa Zaman Serisi backend'i) P18'e paralel, isteğe bağlı.
+> Sıradaki: **P18-G** (Ayarlar Yeniden Grupla + Mobil Bildirim Tablosu Düzeltmesi). Sonra F → E → C → D. **Faz C / P17** (Eylül). **Faz D** (Piyasa Zaman Serisi backend'i) P18'e paralel, isteğe bağlı.
 
 ---
 
@@ -56,28 +58,27 @@ tags:
 ### ✅ P18-0 / P18-0.2 — Denetimler *(Tamamlandı)*
 (Değişmedi — bkz. önceki sürüm)
 
-### Faz Sıralaması: A ✅ → B ✅ → H ✅ → **I (şimdi)** → G → F → E → C → D
+### Faz Sıralaması: A ✅ → B ✅ → H ✅ → I ✅ → **G (şimdi)** → F → E → C → D
 
 ---
 
-### ✅ P18-A — Tema Katmanı + Ortak Component Seti *(Tamamlandı — 2026-07-20, canlı doğrulandı)*
+### ✅ P18-A / P18-B / P18-H *(Tamamlandı — canlı doğrulandı)*
 (Değişmedi — bkz. önceki sürüm)
 
-### ✅ P18-B — Çiftçi Ana Sayfa: Sohbet-Önde Giriş Akışı *(Tamamlandı — 2026-07-20, canlı doğrulandı)*
-(Değişmedi — bkz. önceki sürüm, alıcı menüsü "Fiyatlar" gizleme notu dahil)
-
-### ✅ P18-H — Ana Sayfa Retention Katmanı (Çiftçi + Alıcı) *(Tamamlandı — 2026-07-20, canlı doğrulandı)*
+### ✅ P18-I — Basit Onboarding Tutorial (Çiftçi) *(Tamamlandı — 2026-07-20, canlı doğrulandı)*
 **Doğrulanan sonuç:**
-- `farmer.home.tsx`: `AIBox`'ın üzerine "Bekleyen" kartı eklendi — `useFarmerOffers`/`useFarmerOrders`'tan yanıt bekleyen teklif + hazırlanan sipariş sayısı, her ikisi de sıfırsa kart tamamen gizli, `/farmer/orders`'a link. "Bu Sezon" kartı YTD gelire çevrildi + geçen yıl aynı takvim penceresine göre yüzde kıyası eklendi (geçmiş veri yoksa gösterilmiyor, sahte sayı yok).
-- `buyer.discover.tsx`: kategorilerin üzerine "Senin İçin" yatay şeridi eklendi — bekleyen teklif (`useBuyerOffers`), en yakın abonelik teslimatı (`useMySubscriptions`), aktif fiyat alarmı (`usePriceAlerts`). Her kart veri yoksa gizli, şerit tamamen boşsa başlığıyla birlikte gizli. Fiyat alarmı kartı akıllıca `/buyer/reports`'a link veriyor, gizlenen `/buyer/prices`'a değil.
-- Token sistemi (`--saffron`/`--gold`/`--sage`/`--hred`) ve 48px dokunma hedefi korunmuş. `tsgo` temiz.
+- `src/components/hasat/OnboardingTour.tsx`: portal tabanlı spotlight tur component'i — hedef elemanın etrafında kesilmiş overlay (`box-shadow` spotlight tekniği), `getBoundingClientRect` ile ölçüm + resize/scroll dinleyicileri, viewport dışına taşmayı önleyen clamp, Escape ile atlama, `role="dialog"`/`aria-modal`/`aria-labelledby`.
+- `src/lib/hasat/onboarding-tour.ts`: `FARMER_TOUR_STEPS` (5 adım: AIBox, chat input, WhatsApp, Vitrin sekmesi, Fiyatlar sekmesi) + `FARMER_TOUR_STORAGE_KEY`.
+- `farmer.home.tsx`: `data-tour` attribute'ları eklendi, flag set değilse otomatik başlatma, `hasat:tour:restart` event dinleyicisi.
+- `farmer.tsx`: hem sidebar hem mobil "Daha" sheet'inde `HelpCircle` ikonlu "Nasıl Çalışır?" butonu — flag'i sıfırlayıp turu yeniden açıyor (gerekirse önce `/farmer/home`'a yönlendirip sonra tetikliyor). Vitrin/Fiyatlar sekmelerinde `data-tour` attribute'ları doğru yerde.
+- Token sistemi + 48px dokunma hedefi korunmuş. `tsgo` temiz.
 
 ---
 
-### P18-I — Basit Onboarding Tutorial (Çiftçi) *(sıradaki)*
+### P18-G — Ayarlar Yeniden Grupla + Mobil Bildirim Tablosu Düzeltmesi *(sıradaki)*
 (Değişmedi — bkz. önceki sürüm)
 
-### P18-C, P18-D, P18-E, P18-F, P18-G
+### P18-C, P18-D, P18-E, P18-F
 (Değişmedi — bkz. önceki sürüm)
 
 ---
@@ -100,34 +101,32 @@ tags:
 
 ## 📋 Lovable Prompt Yazma Kuralları
 
-(1-50 önceki sürümde — devam:)
-51. **[Bu turda eklendi] Bir Lovable mesajı "queued but paused" hatası verirse, bu bir işlem hatası değil, editördeki kuyruğun kullanıcı tarafından duraklatılmış olması demektir** — kuyruk açılana kadar beklenmeli, tekrar göndermek yeni bir kuyruk pozisyonu yaratmaktan başka bir şey yapmaz.
-52. **[Bu turda eklendi] Build aracı kararları (Lovable ↔ Claude Code) geri alınabilir** — Berkin bir turda Claude Code'a geçmeye karar verip sonraki turda vazgeçebilir; TODO'daki "build aracı" notu her turda güncel karara göre düzeltilmeli, önceki kararın izini bırakmamalı.
+(1-52 önceki sürümde — devam:)
+53. **[Bu turda eklendi] Kuyrukla ilgili bir "silme/temizleme" işlemi sonrası dosya kontrolü yaparken, önceki (görünüşte başarısız) gönderimlerin arka planda işlenmiş olabileceği ihtimali göz önünde tutulmalı** — read-only doğrulama tek bir sayfa/aralıkla sınırlı kalmamalı, ilgili tüm dosya adları alfabetik konumlarına göre doğru şekilde aranmalı.
 
 ---
 
 ## 📌 Kararlar
 
 (önceki tablo + eklenenler:)
-| **P18-A/P18-B canlı doğrulandı (2026-07-20)** | İkisi de commit SHA + dosya okuma ile doğrulandı, gerçekten uygulanmış. |
-| **Build aracı: Lovable'da kalındı (2026-07-20)** | Claude Code'a geçiş bir turda planlandı, sonraki turda Berkin vazgeçti — P18-H ve sonrası Lovable MCP ile devam ediyor. |
-| **Mesaj tekrarı yasağı (2026-07-20)** | Bir Lovable mesajının gidip gitmediğinden şüphe duyulduğunda asla tekrar gönderilmeyecek; önce dosya/diff kontrolü yapılacak. Kuyruk duraklatılmışsa (queue paused) bu ayrı bir durum — kullanıcı editörden açmalı. |
+| **P18-A/P18-B/P18-H/P18-I canlı doğrulandı (2026-07-20)** | Dördü de dosya okuma ile doğrulandı, gerçekten uygulanmış. |
+| **Build aracı: Lovable'da kalındı (2026-07-20)** | Değişmedi. |
 
 ---
 
 ## 📋 Son Test Sonuçları
 
-### P18-H (2026-07-20) ✅
+### P18-I (2026-07-20) ✅
 | Kontrol | Sonuç |
 |---|---|
-| Çiftçi "Bekleyen" kartı (teklif+sipariş, sıfırsa gizli) | ✅ Dosya okumasıyla doğrulandı |
-| Çiftçi YTD gelir + YoY kıyası (veri yoksa gizli) | ✅ |
-| Alıcı "Senin İçin" şeridi (teklif/abonelik/alarm) | ✅ |
-| Fiyat alarmı kartı kırık linke düşmüyor (`/buyer/reports`'a gidiyor) | ✅ |
+| `OnboardingTour.tsx` — spotlight, clamp, Escape, a11y | ✅ Dosya okumasıyla doğrulandı |
+| `onboarding-tour.ts` — 5 adım + storage key | ✅ |
+| `farmer.home.tsx` — otomatik başlatma + restart event dinleyicisi | ✅ |
+| `farmer.tsx` — sidebar + mobil "Nasıl Çalışır?" butonu, `data-tour` attributeları | ✅ |
 | Token/48px kuralına uyum | ✅ |
 | `tsgo` | ✅ Temiz |
 
-### P18-A + P18-B (2026-07-20) ✅
+### P18-H (2026-07-20) ✅
 (Değişmedi — bkz. önceki sürüm)
 
 ### (Önceki tüm test sonuçları — değişmedi, önceki sürümlerde)
