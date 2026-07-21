@@ -25,7 +25,8 @@ tags:
 - [x] Alıcı Bildirim Tercihleri sayfası eklendi + `buyer.account.tsx` bayat veri bug'ı düzeltildi
 - [x] Abonelik → Sipariş bağlantısı (`subscription_id`) eklendi + escrow yanlış vaadi düzeltildi
 - [x] Abonelik CTA'sı üretici profilinde yukarı taşındı + bizzat canlı veri testi
-- [x] **P17-E — Yapılandırılmış RFQ (talep akışı) TAMAMLANDI, uçtan uca canlı veriyle bizzat doğrulandı** (2026-07-21) — bkz. detay
+- [x] P17-E — Yapılandırılmış RFQ (talep akışı) TAMAMLANDI, uçtan uca canlı veriyle bizzat doğrulandı (2026-07-21)
+- [x] **P17-G-1 — KPI ölçüm view'ları (çekirdek: North Star + P0) backend'de TAMAMLANDI, RLS-bypass sızıntısı bulunup düzeltildi** (2026-07-21) — bkz. detay
 
 ### P16 — TÜM SERİ TAMAMLANDI ✅
 (Detaylar önceki sürümlerde)
@@ -48,7 +49,7 @@ tags:
 
 ## 🏗️ Lovable/Supabase Build Sırası
 
-> **P19 + P17-B + P17-C + P17-F + P17-E tamamen bitti, hepsi canlı doğrulandı.** **P17-A ve P17-D şirket kuruluşuna bağlı, bloke.** Sıradaki: **P17-G (KPI ölçüm görünümleri)** — P17 serisinin son bağımsız fazı.
+> **P19 + P17-B + P17-C + P17-F + P17-E tamamen bitti, hepsi canlı doğrulandı.** **P17-G-1 (KPI çekirdek view'ları) backend'de TAMAMLANDI.** **P17-A ve P17-D şirket kuruluşuna bağlı, bloke.** Sıradaki: **P17-G-2 (kalan KPI view'ları)** veya **P17-G-UI (admin KPI dashboard, Lovable — ayrı prompt)**.
 
 ---
 
@@ -74,7 +75,7 @@ tags:
 | P17-E | Yapılandırılmış RFQ (talep akışı) | P1 | ✅ **TAMAMLANDI** |
 | P17-A | Gerçek bloke ödeme (escrow) | P0 | 🔴 Bloke — şirket kuruluşu + iyzico başvurusu |
 | P17-D | Fatura/e-müstahsil | P0 (B2B) | 🔴 Bloke — vergi mükellefiyeti gerektiriyor |
-| P17-G | KPI ölçüm görünümleri | destek | **Sıradaki — son bağımsız faz** |
+| P17-G | KPI ölçüm görünümleri | destek | 🟡 **P17-G-1 backend TAMAMLANDI** (2026-07-21) — P17-G-2 (genişletilmiş metrikler) ve P17-G-UI (admin dashboard) bekliyor |
 
 ### ✅ P17-B / P17-C / P17-F / Abonelik-Sipariş Bağlantısı — TAMAMLANDI
 (Değişmedi — bkz. önceki sürüm)
@@ -96,6 +97,34 @@ tags:
 4. Test verisi (crop_request + notification) hemen sonra temizlendi.
 5. `buyer.account.tsx`'teki "Taleplerim" linki dosya okumasıyla doğrulandı.
 
+### 🟡 P17-G-1 — KPI Ölçüm View'ları (Çekirdek) — BACKEND TAMAMLANDI *(2026-07-21)*
+
+**Kapsam:** BENCHMARK.md §5 KPI çerçevesinden North Star + P0 çekirdek, sadece Supabase view olarak (Lovable'a dokunulmadı, kredi harcanmadı — doğrudan Supabase MCP).
+
+**Kurulan view'lar (`public` şema):**
+- `v_kpi_order_base` — temel view: her sipariş için tutar (`current_price/current_quantity`, yoksa `price_per_unit/quantity`), ürün, taraflar, `reached_delivery` (status IN delivered/completed), `is_realized_sale` (+ `payment_status='paid'`), `has_dispute`
+- `v_kpi_north_star` — aylık toplam GMV, ihtilafsız GMV, ihtilafsız pay % (hedef ≥%95)
+- `v_kpi_dispute_rate` — aylık ihtilaf oranı (hedef ≤%2)
+- `v_kpi_full_acceptance_rate` — aylık tam kabul oranı (hedef ≥%95)
+- `v_kpi_buyer_repeat_rate` — segment bazlı (`buyer_profiles.company_type`) + genel tekrar alıcı oranı (GROUPING SETS)
+- `v_kpi_review_avg` — kullanıcı/role/genel bazlı ortalama puan (GROUPING SETS)
+
+**Önemli tasarım notu:** `orders.status`'ta şu an `completed` değeri hiç kullanılmıyor (veri: 110 delivered / 9 preparing / 1 shipped, disputed/cancelled/completed yok) — view'lar `status IN ('delivered','completed')` mantığıyla yazıldı, gerçek "completed" akışı devreye girince otomatik kapsanacak, değişiklik gerekmeyecek.
+
+**🔴 Güvenlik bulgusu + düzeltme (aynı oturumda):** View'lar oluşturulduğunda Postgres/Supabase varsayılanı `anon` ve `authenticated` rollerine SELECT (+ anlamsız INSERT/UPDATE/DELETE) yetkisi veriyor. View'lar RLS'i bypass ettiği için (definer=postgres), bu **herhangi bir kullanıcının** (giriş yapmamış dahil) `v_kpi_order_base` üzerinden tüm siparişlerin buyer_id/farmer_id/tutar/şehir bilgisine RLS'siz erişebilmesi anlamına geliyordu — önceki RLS denetimindeki sızıntı deseninin aynısı. **Düzeltildi:** `REVOKE ALL ... FROM anon, authenticated` + sadece `service_role`'e `GRANT SELECT`. Doğrulandı: `information_schema.role_table_grants` ile anon/authenticated'ın artık hiçbir yetkisi yok, sadece service_role'de SELECT var.
+
+**Doğrulama (canlı veriyle):**
+- North Star: 2024-06 → 2026-07 arası aylık GMV kırılımı doğru hesaplanıyor (ör. 2025-10: 4.461,955 GMV)
+- Dispute rate / full acceptance: `disputes` tablosu şu an 0 satır → dispute_rate %0.00, full_acceptance %100.00, North Star ihtilafsız pay %100.00 — hepsi tutarlı (hardcode değil, gerçek 0 sayımından türetiliyor)
+- Buyer repeat rate: 6 segment (bireysel/genel/ihracatçı/organik_market/otel/restoran), her biri %100 (mock veride her alıcı ≥2 sipariş almış — gerçekçi ölçüm sonraki gerçek kullanıcı verisiyle şekillenecek)
+- Review avg: 1 gerçek review (P17-C testinden), role=buyer, ort. 5.00 — beklenen (henüz mock review seed'i yok)
+
+**Bloke/ölçülemeyen (bilinçli olarak kapsam dışı, BENCHMARK Gap'leriyle uyumlu):** ödeme hızı KPI'sı (Gap #1, escrow yok), gerçek take rate (ödeme altyapısı yok), gerçek NPS (anket yok).
+
+**Sıradaki (P17-G-2, ayrı oturum):** aktivasyon süreleri (kayıt→ilk ilan/sipariş), ilan→teklif oranı, sell-through, aktif çiftçi başı GMV, M1/M3 retention, doğrulanmış üretici %, RFQ fill-rate (heuristik eşleştirme gerekecek — `crop_requests`'in `order_id` FK'ı yok), HoReCa haftalık sipariş sıklığı, alıcı:satıcı oranı, il×ürün tedarik yoğunluğu, hal fiyatı referans bandı (sadece İzmir pilotu: domates/elma/patates).
+
+**Sıradaki (P17-G-UI, ayrı Lovable prompt'u, plan_mode=true ile başla):** bu view'ları gösteren basit admin KPI paneli — service_role ile okuyan bir edge function/admin route gerekecek (view'lar artık anon/authenticated'a kapalı, doğrudan frontend client'tan okunamaz).
+
 ---
 
 ## 🟡 AĞUSTOS 2026 — Soft Launch
@@ -109,8 +138,10 @@ tags:
 ## 📋 Lovable/Supabase Prompt Yazma Kuralları
 
 (1-79 önceki sürümde — devam:)
-80. **[Bu turda eklendi] Bir hook/mutation tanımlı ama HİÇ UI'dan çağrılmıyorsa, bu "eksik özellik" değil "yarım bırakılmış özellik" anlamına gelir** — `useCreateCropRequest` örneğinde olduğu gibi, önce kodun var olup olmadığına değil, gerçekten bir kullanıcı yolundan tetiklenip tetiklenmediğine bakılmalı.
-81. **[Bu turda eklendi] Eşleşme/bildirim gibi çok adımlı bir mantığı doğrularken, her adımı (canonical eşleşme → çiftçi bulma → bildirim satırı) AYNI SQL sorgularıyla ayrı ayrı simüle etmek, sadece "kod var" demekten çok daha güçlü bir kanıt sağlar.**
+80. **Bir hook/mutation tanımlı ama HİÇ UI'dan çağrılmıyorsa, bu "eksik özellik" değil "yarım bırakılmış özellik" anlamına gelir** — `useCreateCropRequest` örneğinde olduğu gibi, önce kodun var olup olmadığına değil, gerçekten bir kullanıcı yolundan tetiklenip tetiklenmediğine bakılmalı.
+81. **Eşleşme/bildirim gibi çok adımlı bir mantığı doğrularken, her adımı (canonical eşleşme → çiftçi bulma → bildirim satırı) AYNI SQL sorgularıyla ayrı ayrı simüle etmek, sadece "kod var" demekten çok daha güçlü bir kanıt sağlar.**
+82. **[Bu turda eklendi] Yeni bir Supabase view/tablo oluşturulduğunda, iş mantığı doğru olsa bile varsayılan grant'lar (`anon`/`authenticated`'a otomatik SELECT) kontrol edilmeden bırakılmamalı** — özellikle RLS'i bypass eden view'larda (definer=postgres), bu tek başına bir veri sızıntısıdır. Her yeni view/tablo sonrası `information_schema.role_table_grants` ile kontrol + gereksiz grant'ları `REVOKE` etmek standart adım olmalı.
+83. **[Bu turda eklendi] `apply_migration` tek bir transaction olarak çalışıyor — bir migration içindeki son statement hata verirse, önceki statement'lar da (view'lar dahil) BAŞARILI olsa bile rollback olur.** Migration hata verdiğinde "kısmen uygulandı" varsayılmamalı; hatadan sonra `pg_views`/`information_schema` ile gerçekte ne kaldığı kontrol edilip eksik kalanlar yeni bir migration'la tamamlanmalı.
 
 ---
 
@@ -118,10 +149,22 @@ tags:
 
 (önceki tablo + eklenenler:)
 | **P17-E tamamlandı (2026-07-21)** | Şema+UI+eşleşme+bildirim+liste sayfası, hepsi gerçek verilerle uçtan uca doğrulandı. Sıradaki: P17-G (KPI görünümleri) — P17 serisinin son bağımsız fazı. |
+| **P17-G-1 tamamlandı (2026-07-21)** | 6 KPI view'ı (North Star + P0 çekirdek) Supabase'de canlı, gerçek veriyle doğrulandı. Kurulum sırasında anon/authenticated'a açık kalan RLS-bypass sızıntısı bulundu ve aynı oturumda düzeltildi (sadece service_role'e SELECT). UI (admin dashboard) ve genişletilmiş metrikler (P17-G-2) ayrı adımlar olarak bırakıldı. |
 
 ---
 
 ## 📋 Son Test Sonuçları
+
+### P17-G-1 KPI View Doğrulaması (2026-07-21) ✅
+| Kontrol | Sonuç |
+|---|---|
+| 6 view'ın tamamı `pg_views`'ta mevcut | ✅ |
+| North Star aylık GMV hesaplaması (2024-06 → 2026-07) | ✅ Canlı veriyle doğrulandı |
+| Dispute rate / full acceptance / North Star ihtilafsız pay tutarlılığı | ✅ `disputes`=0 satır → %0/%100/%100, birbiriyle tutarlı |
+| Buyer repeat rate — 6 segment | ✅ Hesaplandı, sonuçlar mock veri profiliyle tutarlı |
+| Review avg | ✅ 1 gerçek review, doğru agregat |
+| anon/authenticated grant sızıntısı tespiti | ✅ `information_schema.role_table_grants` ile bulundu |
+| Grant düzeltmesi sonrası doğrulama | ✅ anon/authenticated'da sıfır yetki, service_role'de sadece SELECT |
 
 ### P17-E Tam Doğrulama (2026-07-21) ✅
 | Kontrol | Sonuç |
