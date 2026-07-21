@@ -19,7 +19,8 @@ tags:
 (Önceki maddeler değişmedi — bkz. önceki sürüm)
 - [x] P18 serisi + P19 (backend+UI) tamamen tamamlandı
 - [x] P19-C — İzmir tam olgun, global commodity API araştırması kapandı
-- [x] **P17-B — Sipariş sonrası akış (kargo/teslim/iptal/ihtilaf) SIFIRDAN İNŞA EDİLDİ VE CANLI DOĞRULANDI** (2026-07-21) — bkz. detay
+- [x] P17-B — Sipariş sonrası akış (kargo/teslim/iptal/ihtilaf) sıfırdan inşa edildi, canlı doğrulandı
+- [x] **P17-C — Karşılıklı Değerlendirme Sistemi TAMAMLANDI + 3 gerçek boşluk düzeltildi** (2026-07-21) — bkz. detay
 
 ### P16 — TÜM SERİ TAMAMLANDI ✅
 (Detaylar önceki sürümlerde)
@@ -41,7 +42,7 @@ tags:
 
 ## 🏗️ Lovable/Supabase Build Sırası
 
-> **P19 tamamen bitti. P17-B tamamen bitti ve canlı doğrulandı.** Sıradaki: **P17-C (karşılıklı değerlendirme)**. Ardından **P17-A (gerçek escrow, iyzico başvurusuna bağlı) → P17-D/E/F/G.**
+> **P19 + P17-B + P17-C tamamen bitti, hepsi canlı doğrulandı.** Sıradaki: **P17-A (gerçek escrow, iyzico başvurusuna bağlı, beklemede) → P17-D/E/F/G.**
 
 ---
 
@@ -62,27 +63,30 @@ tags:
 | Kod | Konu | Şiddet | Durum |
 |---|---|---|---|
 | P17-B | Teslim/kargo/iptal/ihtilaf akışı | P0 | ✅ **TAMAMLANDI — canlı doğrulandı** |
-| P17-C | Karşılıklı değerlendirme (rating/review) | P0 | **Sıradaki** |
+| P17-C | Karşılıklı değerlendirme (rating/review) | P0 | ✅ **TAMAMLANDI — canlı doğrulandı** |
 | P17-A | Gerçek bloke ödeme (escrow) | P0 | iyzico pazaryeri başvurusuna bağlı, beklemede |
 | P17-D | Fatura/e-müstahsil | P0 (B2B) | Henüz sırada değil |
 | P17-E | Yapılandırılmış RFQ | P1 | Henüz sırada değil |
 | P17-F | Tekrar sipariş + şube adresleri | P0 (HoReCa) | Henüz sırada değil |
 | P17-G | KPI ölçüm görünümleri | destek | Henüz sırada değil |
 
-### ✅ P17-B — TAMAMLANDI *(2026-07-21, kapsamlı canlı doğrulama)*
+### ✅ P17-B — TAMAMLANDI
+(Değişmedi — bkz. önceki sürüm, kapsamlı canlı doğrulama detayları)
 
-**Audit bulguları (önceki sürümde detaylı — özet: durum geçişi hiç yoktu, `disputed`→"preparing" bug'ı, `cancelled` şemada yoktu, kargo takip alanı yoktu, teslimat yöntemi sabit "Kargo" bug'ıydı, iade/iptal akışı yoktu, "Satıcıyla Konuş" placeholder'dı).**
+### ✅ P17-C — Karşılıklı Değerlendirme Sistemi — TAMAMLANDI *(2026-07-21, kapsamlı canlı doğrulama)*
 
-**Uygulanan ve dosya okuması + canlı SQL sorgularıyla tek tek doğrulanan çözüm:**
+**İlk build (şema + backend + temel UI):**
+- **Şema** ✅ — Yeni `reviews` tablosu (order_id, reviewer_id, reviewee_id, reviewer_role, rating 1-5, comment, created_at), unique `(order_id, reviewer_id)`. RLS: SELECT herkese açık (agregat/profil gösterimi için), INSERT sadece `reviewer_id=auth.uid()` + siparişin gerçek tarafı olma + rol-eşleşme kontrolüyle (policy içeriği okunarak doğrulandı — sadece varlığı değil, `with_check` mantığı da kontrol edildi).
+- **RPC** ✅ — `get_farmer_rating_summary(_farmer_id)` (sadece `reviewer_role='buyer'` filtreli — alıcıdan çiftçiye).
+- **Mutation/query'ler** ✅ — `useCreateReview`, `useOrderReviews`, `useFarmerRatingSummary`, `useFarmerRecentReviews` — hepsi `queries.ts`'te doğrulandı.
+- **UI** ✅ — Alıcı sipariş detayında (`buyer.orders.$orderId.tsx`) "Üreticiyi Değerlendir" (yıldız+yorum modalı, zaten değerlendirilmişse "Değerlendirdiniz ✓"); çiftçi sipariş listesinde (`farmer.orders.index.tsx` `OrderCard`) "Alıcıyı Değerlendir" aynı desende; üretici public profilinde (`buyer.producer.$id.tsx`) gerçek ortalama puan + son yorumlar (review yoksa "Henüz değerlendirme yok", sahte veri yok — E2E-QA S16'da kaldırılan sahte "Alıcı Yorumları"nın gerçek karşılığı).
 
-1. **Şema** ✅ — `orders`'a `tracking_number`, `carrier`, `cancelled_at`, `cancel_reason`, `dispute_window_expires_at` kolonları eklendi. `order_status` enum'ına `cancelled` eklendi (artık `{preparing,shipped,delivered,disputed,completed,cancelled}`). Yeni `disputes` tablosu (order_id, opened_by, reason, evidence_photo_urls, status, resolution, resolved_at, window_expires_at) — RLS doğrulandı: SELECT/UPDATE sadece sipariş tarafları, INSERT `opened_by=auth.uid()` + sipariş tarafı kontrolü ile. Yeni `delivery-photos` storage bucket (private). **Veri kaybı yok** — 118 sipariş, 110 delivered aynen duruyor.
-2. **Mutation'lar** ✅ — `useMarkShipped` (çiftçi, sadece kendi siparişi + `preparing`→`shipped` guard, tracking/carrier set eder, timeline'a ekler), `useConfirmDelivery` (alıcı, sadece `shipped`→`delivered` guard, opsiyonel fotoğraf yükler, 24s itiraz penceresi başlatır), `useCancelOrder` (sadece `preparing`'ten, taraf kontrolü `.or(buyer_id.eq/farmer_id.eq)`), `useOpenDispute` (pencere kontrolü + taraf kontrolü, kanıt fotoğrafları), `useOrderDispute` (okuma). Hepsi `queries.ts`'te tam okunarak doğrulandı.
-3. **Bug düzeltmeleri** ✅ — `dbToOrder`'daki `statusMap`: `disputed: "disputed"`, `cancelled: "cancelled"` (düzeltildi). `delivery: deliveryLabel(offer.delivery)` — artık gerçek seçilen yöntem gösteriliyor (sabit "Kargo" kaldırıldı), `ORDER_SELECT`'e `offer.delivery` eklendi.
-4. **UI — Çiftçi** ✅ — `OrderCard`'da `preparing` durumunda "📦 Kargoya Ver" (kargo firması + takip no modalı) ve "İptal Et" (sebep modalı) butonları; `shipped` durumunda takip no gösterimi; `cancelled` durumunda iptal sebebi gösterimi.
-5. **UI — Alıcı** ✅ — Sipariş detayında `shipped` durumunda takip no gösterimi; "✅ Teslim Aldım" (opsiyonel fotoğraf, sadece `shipped`'ken) ve "⚠️ İhtilaf Aç" (sebep+fotoğraflar, pencere açıkken) butonları; `disputed`/`cancelled` durumları sebep/detayla gösteriliyor. **"Satıcıyla Konuş" placeholder'ı ("Mesajlaşma yakında...") kaldırıldı** — sadece gerçek çalışan WhatsApp/tel butonları kaldı.
-6. `tsgo` temiz (Lovable raporu + kod okumasıyla tutarlı).
+**Berkin'in canlı testte bulduğu 3 gerçek boşluk — hepsi düzeltildi ve doğrulandı:**
+1. **Alıcının "Tamamlanan" LİSTE sayfasında (`buyer.orders.tsx`) değerlendirme göstergesi yoktu** — çiftçi tarafında liste sayfasının kendisinde buton varken, alıcı tarafında sadece detay sayfasında vardı (asimetri). **Düzeltme:** `renderDoneOrders` her satırı artık `DoneOrderRow` component'i (satır bazlı `useOrderReviews`/`ReviewModal` ile) — liste satırında doğrudan "⭐ Değerlendir" / "⭐ Değerlendirdiniz" gösteriyor, `e.stopPropagation()` ile satırın kendi navigate'ini bozmadan.
+2. **Alıcının puanı hiçbir yerde çiftçiye görünmüyordu** (tek yönlü kalmıştı). **Düzeltme:** Yeni `get_buyer_rating_summary(_buyer_id)` RPC'si (aynı desende, `reviewer_role='farmer'` filtreli) + `useBuyerRatingSummary` hook'u + yeni `BuyerRatingBadge` component'i — `farmer.orders.index.tsx`'teki `OfferCard` ve `OrderCard`'da alıcı adının yanında "⭐ {puan} ({sayı})" gösteriyor, review yoksa hiçbir şey göstermiyor (sahte/varsayılan yok).
+3. **Değerlendirme oluşturulunca bildirim gitmiyordu.** **Düzeltme:** `useCreateReview`, mevcut `useCreateReply`'deki best-effort bildirim desenini (try/catch'li, tablo/RLS sorununda sessiz geçen) uyarlayarak `notifications` tablosuna `{type:'review', title:'Yeni değerlendirme', body:'{isim} {puan}/5 puan verdi'}` satırı ekliyor.
 
-**Doğrulama yöntemi:** Bu turda "önce güven, sonra doğrula" değil, tam tersi uygulandı — Berkin'in "hazır" bildirimi sonrası `queries.ts`, `farmer.orders.index.tsx`, `buyer.orders.$orderId.tsx` tam okundu, şema+RLS+storage bucket canlı SQL ile ayrıca doğrulandı. Hepsi rapor edilenle birebir eşleşti.
+**Doğrulama yöntemi:** Her üç düzeltme de dosya okumasıyla (`queries.ts`, `buyer.orders.tsx`, `farmer.orders.index.tsx`) tek tek teyit edildi — Lovable'ın "tamamlandı" özetine güvenilmedi.
 
 ---
 
@@ -96,34 +100,32 @@ tags:
 
 ## 📋 Lovable/Supabase Prompt Yazma Kuralları
 
-(1-68 önceki sürümde — devam:)
-69. **[Bu turda eklendi] Kullanıcı "hazır, şu şu yapıldı" dediğinde bile, önce kod/şema/RLS'i kendin okuyup doğrula** — bu turda Berkin'in raporu %100 doğru çıktı, ama bu turdan önceki iki denemede Lovable'ın kendi "tamamlandı" mesajı yarım kalmış işi tam gibi göstermişti; kullanıcının raporu bile bu ayrımı otomatik yapmaz.
-70. **[Bu turda eklendi] Yeni bir tablo/mutation eklerken RLS politikalarını sadece var olup olmadığı değil, `qual`/`with_check` içeriğini de okuyarak doğrula** — "politika var" ile "politika doğru sipariş taraflarını kısıtlıyor" farklı şeyler.
+(1-70 önceki sürümde — devam:)
+71. **[Bu turda eklendi] "Karşılıklı" (mutual) bir özellik tasarlarken, her iki yönün de SEMANTİK OLARAK ayrı olabileceği unutulmamalı** — `reviewer_role='buyer'` filtreli bir RPC'yi diğer yön için (buyer'ın puanı) doğrudan tekrar kullanmaya çalışmak yanlış sonuç verir; her yön için doğru filtreyle ayrı bir RPC/sorgu gerekir.
+72. **[Bu turda eklendi] Bir liste sayfası ile onun detay sayfası arasında aynı aksiyon (örn. "değerlendir") varsa, ikisinde de AYNI görünürlükte olmalı** — sadece detay sayfasına gömmek, kullanıcının o aksiyonu hiç fark etmemesine yol açabilir; liste ve detay arasında UI parity kontrolü yapılmalı.
 
 ---
 
 ## 📌 Kararlar
 
 (önceki tablo + eklenenler:)
-| **P17-B tamamlandı (2026-07-21)** | Şema+mutation+UI+bug düzeltmeleri, tam canlı doğrulandı (kod okuma + SQL + RLS kontrolü). Sıradaki: P17-C. |
+| **P17-C tamamlandı (2026-07-21)** | Şema+RPC+mutation+UI, tam canlı doğrulandı. Berkin'in bulduğu 3 boşluk (liste parity, alıcı rozeti, bildirim) da düzeltildi ve doğrulandı. Sıradaki: P17-A (iyzico'ya bağlı, beklemede) veya P17-D/E/F/G. |
 
 ---
 
 ## 📋 Son Test Sonuçları
 
-### P17-B Tam Doğrulama (2026-07-21) ✅
+### P17-C Tam Doğrulama (2026-07-21) ✅
 | Kontrol | Sonuç |
 |---|---|
-| Şema (kolonlar, enum, disputes tablosu) | ✅ Canlı SQL ile doğrulandı |
-| Veri kaybı yok (118 sipariş, 110 delivered) | ✅ |
-| `delivery-photos` bucket (private) | ✅ |
-| `disputes` RLS (SELECT/UPDATE/INSERT, taraf kontrolü) | ✅ Policy içeriği okunarak doğrulandı |
-| 4 yeni mutation (`useMarkShipped`/`useConfirmDelivery`/`useCancelOrder`/`useOpenDispute`) | ✅ Kod okunarak doğrulandı |
-| `disputed`/`cancelled` bug düzeltmeleri | ✅ |
-| Gerçek teslimat yöntemi gösterimi (sabit "Kargo" kaldırıldı) | ✅ |
-| Çiftçi UI: Kargoya Ver + İptal Et butonları | ✅ |
-| Alıcı UI: Teslim Aldım + İhtilaf Aç butonları | ✅ |
-| "Satıcıyla Konuş" placeholder kaldırıldı | ✅ |
+| `reviews` şeması + RLS (SELECT/INSERT, taraf+rol kontrolü) | ✅ Policy içeriği okunarak doğrulandı |
+| `get_farmer_rating_summary`/`get_buyer_rating_summary` RPC'leri | ✅ Canlı test edildi |
+| Çiftçi liste sayfası "Alıcıyı Değerlendir" | ✅ |
+| Alıcı detay sayfası "Üreticiyi Değerlendir" | ✅ |
+| Alıcı LİSTE sayfası değerlendirme göstergesi (parity fix) | ✅ Dosya okumasıyla doğrulandı |
+| Çiftçi tarafında alıcı puan rozeti (`BuyerRatingBadge`) | ✅ Dosya okumasıyla doğrulandı |
+| Değerlendirme sonrası bildirim (`notifications` insert) | ✅ Dosya okumasıyla doğrulandı |
+| Üretici profilinde gerçek puan/yorum, sahte veri yok | ✅ |
 | `tsgo` | ✅ Temiz |
 
 ### (Önceki tüm test sonuçları — değişmedi, önceki sürümlerde)
