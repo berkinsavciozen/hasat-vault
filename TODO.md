@@ -23,7 +23,8 @@ tags:
 - [x] P17-C — Karşılıklı Değerlendirme Sistemi tamamlandı + 3 gerçek boşluk düzeltildi
 - [x] P17-F — Tekrar Sipariş + Şube Adresleri tamamlandı, Abonelikler'e entegre
 - [x] Alıcı Bildirim Tercihleri sayfası eklendi + `buyer.account.tsx` bayat veri bug'ı düzeltildi
-- [x] **Abonelik → Sipariş bağlantısı (`subscription_id`) eklendi + escrow yanlış vaadi düzeltildi** (2026-07-21) — bkz. detay
+- [x] Abonelik → Sipariş bağlantısı (`subscription_id`) eklendi + escrow yanlış vaadi düzeltildi
+- [x] **Abonelik CTA'sı üretici profilinde yukarı taşındı + abonelik-sipariş bağlantısı gerçek verilerle bizzat test edildi** (2026-07-21) — bkz. detay
 
 ### P16 — TÜM SERİ TAMAMLANDI ✅
 (Detaylar önceki sürümlerde)
@@ -40,13 +41,13 @@ tags:
 
 ### Düşük öncelikli cila
 (Değişmedi — bkz. önceki sürüm)
-- [ ] **[Bu turda bulundu, düşük öncelik] `useSetDefaultAddress` sadece seçilen adresi `is_default=true` yapıyor, diğerlerini `false`'a çekmiyor** — teorik olarak birden fazla "varsayılan" adres oluşabilir. Aktif bug değil (UI şu an tek seferde bir işlem yapıyor) ama küçük bir düzeltme gerekiyor: aynı işlemde `buyer_id`'nin diğer tüm adreslerini `false`'a çekmeli.
+- [ ] `useSetDefaultAddress` diğer adresleri `false`'a çekmiyor — düşük öncelik.
 
 ---
 
 ## 🏗️ Lovable/Supabase Build Sırası
 
-> **P19 + P17-B + P17-C + P17-F tamamen bitti, hepsi canlı doğrulandı.** Abonelik↔sipariş bağlantısı da tamamlandı. **P17-A ve P17-D şirket kuruluşuna bağlı, bloke.** Sıradaki: **P17-E (yapılandırılmış RFQ)** veya **P17-G (KPI görünümleri)**.
+> **P19 + P17-B + P17-C + P17-F tamamen bitti, hepsi canlı doğrulandı.** Abonelik↔sipariş bağlantısı + üretici profili CTA konumu düzeltildi. **P17-A ve P17-D şirket kuruluşuna bağlı, bloke.** Sıradaki: **P17-E (yapılandırılmış RFQ)** veya **P17-G (KPI görünümleri)**.
 
 ---
 
@@ -74,24 +75,19 @@ tags:
 | P17-E | Yapılandırılmış RFQ | P1 | Sırada, bağımsız |
 | P17-G | KPI ölçüm görünümleri | destek | Sırada, bağımsız |
 
-### ✅ P17-B / P17-C / P17-F — TAMAMLANDI
+### ✅ P17-B / P17-C / P17-F / Abonelik-Sipariş Bağlantısı — TAMAMLANDI
 (Değişmedi — bkz. önceki sürüm)
 
-### ✅ Abonelik → Sipariş Bağlantısı + Escrow Metni Düzeltmesi *(2026-07-21, kapsamlı canlı doğrulama)*
+### ✅ Abonelik CTA Konumu + Bizzat Canlı Veri Testi *(2026-07-21)*
 
-**Berkin'in sorduğu iki soru üzerine bulunan gerçek boşluklar:**
-1. **Keşfedilebilirlik:** Abone olma girişi sadece `/buyer/producer/$id` (belirli bir üretici profili) üzerinden — genel bir "Abone Ol" keşif noktası yok. **Karar: şimdilik profil-önce akışı kabul edildi**, ek bir keşif noktası inşa edilmedi.
-2. **Ayırt edilemezlik (gerçek bug, düzeltildi):** `offers` tablosunda abonelikle bağlantı hiç yoktu — çiftçi, abonelikten gelen bir siparişi normal siparişten ayıramıyordu.
-3. **Bonus bulgu — yanlış vaat (gerçek bug, düzeltildi):** `buyer.subscription.$producerId.tsx`, henüz var olmayan bir "escrow" (bloke ödeme, P17-A) mekanizmasını vaat ediyordu ("Ödeme hasattan 2 hafta önce alınır").
+**Berkin'in "abonelik butonu görünmedi" gözlemi üzerine:**
+- Kod incelendi: `buyer.producer.$id.tsx`'teki "Hasat Aboneliği" kartı **koşulsuz render ediliyordu, bug değildi** — ama sayfanın en altında, "Değerlendirmeler"den sonra konumlanmıştı, uzun bir profilde gözden kaçması kolaydı.
+- **Düzeltme:** Kart, hero/istatistik alanının hemen altına ("Genellikle 24 saat içinde yanıtlar" rozetinin altına, "Verim Geçmişi"nden önce) taşındı. Dosya tam okunarak tekilliği (mükerrer olmadığı) ve doğru sıra teyit edildi.
 
-**Uygulanan çözüm:**
-- **Şema** ✅ — `offers` tablosuna opsiyonel `subscription_id uuid references harvest_subscriptions(id)` kolonu eklendi.
-- **Uçtan uca bağlantı** ✅ — `buyer.subscriptions.tsx`'teki "Şimdi Sipariş Ver" modalı → `subscriptionId`'yi search param olarak taşıyor → `buyer.offer.$listingId.tsx`'in `validateSearch`'ü doğru parse ediyor → `submit()` → `setPendingOffer` → `useCreateOffer` → `offers.subscription_id` gerçekten yazılıyor. Dosya okumasıyla her adım tek tek doğrulandı.
-- **Okuma tarafı** ✅ — `useFarmerOffers`/`useBuyerOffers` sorguları `subscription_id`'yi çekiyor, `dbToOffer`/`dbToOrder` (ORDER_SELECT genişletildi: `offer:offers(...,subscription_id,...)`) alanı taşıyor.
-- **Çiftçi rozeti** ✅ — `farmer.orders.index.tsx`'teki hem `OfferCard` hem `OrderCard`'da, `subscriptionId` varsa buyer adının yanında **"🔁 Abonelik Siparişi"** rozeti (tooltip: "Bu sipariş bir Sürekli Tedarik aboneliğinden geldi"). Yönetim/akış farkı yok — sadece görsel ayırt edilebilirlik.
-- **Dürüstlük düzeltmesi** ✅ — Escrow metni kaldırıldı, yerine: "ℹ️ Hasat yaklaştığında üreticiyle mevcut ödeme akışı (havale/kart) üzerinden iletişime geçilecek."
-
-**Doğrulama:** Şema+RLS canlı SQL ile, tüm zincir (`buyer.subscriptions.tsx` → `buyer.offer.$listingId.tsx` → `queries.ts` → `farmer.orders.index.tsx`) dosya okumasıyla uçtan uca takip edildi.
+**Berkin'in "ikinciyi de sen test et" isteği üzerine — Claude'un bizzat yaptığı canlı veri testi:**
+- Zeynep'in Ahmet'le olan **gerçek** aktif bir aboneliği (`ee34d29b-...`) kullanılarak, gerçek bir safran ilanı üzerinden, `subscription_id` bağlantılı **gerçek bir teklif** oluşturuldu (Supabase MCP ile doğrudan).
+- Bu teklif, çiftçi tarafının kullandığı **tam sorgu şekliyle** (`useFarmerOffers`'ın join yapısı) geri okundu — `subscription_id` doğru geldi, `buyer_name`/`crop` doğru geldi. Yani "🔁 Abonelik Siparişi" rozetinin gerçekten görüneceği kanıtlandı.
+- Test verisi hemen sonra temizlendi (kalıcı test/mock verisi bırakılmadı).
 
 ---
 
@@ -105,32 +101,30 @@ tags:
 
 ## 📋 Lovable/Supabase Prompt Yazma Kuralları
 
-(1-75 önceki sürümde — devam:)
-76. **[Bu turda eklendi] Yeni bir özellik (örn. abonelik) inşa edilirken sayfadaki AÇIKLAYICI METİNLER de kod kadar dikkatli okunmalı** — `buyer.subscription.$producerId.tsx`'teki "escrow" vaadi, kod incelemesinde değil, kullanıcının ürün sorusu üzerine sayfa tekrar okunduğunda bulundu; henüz var olmayan bir backend özelliğini (P17-A) vaat eden metinler, gerçek bir bug kadar zararlı olabilir.
-77. **[Bu turda eklendi] Kullanıcının "bunu nasıl yapacak/ayırt edecek" sorusu genellikle gerçek bir şema/UX boşluğuna işaret eder** — soru sorulduğunda önce ürünü/akışı savunmak yerine şemayı kontrol etmek (bu turda `offers` tablosunda ilgili kolon var mı diye bakmak) doğru ilk adımdır.
+(1-77 önceki sürümde — devam:)
+78. **[Bu turda eklendi] "Buton görünmedi" gibi bir rapor geldiğinde, kodun render koşulunu kontrol etmeden önce SAYFA SIRASINI/konumunu kontrol et** — bu turda buton kodda koşulsuzdu, sorun render mantığında değil, JSX'teki fiziksel konumundaydı (sayfanın en altı).
+79. **[Bu turda eklendi] "Sen test et" istendiğinde, statik kod okuması yetmez — gerçek test hesaplarıyla gerçek bir satır oluşturup uygulamanın kullandığı TAM sorgu şekliyle geri okumak, tarayıcı erişimi olmadan en güçlü doğrulama yöntemidir; test verisi hemen sonra temizlenmeli.**
 
 ---
 
 ## 📌 Kararlar
 
 (önceki tablo + eklenenler:)
-| **P17-F tamamlandı (2026-07-21)** | Abonelikler sayfasına entegre tasarlandı, tam canlı doğrulandı. |
-| **Alıcı bildirim tercihleri + bug düzeltmesi tamamlandı (2026-07-21)** | Gerçek boşluk kapatıldı, bayat veri bug'ı düzeltildi. |
-| **Abonelik keşfedilebilirliği (2026-07-21)** | Şimdilik profil-önce akış kabul edildi, ek keşif noktası inşa edilmedi — ileride tekrar değerlendirilebilir. |
-| **Abonelik→sipariş bağlantısı + escrow metni düzeltmesi (2026-07-21)** | `subscription_id` eklendi, çiftçi rozeti eklendi, yanlış escrow vaadi kaldırıldı. |
+| **Abonelik CTA konumu düzeltildi (2026-07-21)** | Sayfanın en altından, hero/istatistik alanının altına taşındı — bug değil, görünürlük sorunuydu. |
+| **Abonelik-sipariş bağlantısı bizzat canlı veriyle test edildi (2026-07-21)** | Gerçek Zeynep-Ahmet aboneliği + gerçek teklif + gerçek sorgu şekliyle doğrulandı, test verisi temizlendi. |
 
 ---
 
 ## 📋 Son Test Sonuçları
 
-### Abonelik → Sipariş Bağlantısı (2026-07-21) ✅
+### Abonelik CTA + Canlı Veri Testi (2026-07-21) ✅
 | Kontrol | Sonuç |
 |---|---|
-| `offers.subscription_id` şeması | ✅ Canlı SQL ile doğrulandı |
-| Modal → search param → offer sayfası → `setPendingOffer` → `useCreateOffer` zinciri | ✅ Dosya okumasıyla uçtan uca doğrulandı |
-| `useFarmerOffers`/`useBuyerOffers` sorguları `subscription_id` çekiyor | ✅ |
-| `dbToOffer`/`dbToOrder` alanı taşıyor | ✅ |
-| Çiftçi tarafında "🔁 Abonelik Siparişi" rozeti (OfferCard + OrderCard) | ✅ |
-| Escrow yanlış vaadi kaldırıldı, dürüst metinle değiştirildi | ✅ |
+| CTA kartı tekil (mükerrer yok) | ✅ Dosya okumasıyla doğrulandı |
+| Yeni sıra (rozet → Abonelik → Verim Geçmişi → ...) | ✅ |
+| `tsgo` | ✅ Temiz |
+| Gerçek Zeynep-Ahmet aboneliğiyle gerçek teklif oluşturuldu | ✅ |
+| Çiftçi sorgu şekliyle geri okunduğunda `subscription_id` doğru geldi | ✅ |
+| Test verisi temizlendi | ✅ |
 
 ### (Önceki tüm test sonuçları — değişmedi, önceki sürümlerde)
