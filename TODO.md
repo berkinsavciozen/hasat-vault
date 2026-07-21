@@ -19,7 +19,8 @@ tags:
 (Önceki maddeler değişmedi — bkz. önceki sürüm)
 - [x] P18 serisi + P19 (backend+UI) tamamen tamamlandı
 - [x] İzmir hal genişletmesi: 3 → 27 ürün, Q3 backfill, `unit` alanı, UI birim gösterimi — hepsi canlı
-- [x] **Fiyatlar liste sayfası: çok-kaynaklı kompakt kartlar + izleme-öncelikli kısa liste** (2026-07-21) — bkz. detay
+- [x] Fiyatlar liste sayfası: çok-kaynaklı kompakt kartlar + izleme-öncelikli kısa liste
+- [x] **Global commodity API araştırması sonuçlandı — P19-C'nin bu kolu durduruldu** (2026-07-21) — bkz. detay
 
 ### P16 — TÜM SERİ TAMAMLANDI ✅
 (Detaylar önceki sürümlerde)
@@ -43,7 +44,7 @@ tags:
 
 ## 🏗️ Lovable/Supabase Build Sırası
 
-> **P18/P19 bitti. İzmir tarafı tam olgun (27 ürün, Q3 backfill, birimler, kompakt çok-kaynaklı kartlar — hepsi canlı).** Sıradaki: **global commodity API** (Berkin'in hesap açması gerekiyor — en gerçekçi yol) veya İstanbul'un resmi Veri Talebi süreci (Claude'un kontrolü dışında).
+> **P18/P19 bitti. İzmir tarafı tam olgun (27 ürün, Q3 backfill, birimler, kompakt çok-kaynaklı kartlar — hepsi canlı).** P19-C'nin diğer kaynak araştırma kolu (İstanbul/Konya/global commodity) şimdilik durduruldu — hiçbiri net bir ilerleme sunmuyor (aşağı bkz.). **Sıradaki gerçek öncelik: Faz C / P17 (Güven Çekirdeği).**
 
 ---
 
@@ -57,32 +58,35 @@ tags:
 
 ---
 
-## 🟠 P19-C — KAYNAK & ÜRÜN TİPİ GENİŞLETME *(devam ediyor)*
+## 🟠 P19-C — KAYNAK & ÜRÜN TİPİ GENİŞLETME *(bu turda kapatıldı — durduruldu)*
 
-### ✅ Adım 1/1b/1c/1d — İzmir tam olgunlaştı *(Tamamen tamamlandı — 2026-07-21)*
-İzmir genişletme (27 ürün), Q3 backfill, `unit` alanı, UI birim gösterimi — hepsi canlı (bkz. önceki sürüm).
+### ✅ İzmir tam olgunlaştı + Fiyatlar UX düzeltmesi *(Tamamen tamamlandı)*
+(Değişmedi — bkz. önceki sürüm: 27 ürün, Q3 backfill, `unit` alanı, kompakt çok-kaynaklı kartlar)
 
-**Bu turda eklendi — Fiyatlar liste sayfası UX düzeltmesi (Berkin'in gözlemi üzerine):** Berkin, liste sayfasındaki kartların sadece Hasat fiyatını gösterdiğini, diğer kaynakların ("+{n} kaynak" etiketi arkasında) görünmediğini fark etti. Kontrol edildi, doğrulandı, düzeltildi:
-- `PriceSummaryCard` artık her kaynağın fiyatını **kompakt chip'ler** halinde gösteriyor (örn. "Hasat ₺18/kg" · "İzmir Toptancı Hali ₺42/kg" · varsa "Resmi kaynak ₺X/kg"). Hasat verisi yetersizse chip kaldırılmıyor, kesikli çerçeveli "Hasat: yetersiz veri" olarak kalıyor. Sparkline/üretici sayısı detay sayfasına (`/prices/$crop`, zaten iyiydi) bırakıldı — kart artık çok daha kısa.
-- Liste sayfası **izleme-öncelikli**: "Ürünlerin"/"İlgilendiğin Ürünler" artık en fazla **4 ürünle** sınırlı (`TIER1_LIMIT`), fazlası "+{n} tane daha — Tüm Piyasa'da gör" linkiyle kontrollü accordion'u açıyor. "İzleme Listesi" sınırsız kalıyor.
-- Aramadan yıldızlanan bir ürünün otomatik olarak İzleme Listesi'ne düşmesi kontrol edildi — `useCreatePriceAlert`/`useTogglePriceAlert` zaten `priceAlerts` query'sini invalidate ediyordu, ek kod gerekmedi.
-- `tsgo` temiz, dosya okumasıyla tam doğrulandı.
+### 🔴 Global Commodity API — ARAŞTIRMA SONUÇLANDI, DURDURULDU *(2026-07-21)*
+Berkin, `commoditic.com`'un ücretli olduğunu bulup **`api-ninjas.com`'da gerçek bir hesap açtı** (3.000 istek/ay ücretsiz katman, kredi kartsız). Gerçek API key ile canlı test edildi:
 
-### 🔍 Adım 2 — Diğer kaynak araştırması
-(Değişmedi — bkz. önceki sürüm: İstanbul duraklatıldı — sunucu tarafı gerçek bozukluk, Berkin'in tarayıcısı da doğruladı; Konya elendi — 2004'ten kalma durağan arşiv; Ankara bulunamadı; global commodity API en gerçekçi sıradaki adım)
+- **Kapsam sorunu:** API Ninjas'ın ücretsiz katmanı **haftalık dönen küçük bir emtia alt kümesi** sunuyor. Bu hafta ücretsiz olanlar: `crude_oil`, `feeder_cattle`, `gasoline_rbob`, `gold`, `heating_oil`, `lean_hogs`, `live_cattle`. **Hedef 4 ürünümüzün (buğday/mısır/pamuk/ayçiçeği) hepsi premium'a kilitli** — canlı 400 hata ile doğrulandı.
+- **Talep sorusu:** Bu sorunu çözsek bile kontrol ettim — `listings` tablosunda buğday/mısır/pamuk/ayçiçeği için **sıfır ilan, sıfır çiftçi** var. Yani şu an bu veriyle doldurulacak gerçek bir "piyasa" yok.
+- **Karar: bu araştırma kolu durduruldu.** İki bağımsız sinyal (kapsam uyumsuzluğu + gerçek kullanıcı talebi yok) aynı yöne işaret ediyor — düşük öncelik. Güvenlik temizliği yapıldı: API key içeren geçici probe fonksiyonu (`probe-api-ninjas`) inert bir stub'a döndürüldü (delete tool'u yok, içerik nötrleştirildi).
+- **Yeniden değerlendirme koşulu:** Hasat gerçekten buğday/mısır/pamuk/ayçiçeği üreten çiftçileri onboard ederse (örn. Konya/Orta Anadolu bölgesine genişleme), bu konu tekrar açılabilir — o zaman ücretli bir sağlayıcı (Commoditic, CommodityPriceAPI) veya API Ninjas'ın premium katmanı değerlendirilir.
 
-### Güncellenmiş öncelik sırası
-1. **Global commodity API** — Berkin'in hesap/key açması bekleniyor.
-2. **İstanbul** — resmi Veri Talebi süreci, Claude'un kontrolü dışında.
-3. Konya/Ankara yerine başka bir aday (Bursa, Antalya) araştırılabilir — henüz yapılmadı.
+### Genel P19-C Özeti (kapanış notu)
+- ✅ İzmir — tam entegre, olgun, 27 ürün.
+- 🔴 İstanbul — duraklatıldı (sunucu tarafı gerçek bozukluk, resmi Veri Talebi'ne kadar).
+- ❌ Konya — elendi (2004'ten kalma durağan arşiv).
+- ❌ Global commodity API — durduruldu (kapsam + talep yok).
+- Not bulunamadı: Ankara (spesifik hal verisi yok).
+
+**P19-C artık aktif olarak ilerletilmiyor** — İzmir'in verdiği değer yeterli, diğer kollar gerçek engellerle karşılaştı. GTM önceliği **Faz C / P17**'ye geri dönüyor.
 
 ---
 
 ## 🟡 AĞUSTOS 2026 — Soft Launch
 (Değişmedi)
 
-## 🟣 P17 — GÜVEN ÇEKİRDEĞİ
-(Değişmedi)
+## 🟣 P17 — GÜVEN ÇEKİRDEĞİ *(sıradaki gerçek öncelik)*
+(Değişmedi — bkz. önceki sürüm: P17-A/B/C/D/E/F/G)
 
 ## 🔵 SAFRAN SEZONU / ⬜ SONRAKI FAZLAR
 (Değişmedi)
@@ -91,27 +95,28 @@ tags:
 
 ## 📋 Lovable/Supabase Prompt Yazma Kuralları
 
-(1-63 önceki sürümde — devam:)
-64. **[Bu turda eklendi] Kullanıcı "bu özellik güzel ama şu kısmı beklediğim gibi değil" dediğinde, önce mevcut dosyayı okuyup gözlemini doğrulamak gerekir** — Berkin'in "sadece Hasat fiyatları görünüyor" gözlemi dosya okumasıyla tam doğrulandı, doğrudan varsayılmadı.
+(1-64 önceki sürümde — devam:)
+65. **[Bu turda eklendi] Bir dış API entegrasyonuna yatırım yapmadan önce, "bu veriyi kim görecek?" sorusu erken sorulmalı** — API Ninjas'ın kapsam sorunuyla karşılaşmadan önce bile, `listings` tablosunda hedef ürünler için hiç çiftçi olmadığı tek bir sorguyla görülebilirdi; iki bulgu birlikte kararı çok daha hızlı netleştirdi.
+66. **[Bu turda eklendi] "Ücretsiz katman" ile "ücretsiz katmanda bizim ihtiyacımız olan şey var" farklı şeyler** — bazı API'ler (API Ninjas gibi) gerçekten ücretsiz ve kredi kartsız olabilir, ama ücretsiz katmanın kapsamı (haftalık rotasyon, ürün kısıtı) asıl ihtiyaçla örtüşmeyebilir; hesap oluşturmak yeterli değil, gerçek bir çağrıyla doğrulamak gerekir.
 
 ---
 
 ## 📌 Kararlar
 
 (önceki tablo + eklenenler:)
-| **Fiyatlar liste sayfası UX düzeltmesi (2026-07-21)** | Kompakt çok-kaynaklı chip'ler + izleme-öncelikli 4-ürün sınırı, canlı doğrulandı. |
+| **Global commodity API durduruldu (2026-07-21)** | API Ninjas ücretsiz katmanı hedef ürünleri kapsamıyor + platformda bu ürünler için hiç çiftçi/ilan yok. İki sinyal birlikte düşük öncelik gösteriyor. |
+| **P19-C kapandı (2026-07-21)** | İzmir'in verdiği değer yeterli görüldü, kalan araştırma kolları gerçek engellerle karşılaştı. Öncelik Faz C / P17'ye döndü. |
 
 ---
 
 ## 📋 Son Test Sonuçları
 
-### Fiyatlar Liste Sayfası UX Düzeltmesi (2026-07-21) ✅
+### Global Commodity API — API Ninjas (2026-07-21) ❌ Durduruldu
 | Kontrol | Sonuç |
 |---|---|
-| Kart her kaynağın fiyatını gösteriyor (Hasat + Resmi + market source'lar) | ✅ Dosya okumasıyla doğrulandı |
-| Hasat yetersiz veri durumu chip olarak kalıyor, kaldırılmıyor | ✅ |
-| "Ürünlerin" bölümü 4 ile sınırlı, "+n tane daha" linki accordion'u açıyor | ✅ |
-| Arama → yıldızlama → otomatik İzleme Listesi'ne düşme | ✅ (mevcut invalidation yeterliydi) |
-| `tsgo` | ✅ Temiz |
+| Hesap gerçek ve ücretsiz mi | ✅ 3.000 istek/ay, kredi kartsız |
+| Hedef 4 ürün (buğday/mısır/pamuk/ayçiçeği) ücretsiz katmanda var mı | ❌ Hepsi premium'a kilitli (canlı 400 hatasıyla doğrulandı) |
+| Platformda bu ürünler için çiftçi/ilan var mı | ❌ Sıfır (SQL ile doğrulandı) |
+| Karar | Durduruldu, güvenlik temizliği yapıldı |
 
 ### (Önceki tüm test sonuçları — değişmedi, önceki sürümlerde)
