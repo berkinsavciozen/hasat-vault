@@ -18,9 +18,8 @@ tags:
 ### Teknik Build
 (Önceki maddeler değişmedi — bkz. önceki sürüm)
 - [x] P18 serisi + P19 (backend+UI) tamamen tamamlandı
-- [x] İzmir hal genişletmesi: 3 → 27 ürün
-- [x] **Fiyat RPC'lerine `unit` alanı eklendi** (2026-07-21) — bkz. detay
-- [x] **İzmir Q3 2026 geriye dönük veri doldurma** (2026-07-21) — bkz. detay
+- [x] İzmir hal genişletmesi: 3 → 27 ürün, Q3 backfill (17/21 gün, ~450 nokta), `unit` alanı RPC'lerde
+- [x] **UI birim gösterimi Lovable'da publish edildi** (2026-07-21) — canlı doğrulandı
 
 ### P16 — TÜM SERİ TAMAMLANDI ✅
 (Detaylar önceki sürümlerde)
@@ -38,13 +37,13 @@ tags:
 ### Düşük öncelikli cila
 (Değişmedi — bkz. önceki sürüm)
 - [ ] `price_points` tablosu hâlâ ölü kod adayı.
-- [ ] Lovable kuyruk duraklatma sorunu — bu turda 2 kez daha yaşandı, editörden manuel açılması gerekiyor, otomatik çözülmüyor.
+- [ ] Lovable kuyruk duraklatma sorunu — tekrarlayan, editörden manuel açılması gerekiyor.
 
 ---
 
 ## 🏗️ Lovable/Supabase Build Sırası
 
-> **P18/P19 bitti. İzmir genişletildi + Q3 backfill yapıldı + `unit` alanı RPC'lere eklendi.** Sıradaki: UI birim gösterimi prompt'u Lovable kuyruğunda bekliyor (kuyruk duraklatılmış, editörden açılması gerekiyor). Ardından **İstanbul entegrasyonu** — Berkin'den Swagger `docs/v1` ham JSON çıktısı bekleniyor (açık blokaj, aşağı bkz.).
+> **P18/P19 bitti. İzmir genişletme + Q3 backfill + `unit` alanı — hepsi backend'de VE UI'da canlı, publish edildi.** Sıradaki: İstanbul entegrasyonu — **Berkin'den `swagger/docs/v1` ham JSON çıktısı hâlâ bekleniyor** (URL sunucu tarafında TLS hatası veriyor, Berkin'in kendi tarayıcısında da açılmıyor — bu, sunucunun kendi bozukluğu, araç sorunu değil). **Konya elendi** (aşağı bkz. — statik/eski arşiv, kullanılamaz).
 
 ---
 
@@ -60,24 +59,29 @@ tags:
 
 ## 🟠 P19-C — KAYNAK & ÜRÜN TİPİ GENİŞLETME *(devam ediyor)*
 
-### ✅ Adım 1 — İzmir hal genişletmesi *(Tamamlandı — bkz. önceki sürüm)*
+### ✅ Adım 1/1b/1c — İzmir genişletme + Q3 backfill + `unit` alanı *(Tamamen tamamlandı — 2026-07-21)*
+Hepsi canlı doğrulandı (bkz. önceki sürüm). **Ek olarak bu turda:** UI birim gösterimi prompt'u işlendi ve **publish edildi** — `queries.ts`'e `unit` alanı eklendi, yeni `priceWithUnit()` yardımcı fonksiyonu (`src/lib/hasat/format.ts`) `formatTRY(n)/unit` formatını üretiyor (unit yoksa "kg" fallback), `PriceChart.tsx`'e `unit?` prop'u eklendi ve "Son"/"Aralık" gösterimlerinde kullanılıyor. Dosya okumasıyla doğrulandı.
 
-### ✅ Adım 1b — Q3 2026 Geriye Dönük Veri Doldurma *(Tamamlandı — 2026-07-21, canlı doğrulandı)*
-İzmir API'sinden 2026-07-01 → 2026-07-21 arası 21 gün için geriye dönük veri çekildi (`pg_net` ile 21 paralel istek). **17/21 gün başarılı** (gün başına 26-27 satır, toplam ~450 gerçek fiyat noktası). 4 gün boş yanıt döndü — **beklenen, hata değil:** 5/12/19 Temmuz Pazar günleri (hal kapalı, bülten yok), 21 Temmuz bugün (bülten henüz yayınlanmamış). `sync-izmir-hal-prices` v4'e güncellendi: boş/parse edilemeyen yanıtları artık zarif şekilde `{inserted:0, note:"..."}` olarak dönüyor, `SyntaxError` fırlatmıyor. Domates için doğrulama: artık **4 gerçek haftalık İzmir noktası** var (29 Haz - 20 Tem), gerçek bir trend çizgisi oluşturuyor.
+### 🔍 Adım 2 — Diğer kaynak araştırması
 
-### ✅ Adım 1c — Fiyat Birimleri (`unit`) RPC'lere Eklendi *(Tamamlandı — 2026-07-21, canlı doğrulandı)*
-`crop_config.default_unit` kolonu (zaten mevcuttu — örn. domates/elma "kg", safran "g") `get_price_history_summary`/`get_price_history_series` RPC'lerine geriye dönük uyumlu şekilde `unit` alanı olarak eklendi. Canlı test: domates → `"unit":"kg"`, safran → `"unit":"g"` doğru geldi. **UI tarafı Lovable kuyruğunda bekliyor** (`PriceSummaryCard`/`CropDetailBody`/`PriceChart`'a birim gösterimi ekleme prompt'u gönderildi, kuyruk duraklatıldığı için henüz işlenmedi).
+**İstanbul (İBB) — hâlâ açık blokajda, kapsamlı şekilde denendi:**
+- Berkin'in ekran görüntüsünden gerçek spec URL'i netleşti: `https://halfiyatlaripublicdata.ibb.gov.tr/swagger/docs/v1`.
+- Sunucu taraflı (edge function) bu URL'e ulaşmaya çalışıldığında tekrarlayan TLS bağlantı hatası alındı.
+- **Berkin'in kendi tarayıcısında da bu URL "çalışmıyor"** — bu, iki bağımsız kanaldan (sunucu taraflı + normal tarayıcı) aynı sonucu doğruluyor: **sorun benim aracımda değil, İBB'nin sunucusunda gerçek bir bozukluk/yanlış yapılandırma var.**
+- Kör route-adı taraması yapıldı (`/api/Urun`, `/api/UrunFiyat/Listele`, `/api/UrunFiyat/GetAll` vb. — 10+ deneme): tüm temel controller'lar (`/api/HalFiyat`, `/api/Urun`, `/api/UrunFiyat`, `/api/Hal`, `/api/Kategori`, `/api/Birim`, `/api/UrunKategori`, `/api/HalTuru`, `/api/BirimTuru`) sadece statik "Hal Fiyatları Public Data" açılış sayfasını dönüyor; tahmin edilen action adları (`Listele`/`GetAll`/`Get`/`GunlukFiyatlar`/`TarihiFiyatlar`) gerçek ama yanlış-route 404 JSON'u dönüyor (API canlı, doğru action adı bilinmiyor).
+- **Sonuç: kör tahminle devam etmek verimsiz — duraklatıldı.** Gerçek ilerleme için ya (a) İBB'nin "Veri Talebi" formu üzerinden resmi başvuru, ya da (b) spec dosyasının kendisinin düzelmesi gerekiyor. Bu ikisi de Claude'un kontrolünde değil.
 
-### 🔍 Adım 2 — Diğer kaynak araştırması *(top-3 belirlendi, İstanbul'da açık blokaj)*
-(Değişmedi — bkz. önceki sürüm: İstanbul/Konya/global commodity API top-3, Ankara'da spesifik hal verisi bulunamadı)
+**Konya — ELENDİ (bu turda test edildi, kullanılamaz):**
+- `hal_fiyatlari.csv` doğrudan indirildi ve içeriği incelendi: **2004-03-02'den başlayan, "2 yıl önce" son güncellenmiş, durağan/statik bir tarihsel arşiv.** İzmir'in canlı günlük REST API'sinin aksine gerçek zamanlı veya yakın-güncel veri sağlamıyor. Fiyat sayfası için kullanılamaz, top-3'ten çıkarıldı.
 
-**Bu turda ek bulgu — İstanbul probe'u ilerletildi:** Berkin'in paylaştığı ekran görüntüsünden gerçek spec URL'i (`https://halfiyatlaripublicdata.ibb.gov.tr/swagger/docs/v1`) netleşti. Sunucu taraflı (edge function) bu URL'e ulaşmayı denedim ama bu spesifik host+path kombinasyonunda tekrarlayan bir TLS bağlantı hatası aldım (`peer closed connection without sending TLS close_notify` — Deno/rustls'in bu eski IIS sunucusuyla uyumsuzluğu, küçük `/api/` yanıtlarında sorun yok ama bu büyük spec dosyasında var). **🔴 AÇIK BLOKAJ (güncellendi): Berkin'den artık Swagger UI değil, doğrudan `https://halfiyatlaripublicdata.ibb.gov.tr/swagger/docs/v1` ham JSON çıktısı bekleniyor** — tarayıcıda açıp yapıştırması gerekiyor.
+**Ankara:** Hâlâ hal-fiyatları özelinde bir dataset bulunamadı (genel "Şeffaf Ankara" platformu var, spesifik doğrulama yapılmadı).
 
-### Yapılacaklar (blokaj çözülünce devam)
-1. **İstanbul:** Swagger JSON gelince gerçek endpoint/parametre şeması netleşir → İzmir deseniyle entegre edilir.
-2. **Konya:** CKAN API'sinin canlı probe'u henüz yapılmadı.
-3. **Global commodity API:** Berkin hesap/key oluşturduğunda entegre edilecek.
-4. Her yeni kaynak: idempotent edge function + `pg_cron` + güvenlik taraması + ayrı kart kuralı (değişmez).
+**Global commodity API (buğday/mısır/pamuk/ayçiçeği için):** Değişmedi — Berkin'in hesap/key oluşturması gerekiyor.
+
+### Güncellenmiş öncelik sırası
+1. **Global commodity API** — şu an en gerçekçi ilerleme yolu (sadece Berkin'in bir hesap açması gerekiyor, teknik blokaj yok).
+2. **İstanbul** — Berkin'in Veri Talebi formu üzerinden resmi başvurusuna kadar beklemede.
+3. Konya/Ankara için başka bir aday aranabilir (örn. Bursa, Antalya) — henüz araştırılmadı.
 
 ---
 
@@ -94,31 +98,45 @@ tags:
 
 ## 📋 Lovable/Supabase Prompt Yazma Kuralları
 
-(1-58 önceki sürümde — devam:)
-59. **[Bu turda eklendi] `generate_series` ile tarih döngüsü kurarken `d::date::text` kullanılmalı, `d::text` kullanılırsa timestamp'in saat kısmı da URL'e karışır ve `net.http_post` "Malformed input to a URL function" hatası verir.**
-60. **[Bu turda eklendi] Dış bir API'den geriye dönük (backfill) veri çekerken, "boş yanıt" senaryosu (tatil/hafta sonu kapanışı, henüz yayınlanmamış bugünün verisi) baştan beklenmeli** — edge function bunu `SyntaxError` fırlatmak yerine zarif bir `{inserted:0, note:"..."}` olarak ele almalı; aksi halde gerçek "kapalı gün" durumları sahte hata gibi görünür.
-61. **[Bu turda eklendi] Bazı eski IIS/.NET sunucularında büyük yanıtlı endpoint'lere (örn. Swagger spec JSON) Deno/rustls üzerinden TLS bağlantı hatası alınabiliyor, aynı sunucunun küçük yanıtlı endpoint'leri çalışırken bile** — bu durumda kullanıcıdan tarayıcı çıktısı istemek tek pratik çözüm.
+(1-61 önceki sürümde — devam:)
+62. **[Bu turda eklendi] Bir açık veri portalındaki CSV/kaynak kaydının "aktivite geçmişi" bölümü kontrol edilmeli** — "X yıl önce güncellendi" notu, o kaynağın canlı/güncel mi yoksa donmuş bir arşiv mi olduğunu gösterir; indirmeden önce bu sinyali okumak zaman kazandırır (Konya'da atlanmış, veri indirilip incelendikten sonra fark edilmiş).
+63. **[Bu turda eklendi] Bir sunucu-taraflı TLS/bağlantı hatası kullanıcının kendi tarayıcısında da tekrarlanıyorsa, bu ikisi birbirini doğrular** — sorun Claude'un aracında değil, hedef sunucuda gerçek bir bozukluktur; bu noktada kör deneme yapmayı bırakıp (Veri Talebi formu gibi) resmi bir kanala yönlendirmek daha doğru.
 
 ---
 
 ## 📌 Kararlar
 
 (önceki tablo + eklenenler:)
-| **Q3 2026 backfill tamamlandı (2026-07-21)** | 17/21 gün, ~450 gerçek fiyat noktası, 4 boş gün beklenen (3 Pazar + bugün). |
-| **`unit` alanı eklendi (2026-07-21)** | Backend tamam, UI tarafı Lovable kuyruğunda bekliyor. |
-| **İstanbul blokajı güncellendi (2026-07-21)** | Artık Swagger UI değil, ham `swagger/docs/v1` JSON çıktısı isteniyor (TLS sorunu nedeniyle sunucu tarafında alınamıyor). |
+| **UI birim gösterimi publish edildi (2026-07-21)** | Backend + frontend tam canlı, dosya okumasıyla doğrulandı. |
+| **Konya elendi (2026-07-21)** | CSV içeriği incelendi, 2004'ten kalma durağan arşiv, canlı veri değil. |
+| **İstanbul duraklatıldı (2026-07-21)** | Sunucu tarafında gerçek bir TLS/yapılandırma bozukluğu var (Berkin'in tarayıcısı da doğruladı) — kör route taraması bırakıldı, resmi Veri Talebi formuna kadar beklemede. |
+| **Güncellenmiş öncelik: global commodity API en gerçekçi yol** | Teknik blokaj yok, sadece Berkin'in hesap açması gerekiyor. |
 
 ---
 
 ## 📋 Son Test Sonuçları
 
-### Q3 Backfill + Unit (2026-07-21) ✅
+### UI Birim Gösterimi (2026-07-21) ✅
 | Kontrol | Sonuç |
 |---|---|
-| 21 günlük backfill, 17 başarılı | ✅ |
-| 4 boş gün doğru şekilde açıklanabilir (Pazar×3 + bugün) | ✅ |
-| Edge function v4, zarif boş-yanıt işleme | ✅ |
-| Domates için 4 gerçek haftalık İzmir noktası | ✅ |
-| RPC'lerde `unit` alanı (domates=kg, safran=g) | ✅ |
+| `queries.ts`'e `unit` alanı eklendi | ✅ |
+| `priceWithUnit()` yardımcı fonksiyonu, kg fallback'li | ✅ |
+| `PriceChart.tsx`'e `unit?` prop'u, "Son"/"Aralık"da kullanılıyor | ✅ |
+| Publish edildi | ✅ (Berkin onayladı) |
+
+### İstanbul Probe — Kapsamlı Deneme (2026-07-21) 🔴 Duraklatıldı
+| Kontrol | Sonuç |
+|---|---|
+| API canlı mı | ✅ (gerçek 404 JSON alınabiliyor) |
+| Spec dosyası (`swagger/docs/v1`) erişilebilir mi | ❌ Hem sunucu tarafında hem Berkin'in tarayıcısında hata |
+| 10+ tahmin edilen route adı | ❌ Hiçbiri eşleşmedi |
+| Karar | Kör tahmine devam edilmiyor, resmi kanal bekleniyor |
+
+### Konya Probe (2026-07-21) ❌ Elendi
+| Kontrol | Sonuç |
+|---|---|
+| CSV indirilebiliyor mu | ✅ |
+| Veri güncel mi | ❌ 2004'ten kalma, durağan arşiv |
+| Kullanılabilir mi | ❌ Top-3'ten çıkarıldı |
 
 ### (Önceki tüm test sonuçları — değişmedi, önceki sürümlerde)
