@@ -1,6 +1,6 @@
 ---
 title: Hasat — Master Roadmap & Build Log
-updated: 2026-07-21
+updated: 2026-07-23
 tags:
   - hasat
   - todo
@@ -47,7 +47,7 @@ tags:
 
 ## 🏗️ Lovable/Supabase Build Sırası
 
-> **P19 + P17 serisi (B/C/F/E/G) + P20 tamamen bitti, hepsi canlı doğrulandı.** **P17-A ve P17-D şirket kuruluşuna bağlı, bloke.** BENCHMARK Gap listesindeki bağımsız yapılabilecek her şey bitti (bkz. Gap durum tablosu altta). Sıradaki büyük karar: yeni bir P-serisi mi (P2 gap'ler: parselden-tabağa QR, vade/cari, hasat öncesi finansman — hepsi uzun vadeli/partner gerektiren), yoksa doğrudan Ağustos soft-launch hazırlığına mı geçilecek.
+> **P19 + P17 serisi (B/C/F/E/G) + P20 tamamen bitti, hepsi canlı doğrulandı.** **P17-A ve P17-D şirket kuruluşuna bağlı, bloke.** BENCHMARK Gap listesindeki bağımsız yapılabilecek her şey bitti (bkz. Gap durum tablosu altta). **Sıradaki büyük iş bloğu: P21 (Batch/Vitrin çoklu-batch mimarisi, soft launch öncesi P0) — Berkin'in 22-23.07.2026 el notlarından doğdu ve 2026-07-23'te onaylandı, detayları dosyanın sonundaki "Onaylanan Yol Haritası — P21/P22/P23" bölümünde.**
 
 ### BENCHMARK Gap Durum Tablosu (2026-07-21 itibarıyla)
 | # | Gap | Şiddet | Durum |
@@ -153,6 +153,8 @@ Bu turda Lovable'a gönderilen 2 mesaj API hatası (`"Error occurred during tool
 89. **[Bu turda eklendi] Aynı iş mantığının (örn. "event → tercih kolonu" eşlemesi) iki farklı yerde (SQL fonksiyonu + TypeScript edge function) ayrı ayrı tanımlanması, biri güncellenip diğeri güncellenmediğinde sessizce senkronsuz kalır** — kullanıcı tercihi UI'da açık görünür, backend'in bir katmanı "evet, gönder" der, diğer katman event'i tanımadığı için sessizce iptal eder. Böyle bir çift-mapping deseni varsa, her ikisi de aynı anda güncellenmeli ve kod yorumlarıyla birbirine referans verilmeli.
 90. **[Bu turda eklendi] Bir background job/agent tool çağrısı "Error occurred during tool execution" gibi belirsiz bir hata dönerse, işin gerçekten başarısız olduğu varsayılmamalı** — Lovable gibi agent'lar bazen işi arka planda tamamlayıp yine de hata görünümünde bir sonuç dönebiliyor. Bir sonraki adımda dosya/veri durumu bağımsız kontrol edilmeli, sadece hatayı görüp yeniden komut vermek (ve olası çift-çalıştırma riskini almak) yerine önce "gerçekten ne oldu" sorusuna cevap aranmalı.
 91. **[Bu turda eklendi] `dispatch_sms`/`send-sms` gibi gerçek dış servise (Twilio) para/mesaj harcayan bir entegrasyon test edilirken, gerçek bir SMS gönderilecek olması açıkça not düşülmeli** — test verisi gibi sessizce oluşturup silinemez, kullanıcının telefonuna gerçek bir mesaj gider. Test öncesi/sonrası tercih durumu (`notif_prefs`) değiştirilip test sonrası eski haline döndürülmeli.
+92. **[Bu turda eklendi] "Yeni bir kavram için tablo lazım" varsayımına geçmeden önce mevcut şema sorgulanmalı.** Berkin'in notlarında "Batch kavramı şemada tamamen yok" denmişti; gerçek şemayı sorguladığımda `listings`+`listing_harvest_entries`+`harvest_entries` üçlüsünün bunun temelini zaten attığı görüldü (aynı çiftçinin aynı crop'ta gerçekten birden fazla aktif listing'i mock data'da mevcuttu). Yanlış "sıfırdan yeni" varsayımı, gereksiz yere büyük bir migration'a yönlendirebilirdi. Ders: kavramsal bir boşluk iddiası, kod/şema okunmadan doğru kabul edilmemeli.
+93. **[Bu turda eklendi] Bir kolonun DB default'u ile frontend'in o kolonu insert sırasında explicit set edip etmediği farklı şeyler.** `listings.status` default'u `'active'` bulundu ama bunu `'draft'`a çevirmeden önce, mevcut "yeni listing oluştur" formunun `status`'ü explicit gönderip göndermediği kontrol edilmeli — göndermiyorsa default değişikliği mevcut akışı sessizce kırar (yeni listing'ler artık görünmez olur). Migration'dan önce bu kontrol P21-A'nın ilk adımı olarak planlandı.
 
 ---
 
@@ -161,6 +163,7 @@ Bu turda Lovable'a gönderilen 2 mesaj API hatası (`"Error occurred during tool
 (önceki tablo + eklenenler:)
 | **P17-G tamamen tamamlandı (2026-07-21)** | 20 KPI view'ı + admin dashboard, canlı doğrulandı. Detaylar önceki sürümde. |
 | **P20 tamamlandı (2026-07-21)** | SMS bildirim genişletmesi (BENCHMARK Gap #8+#10) — gerçek, önceden var olan ama kırık bir bug (`offer_accepted`/`payment_confirmed` SMS'i hiç çalışmıyordu) bulunup düzeltildi; kargo/teslim/iptal/ihtilaf/RFQ-eşleşme event'leri SMS'e bağlandı; iki senaryo gerçek Twilio SMS'i ile uçtan uca doğrulandı. **BENCHMARK Gap listesindeki bağımsız yapılabilecek her şey artık bitti** — kalanlar (P17-A/D bloke, #9/#11/#12 uzun vadeli/P2) launch'u bloklamıyor. |
+| **P21/P22/P23 serisi onaylandı (2026-07-23)** | Berkin'in 22-23.07.2026 el notlarından (GİFTGİ 1-5, BUYER) doğan Batch/Care-Journal/Recipe-App genişlemesi, derinlemesine denetimden geçirildi (mevcut şema sorgulanarak) ve Berkin'in 7 kararıyla kesinleşti. Kalıcı P-serisi detayları dosyanın sonunda "Onaylanan Yol Haritası — P21/P22/P23" bölümünde. |
 
 ---
 
@@ -191,7 +194,7 @@ New PLAN FROM BERKİN NOTES
 
 # Hasat — Batch/Care Journal/Buyer Genişlemesi: Netleşen Kapsamlı Plan
 
-*Bu plan senin 7 cevabına göre oluşturuldu. TODO.md'ye henüz işlenmedi — onayını bekliyor. Onayladıktan sonra P-serisi olarak (P21, P22...) TODO.md'ye geçireceğiz.*
+*Bu plan senin 7 cevabına göre oluşturuldu. Aşağıdaki "🟤 Onaylanan Yol Haritası — P21/P22/P23" bölümünde kalıcı P-serisi formatına işlenmiştir; bu bölüm taslak/tartışma kaydı olarak referans amaçlı korunuyor.*
 
 ---
 
@@ -218,7 +221,7 @@ ALTER TABLE listings ALTER COLUMN status SET DEFAULT 'draft';
 **Önce yapılması gereken kontrol (Lovable'a sorulacak):** Mevcut "yeni listing oluştur" formunun/akışının `status` alanını explicit olarak `'active'` set edip etmediği kontrol edilmeli. Eğer form zaten explicit `status: 'active'` gönderiyorsa, DB default değişikliği hiçbir şeyi bozmaz (sadece "hiç status göndermeyen" gelecekteki insert'ler için güvenlik ağı olur). Eğer form hiç status göndermiyorsa (DB default'una güveniyorsa), bu değişiklik **mevcut "listing oluştur → hemen görünür" davranışını kırar** — form'un kendisine de bir "Yayınla" adımı eklenmesi gerekir. **Bu yüzden migration'dan önce Lovable'a bu soruyu sormak implementasyonun 0. adımı.**
 
 ### A.2 — Care Journal (rutin bakım) — YENİ tablolar
-Bevel modelini (toggle + frequency + threshold) Hasat'ın crop/parsel/batch yapısına uyarlayan 3 yeni tablo:
+Bevel modelini (toggle + frequency + threshold) Hasat'ın crop/parsel/batch yapısına uyarlayan 4 yeni tablo:
 
 ```sql
 -- Global preset + custom entry type tanımları (örn. "Sulama", "İlaçlama", "Soğuk Depo Kontrolü")
@@ -331,32 +334,69 @@ CREATE TABLE offer_items (
 
 ---
 
-## BÖLÜM D — Önerilen P-Serisi Sıralaması (TODO.md'ye işlenmeye hazır taslak)
+## Onaylanan Kontrol Noktaları (2026-07-23)
 
-| Kod | Konu | Kapsam | Öncelik | Bağımlılık |
+1. ✅ A.2/A.3'teki tablo/kolon adları onaylandı.
+2. ✅ P21/P22/P23 kod adlandırması ve sıralaması onaylandı.
+3. ⬜ Sıradaki adım: **P21-A'yı** (draft mode) Lovable'a `plan_mode=true` ile gönderip gerçek frontend davranışını (status nerede set ediliyor) öğrenmek — Berkin'in sinyaliyle başlatılacak.
+
+----------------------------
+
+## 🟤 Onaylanan Yol Haritası — P21/P22/P23 *(onaylandı 2026-07-23)*
+
+> Yukarıdaki "New PLAN FROM BERKİN NOTES" bölümü taslak/tartışma kaydı olarak korunuyor. Bu bölüm, Berkin'in 2026-07-23'te verdiği onay ve 7 karar sonrası **kalıcı, resmi roadmap girişidir.** İçerik yukarıdaki taslakla aynı mimari kararlara dayanır, aşağıda P-kod formatında sabitlenmiştir.
+
+### Temel bulgu — Batch sıfırdan değil
+`listings` (Vitrin kartı) + `listing_harvest_entries` (çoktan-çoğa junction, 410 satır) + `harvest_entries` (hasat/bakım kaydı, 406 satır) üçlüsü **Batch kavramının temelini zaten atmış durumda** — gerçek mock data'da Ahmet'in safran'ı için zaten 3 ayrı listing (batch) var. P21 serisi bu üçlünün üstüne isimlendirme, çoklu-batch görünürlüğü ve iş kuralı ekliyor, sıfırdan yeni bir "batch" tablosu açmıyor.
+
+### P21 — Batch & Vitrin Çoklu-Batch Mimarisi (P0, soft launch öncesi)
+
+| Kod | Konu | Kapsam | Bağımlılık | Durum |
 |---|---|---|---|---|
-| **P21-A** | Draft mode düzeltmesi | A.1 migration + Lovable'a "status nerede set ediliyor" sorusu + form güncellemesi | P0, ilk iş | Yok |
-| **P21-B** | Batch/Vitrin çoklu-batch görünürlüğü | Keşfet'te crop+farmer gruplu kart, batch seçici ürün detay sayfası (Bölüm C) | P0 | P21-A |
-| **P21-C** | Multi-batch offer şeması | `offer_items` tablosu + offer/order detay sayfasında batch breakdown UI | P0 | P21-B |
-| **P21-D** | Stok azalma tetikleyicisi | `offer_items` kabul edildiğinde ilgili `listings.quantity` otomatik düşsün (trigger) | P0 | P21-C |
-| **P21-E** | Traceability RLS garantisi | A.4'teki RLS politikası + "satılmış batch hâlâ görülebilir" testi | P0 | P21-C |
-| **P22-A** | Care Journal şeması | A.2'deki 4 tablo (migration) | P1 | Yok (paralel gidebilir) |
-| **P22-B** | Journal Entry Types yönetimi (Bevel-tarzı Customize Journal ekranı) | Preset+custom CRUD, kategori sekmeleri, frequency/threshold modal | P1 | P22-A |
-| **P22-C** | Crop Glossary (AI-üretilen, merkezi) | Tek seferlik AI-generation + tooltip UI | P1 | P22-A |
-| **P22-D** | Journal sayfası UI (2 sekme: Rutin Bakım + Hasat Kayıtları) | List/Calendar view, filtreler, overdue highlight | P1 | P22-B, P22-C |
-| **P22-E** | Yeni crop type ekleme wizard'ı | crop_config + crop_market_sources + journal_themes + default batch tetikleyicisini tek akışta birleştir | P1 | P22-A |
-| **P23-A** | Buyer mobile + Recipe App keşif/tasarım | Bölüm B'deki feature hedefi, UI tasarımı | P2 | P21 serisi tamamlanmalı (batch verisi stabil olmalı) |
-| **P23-B** | Recipe↔Crop eşleştirme + crop_request otomasyonu | Recipe malzemesi Hasat'ta yoksa otomatik RFQ (P17-E) tetikleme | P2 | P23-A |
-| **P23-C** | Mobile (React Native) + App Store/Play Store compliance | In-app purchase, KVKK, OTP/biometric | P2 | P23-A |
+| P21-A | Draft mode düzeltmesi | Önce Lovable'a `status` alanının frontend'de nerede/nasıl set edildiği soruluyor → `ALTER TABLE listings ALTER COLUMN status SET DEFAULT 'draft'` migration'ı → yeni listing formuna açık "Yayınla" adımı | Yok — **ilk iş** | ⬜ Planlandı |
+| P21-B | Çoklu-batch Keşfet/ürün detay sayfası | Aynı çiftçinin aynı crop'taki tüm aktif batch'leri (listing) Keşfet'te crop+farmer bazında gruplu kart olarak gösterilir; ürün detay sayfasında her batch kendi stoğu+fiyatıyla ayrı satır, buyer her batch'ten istediği miktarı seçebilir, toplam canlı hesaplanır | P21-A | ⬜ Planlandı |
+| P21-C | Multi-batch tek offer şeması | Yeni tablo `offer_items` (offer_id, listing_id, quantity, price_per_unit) — Berkin kararı: şimdilik tek `offers` satırı, tıklayınca batch'ler ayrı ayrı görünür. `offers.listing_id/quantity/price_per_unit` geriye dönük uyumluluk için kalır (birincil/toplam değer) | P21-B | ⬜ Planlandı |
+| P21-D | Stok azalma tetikleyicisi | `offer_items` kabul edildiğinde ilgili `listings.quantity` otomatik düşsün (trigger, P17-B'nin `orders.status` trigger pattern'ine benzer) | P21-C | ⬜ Planlandı |
+| P21-E | Traceability RLS garantisi | Berkin kararı: satılmış/expired batch, buyer'ın geçmiş siparişinden hâlâ görülebilsin. RLS politikası: buyer'ın `listings`/`harvest_entries`/`care_journal_entries` okuma erişimi "bu listing'den geçmişte siparişi var mı" koşuluna bağlanır (`offer_items`→`offers`→`orders` zinciri üzerinden). Keşfet query'si status filtreler, sipariş-geçmişi query'si filtrelemez — iki ayrı sorgu yolu | P21-C | ⬜ Planlandı |
+| P21-F | Batch detay sayfası (traceability) | Bir batch'e (listing) tıklanınca aynı filtrelerle Journal Logs (care_journal_entries + harvest_entries) calendar/list view — hem çiftçi hem buyer (salt-okunur) tarafında | P22-A, P21-C | ⬜ Planlandı |
 
-**Not:** P21 serisi (Batch) soft launch'tan önce (Ağustos) bitmesi gereken kısım. P22 (Care Journal) saffron sezonuna kadar (Ekim) esnek. P23 (Recipe/Mobile) ayrı bir faz, soft launch'u bloklamıyor.
+**Not (rekabet hukuku netliği):** Aynı çiftçinin kendi batch'leri arasında farklı fiyat göstermesi rekabet hukuku riski taşımıyor — riskli olan çiftçiler-arası fiyat şeffaflığı/kolüzyondu (bu yüzden `price_history` aggregated-only tutuluyor), tek çiftçinin kendi ürünü için fiyat farkı göstermesi bambaşka bir konu ve sorunsuz. Berkin'in 6. kararıyla (toplam fiyat batch'lere göre değişsin) bu netleşti.
 
----
+### P22 — Care Journal (Rutin Bakım) (P1, saffron sezonuna kadar esnek)
 
-## Onay Bekleyen Son Kontrol Noktaları
+Berkin kararı (1. cevap): `harvest_entries`'ten (hasat olayı) ayrı bir tablo — ikisi karışık modeller (biri toggle/günlük, biri olay-bazlı/stok-etkili). Tek "Journal" sayfasında iki sekme: **Rutin Bakım** (yeni, Bevel-tarzı toggle) + **Hasat Kayıtları** (mevcut `harvest_entries` formu).
 
-1. Yukarıdaki 4 yeni tablo (A.2) ve 1 yeni tablo (A.3) isimlerini/kolon adlarını onaylıyor musun, yoksa değiştirmek istediğin bir isimlendirme var mı?
-2. P21/P22/P23 kod adlandırması ve sıralaması uygun mu, yoksa mevcut P20'den sonra farklı numaralandırma tercih eder misin?
-3. Onaylarsan bir sonraki adım: **P21-A'yı** (draft mode) Lovable'a `plan_mode=true` ile gönderip gerçek frontend davranışını (status nerede set ediliyor) öğrenmek — bunu şimdi başlatabilirim.
+| Kod | Konu | Kapsam | Bağımlılık | Durum |
+|---|---|---|---|---|
+| P22-A | Care Journal şeması | 4 yeni tablo: `journal_entry_types` (preset+custom, code/display_name ayrımı — `crop_config.crop`/`display_name` pattern'iyle tutarlı), `journal_themes` (crop×entry_type×frequency×threshold, preset/farmer-override), `crop_journal_glossary` (merkezi, AI-üretilen, tek seferlik tooltip metni, `generated_by` ile şeffaf), `care_journal_entries` (günlük toggle kaydı, `listing_id` FK ile hangi batch'e ait olduğu otomatik-ama-editable) | Yok | ⬜ Planlandı |
+| P22-B | Customize Journal ekranı (Bevel referansı) | Preset+custom entry type CRUD, kategori sekmeleri (bakım/soğuk depo/lojistik/güvenlik), her entry type için frequency/threshold modalı, quick-access toggle | P22-A | ⬜ Planlandı |
+| P22-C | Crop Glossary üretimi | Her crop için AI ile tek seferlik paragraf-tooltip üretimi (Berkin'in domates örneği referans), "AI tarafından oluşturuldu" şeffaflık notuyla | P22-A | ⬜ Planlandı |
+| P22-D | Journal sayfası UI | İki sekme (Rutin Bakım / Hasat Kayıtları), list/calendar view toggle, Parcel/Crop/Entry-type filtreleri (P19 `PricesPageBody` pattern'i yeniden kullanılabilir), overdue kırmızı highlight (bildirim şimdilik yok — Berkin kararı) | P22-B, P22-C | ⬜ Planlandı |
+| P22-E | Yeni crop type ekleme wizard'ı | `crop_config` + `crop_market_sources` (P19) + `journal_themes` + otomatik-draft-batch tetikleyicisini **tek akışta** birleştir — ayrı ayrı elle yapılırsa biri unutulur riski var | P22-A | ⬜ Planlandı |
 
-Onayını verdiğinde bu planı TODO.md'nin "New PLAN FROM BERKİN NOTES" bölümünün altına, kalıcı P-serisi formatında işleyeceğim.
+### P23 — Buyer Mobile & Recipe App (P2, ayrı faz — soft launch'u bloklamıyor)
+
+Berkin kararı (7. cevap): Recipe App şimdilik tüm `buyer_type` segmentlerine açık (bireysel+HoReCa ayrımı yok, ileride veri ile karar verilir).
+
+**Referans araştırması (Berkin'in 2 App Store linki, 5. cevap):**
+- **Eatr (AI Healthy Diet Meal Plan):** süre/beceri/diyet filtreleri, besin değeri bilgisi, adım-adım pişirme. Abonelik modeli (7 gün deneme + otomatik yıllık ücret) App Store'da ciddi iptal/refund şikayetleri almış — Hasat'ın Recipe App aboneliği bu hatayı tekrarlamamalı, deneme süresi bitişi öncesi SMS hatırlatması (mevcut P20 altyapısı) planlanmalı.
+- **ReciMe (Recipe Manager):** "Order Groceries — grocery list'i doğrudan app içinde siparişe çevir" özelliği Berkin'in 2.2 notundaki cross-sell fikriyle birebir örtüşüyor. Hasat kendi envanterine sahip olduğu için (ReciMe'nin 3. parti API'sine ihtiyacı olduğu yerde) doğrudan Vitrin/Keşfet'e bağlanabilir — ReciMe'den yapısal olarak daha avantajlı.
+- Sosyal medyadan tarif import (ReciMe'nin ana özelliği) Hasat'ın çekirdek değeriyle ilgisiz, MVP'ye dahil edilmeyecek.
+
+| Kod | Konu | Kapsam | Bağımlılık | Durum |
+|---|---|---|---|---|
+| P23-A | Buyer mobile + Recipe App keşif/tasarım | React Native, shopping+recipe birlikte mobile-first; Eatr'ın filtre/besin-değeri + ReciMe'nin grocery-to-order akışının Hasat'a uyarlanması | P21 serisi tamamlanmalı (batch verisi stabil olmalı) | ⬜ Planlandı |
+| P23-B | Recipe↔Crop eşleştirme + RFQ otomasyonu | Bir tarifin malzemesi Hasat kataloğunda yoksa otomatik `crop_requests` (P17-E) kaydı önerisi | P23-A | ⬜ Planlandı |
+| P23-C | Mobile compliance | App Store/Play Store in-app purchase kuralları (₺149 premium riski), KVKK mobile metinleri, OTP/biometric login kararı | P23-A | ⬜ Planlandı |
+
+### Berkin'in 7 kararı (referans, 2026-07-23)
+1. Care journal ayrı tablo, tek sayfa iki sekme ile en anlaşılır gösterim (→ P22-A/D)
+2. Draft migration'ı Claude kontrol etsin, doğru önceliklendirme ile plana girsin (→ P21-A, ilk iş)
+3. Multi-batch şimdilik tek offer, tıklayınca batch'ler+journal ayrı görünür (→ P21-C, `offer_items`)
+4. Sold/expired batch geçmiş siparişten hâlâ görülebilir (→ P21-E, RLS)
+5. Referans app'ler: Eatr (id6479693198) + ReciMe (id1593779280) (→ P23-A araştırma girdisi)
+6. Aynı çiftçinin aynı crop'ta çoklu batch'i Keşfet'te ikisi de görünür, buyer stok görüp seçer, toplam fiyat değişir (→ P21-B)
+7. Recipe App şimdilik tüm buyer_type'lara açık (→ P23-A kapsam)
+
+### Sıradaki adım
+P21-A'yı Lovable'a `plan_mode=true` ile göndermek: `listings.status` alanının frontend'de nerede/nasıl set edildiğini öğrenmek — Berkin onayladığında başlatılacak.
