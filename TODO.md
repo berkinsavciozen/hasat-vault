@@ -185,3 +185,82 @@ Bu turda Lovable'a gönderilen 2 mesaj API hatası (`"Error occurred during tool
 (Değişmedi — bkz. önceki sürüm)
 
 ### (Önceki tüm test sonuçları — değişmedi, önceki sürümlerde)
+
+----------------------------
+New PLAN FROM BERKİN NOTES
+
+# Hasat — Çiftçi & Buyer Update Kapsamı Konsolide Tablosu
+
+*Kaynak: 22.07.2026 tarihli el notları (GİFTGİ 1-5, BUYER, HASAT tarihli sayfa). Bu tablo finalize etme ve önceliklendirme için çalışma dokümanıdır.*
+
+## ÇİFTÇİ TARAFI
+
+| # | Segment | Madde | Alt Madde | Mevcut Durum / Ne Anlama Geliyor | Eklenebilir Not (Claude önerisi) | Önerilen Öncelik | İlişkili P-Serisi / Not | Durum |
+|---|---------|-------|-----------|-----------------------------------|-----------------------------------|-------------------|--------------------------|-------|
+| 1.1 | Journal Enhancement | Her crop type için özel default journal draft | — | Şu an journal_entries düz kayıt, crop-type'a özel default şablon yok | Draft'ın kaynağı: Hasat editörü mü sağlayacak, çiftçi mi özelleştirecek? | P1 | Yeni — mevcut journal şemasının üstüne | Planlanmadı |
+| 1.2 | Journal Enhancement | Crop Type Hasat Glossary (dikey template) | 1.2.1 Parsel >1 ise Tabs ile ayrım | Parselde birden fazla crop varsa glossary görünümü ayrışmalı | Glossary içeriği versiyon kontrolü gerekebilir | P1 | Yeni | Planlanmadı |
+| 1.3 | Journal Enhancement | Her crop/journal type için glossary çalışma mantığı | — | Henüz tanımsız — sadece "nasıl olacak" sorusu | Glossary'nin çiftçi tarafından mı yoksa merkezi mi yönetileceği netleşmeli | P2 | Yeni | Netleştirme gerekiyor |
+| 1.4 | Journal Enhancement | Yeni crop type ekleme akışı | Örnek: Ayas Domates | Crop type ekleme UI'ı zaten var mı kontrol edilmeli | Yeni crop type eklerken market_sources/crop_market_sources ile de senkron olmalı (P19 borsa şemasıyla çakışabilir) | P1 | P19 ile kesişim | Kontrol gerekiyor |
+| 1.5 | Journal Enhancement | Farklı crop type'lar için default Journal Theme add/edit | — | Journal Theme kavramı hiç yok, yeni | — | P1 | Yeni | Planlanmadı |
+| 1.6 | Journal Enhancement | Her crop type için Calendar view | — | Şu anki journal UI'da calendar/list toggle yok | 3. segmentteki calendar view ile aynı bileşen olabilir, ayrı geliştirilmemeli | P2 | 3. segmentle birleştirilebilir | Planlanmadı |
+| 2.1 | Journal Entry Types & Themes | Standard presets + custom entry type seçenekleri | — | Şu an tek tip journal entry var | — | P1 | Yeni | Planlanmadı |
+| 2.2 | Journal Entry Types & Themes | Cold storage/paketleme & lojistik/güvenlik entry type'ları | — | Yeni kategori seti | Bu kategoriler P17-D (invoice/e-müstahsil) ile veri bağlantısı kurabilir (lojistik kaydı → fatura) | P2 | P17-D ile bağlantılı olabilir | Planlanmadı |
+| 2.3 | Journal Entry Types & Themes | Theme attribute'ları: entry type, frequency, duration (opsiyonel) | Preset + custom | Yapısal şema değişikliği gerektirir | — | P1 | Şema migration'ı gerekir | Planlanmadı |
+| 2.4 | Journal Entry Types & Themes | Akış: Entry Types → Preset/Custom Themes (crop bazlı) → kullanıcı parsel-crop themes (dikey) → multi-parsel tabs | — | Tüm zincir yeni | UI akışı P17-A/B gibi çok adımlı flow'lara benziyor, aynı wizard pattern kullanılabilir | P1 | Yeni mimari | Planlanmadı |
+| 2.5 | Journal Entry Types & Themes | Yeni parsel/crop type eklenince default Theme otomatik oluşsun | — | Otomasyon gerektirir (trigger veya edge function) | P19'daki sync-izmir-hal-prices gibi bir trigger/cron pattern uygulanabilir | P2 | Teknik pattern: mevcut trigger'lara benzer | Planlanmadı |
+| 3.1 | Journal Sayfası UI | Default görünüm: theme'e göre upcoming task list view | — | Şu anki journal sayfası bu görünümde değil | — | P1 | Yeni UI | Planlanmadı |
+| 3.2 | Journal Sayfası UI | Crop/parsel için dikey bileşen, chip'li attribute gösterimi, ayrık/birleşik seçenek | — | Yeni component | — | P2 | Yeni UI | Planlanmadı |
+| 3.3 | Journal Sayfası UI | Filtreler: Parcel (All), Crop Type (All), Journal entry type | — | Filtre mantığı P19'daki fiyat sayfası filtrelerine benzer şekilde tasarlanabilir | Aynı filtre component'i P19'daki PricesPageBody'den yeniden kullanılabilir mi kontrol edilmeli | P1 | Kod tekrar kullanımı fırsatı | Planlanmadı |
+| 3.4 | Journal Sayfası UI | time ≥ today AND overdue highlight (dropdown) | — | Yeni mantık | Overdue highlight'a ek olarak bildirim/reminder mekanizması hiç bahsedilmemiş | P2 | **Eksik: notification** | Netleştirme gerekiyor |
+| 3.5 | Journal Sayfası UI | Calendar view: aylık/haftalık/günlük, filtreler korunur, sadece date filter değişir | — | P19'daki PriceChart'ın zaman aralığı sekmeleri (3 Ay/6 Ay/1 Yıl) mantığına benzer ama farklı granülarite | Aynı takım (Son 3 Ay/6 Ay/1 Yıl) mantığı burada da uygulanabilir mi, yoksa native calendar mı gerekiyor netleşmeli | P1 | P19 pattern referansı | Planlanmadı |
+| 4.1 | Batch Logic (temel) | Her HASAT = Batch (journal type) | — | Batch kavramı şemada tamamen yok | — | P0 | Yeni — kök kavram | Planlanmadı |
+| 4.2 | Batch Logic (temel) | Her Batch: ID + isim input + mapping | — | Yeni tablo gerektirir (`batches`?) | — | P0 | Şema tasarımı gerekiyor | Planlanmadı |
+| 4.3 | Batch Logic (temel) | Her crop type'ın farklı batch'leri olabilir | — | 1-N ilişki: crop_type → batches | — | P0 | Şema tasarımı gerekiyor | Planlanmadı |
+| 4.4 | Batch Logic (temel) | Yeni parsel=crop type eklenince Batch otomatik oluşsun | — | 2.5 ile aynı otomasyon paterni | Journal Theme otomasyonuyla aynı trigger'da birleştirilebilir | P1 | 2.5 ile birleştirilebilir | Planlanmadı |
+| 4.5 | Batch Logic (temel) | Journal & Batch, Parcel'e bağlı, DB'de senkron edit | — | Foreign key ilişkileri netleşmeli | — | P0 | Şema tasarımı | Planlanmadı |
+| 4.6 | Batch Logic (temel) | Her zaman önce Draft mode | — | Yayınlama öncesi taslak zorunluluğu | Draft→Publish state machine, mevcut orders.status enum pattern'i gibi tasarlanabilir (P17-B'de orders.status genişletildi, benzer yaklaşım) | P1 | P17-B pattern referansı | Planlanmadı |
+| 5.1 | Batch / Stok & Vitrin | Yeni Hasat journal entry eklenince stok artsın | — | Stok hareketi journal'a bağlı otomasyon | Stok azalma tarafı (satış/sipariş sonrası) da simetrik olarak tanımlanmalı, sadece artış yazılmış | **Eksik: stok azalma tetikleyicisi** | P0 | Netleştirme gerekiyor |
+| 5.2 | Batch / Stok & Vitrin | Batch view = Vitrin | — | Vitrin'in veri kaynağı batch bazlı olacak şekilde değişir | — | P0 | Mevcut Vitrin'in üstüne yeniden mimari | Planlanmadı |
+| 5.3 | Batch / Stok & Vitrin | Crop type'ın birden fazla batch'i varsa isim+ID ile liste | — | Vitrin kart yapısı değişir (tekli üründen batch listesine) | Rekabet hukuku mimarisiyle (aggregated-only price history, min-5-farmer threshold) çakışmamalı — batch bazlı görünürlük bireysel fiyat feed'ine dönüşmemeli | P0 | **Competition law riski — dikkat** | Hukuki kontrol gerekiyor |
+| 5.4 | Batch / Stok & Vitrin | Batch'e tıklayınca aynı filtrelerle Journal Logs calendar/list view | — | 3. segmentteki UI'nın batch-detay versiyonu | Batch bazlı traceability gösterimi, Hasat'ın "trust infrastructure" tezine hizmet eder, P17-C (review) ile bağlanabilir | P1 | 3. segment + P17-C bağlantısı | Planlanmadı |
+
+## BUYER TARAFI
+
+| # | Segment | Madde | Alt Madde | Mevcut Durum / Ne Anlama Geliyor | Eklenebilir Not (Claude önerisi) | Önerilen Öncelik | İlişkili P-Serisi / Not | Durum |
+|---|---------|-------|-----------|-----------------------------------|-----------------------------------|-------------------|--------------------------|-------|
+| 1.1 | Kapsam Keşfi | Buyer için tüm use case'ler (actions, I/O, tablolar, servisler, fonksiyonaliteler) | — | Henüz tanımsız, keşif aşaması | Mevcut buyer flow'unun (browse/order/subscription/review) hangi kısmının aynı kalıp hangisinin yeni olacağı önce ayrılmalı, scope creep riski var | P0 | Önce netleştirme gerekiyor | Netleştirme gerekiyor |
+| 1.2 | Kapsam Keşfi | Recipe App consumers için unique value | — | Tanımsız, iş fikri seviyesinde | — | P2 | Ayrı ürün keşfi | Netleştirme gerekiyor |
+| 2.1 | Mobile/Recipe App Mimarisi | Aynı DB, enhanced servisler mobile'a adapte → React Native (shopping side) | — | Backend aynı, frontend yeni platform | — | P1 (soft launch sonrası olabilir) | Mobile roadmap | Planlanmadı |
+| 2.2 | Mobile/Recipe App Mimarisi | Aynı DB + yeni tablolar/servisler/auth/AI/dokümantasyon (Recipe App için) | — | Recipe App tamamen ayrı bir ürün hattı gibi görünüyor | Recipe App'in gelir modeli finansal modelde (v0.6) yok — ayrı gelir kalemi mi, yoksa retention aracı mı belirlenmeli; crop→recipe eşleştirme için yeni bir curation/veri seti gerekir | P2 | **Finansal modelle bağlantısı yok — eksik** | Netleştirme gerekiyor |
+| 3.1 | UI/UX | Yeni UI/UX sayfaları | — | Mobile-first tasarım gerekiyor | Mobile tasarım dili mevcut Lovable web tasarım sistemiyle tutarlı mı olacak, erken netleşmeli | P2 | frontend-design skill referansı olabilir | Netleştirme gerekiyor |
+| 3.2 | UI/UX | Yeni theme referansları seçilmeli | — | Görsel kimlik kararı | — | P2 | — | Planlanmadı |
+| 4.1 | Prod. Marketplace Netleştirmesi | Aynı DB, mobile'a taşınacak | — | Mimari netleştirme | — | P1 | — | Planlanmadı |
+| 4.2 | Prod. Marketplace Netleştirmesi | Yeni özellikler eklenecek | — | Kapsam TBD | — | P2 | — | Netleştirme gerekiyor |
+| 4.3 | Prod. Marketplace Netleştirmesi | iOS & Android gereksinimleri kontrol edilecek | — | Platform-spesifik kısıtlar henüz araştırılmadı | App Store/Play Store compliance: in-app purchase kuralları premium/subscription (₺149/ay) için geçerli olabilir; KVKK/gizlilik metinleri mobile için ayrı gerekebilir; OTP mı kalacak yoksa biometric/social login eklenecek mi | P1 | **₺149 premium ile in-app purchase kuralı çakışması riski** | Hukuki/teknik araştırma gerekiyor |
+| 5.1 | Batch Görünümü & Talep Akışı | Crop type'ın birden fazla batch'i varsa Vitrin'de isim+ID liste | — | Çiftçi tarafı 5.3 ile aynı veri, buyer görünümü | — | P0 | Çiftçi 5.3 ile aynı geliştirme | Planlanmadı |
+| 5.2 | Batch Görünümü & Talep Akışı | Örnek senaryo: 12 birim istek, Batch1=10, Batch2=5 | 5.2.1 Batch1 yetersizse Batch2'den ekleme seçeneği; 5.2.2 Hiçbiri yetmezse "request more" butonu | Multi-batch sepete ekleme mantığı, sipariş modelinde değişiklik gerektirir | "Request more" butonu P17-E (Structured RFQ) ile aynı mekanizma mı olacak yoksa ayrı basit form mu — ikisi çakışmamalı, tek akışa indirilmeli | P0 | **P17-E ile çakışma riski — netleştirilmeli** | Netleştirme gerekiyor |
+| 5.3 | Batch Görünümü & Talep Akışı | Batch'e tıklayınca journal loglarının calendar/list view'ı | — | Çiftçi 5.4 ile aynı UI, buyer'a salt-okunur gösterim | Buyer'a batch bazlı traceability gösterimi, sipariş sonrası "hangi hasattan geldi" bilgisini review/dispute akışına (P17-B/C) bağlayabilir | P1 | P17-B/C bağlantısı | Planlanmadı |
+
+## ÇAPRAZ / ROL-BAĞIMSIZ (22.07.2026 — Soft Launch Checklist)
+
+| # | Madde | Mevcut Durum | Eklenebilir Not | Öncelik | Durum |
+|---|-------|--------------|-------------------|---------|-------|
+| C1 | Soft launch'a kadar ne eksik? (feature-wise) | Sadece soru, henüz liste yok | Yukarıdaki tüm çiftçi/buyer maddeleri bu listeye girdi adayı — hangileri Ağustos'tan önce, hangileri sonra netleşmeli | P0 | Bu tablo bu sorunun cevabına temel oluşturuyor |
+| C2 | Soft launch'a kadar maliyet ne olacak? | Tanımsız | Finansal modelde (v0.6) bu kapsam genişlemesi (Batch, Recipe App, mobile) henüz yok — v0.7 revizyonu gerekebilir | P0 | Netleştirme gerekiyor |
+| C3 | Soft launch sırasında capital ihtiyacı | Tanımsız | C2 ile bağlı | P0 | Netleştirme gerekiyor |
+| C4 | Marketing & Brand eksikleri | Tanımsız | Recipe App/mobile gibi yeni segmentler marka mesajını etkiler, önce kapsam netleşmeli | P1 | Netleştirme gerekiyor |
+| C5 | Legal wise & Accounting eksikleri | Tanımsız | Batch/Vitrin'in competition law riski (5.3) ve mobile in-app purchase kuralları (Buyer 4.3) bu listeye doğrudan giriyor | P0 | Netleştirme gerekiyor |
+
+---
+
+## Önceliklendirme Özeti (P0 = soft launch kritik, P1 = önemli ama esnek, P2 = sonraya bırakılabilir)
+
+- **P0 (Ağustos soft launch öncesi karar gerekli):** Batch temel mimarisi (4.1-4.6), Stok/Vitrin entegrasyonu (5.1-5.4), Buyer batch görünümü ve talep akışı (5.1-5.3), Competition law kontrolü, Soft launch checklist'in tamamı
+- **P1 (Yapılabilir ama saffron sezonuna kadar erteneilebilir):** Journal Enhancement (1.x), Journal Entry Types/Themes (2.x), Journal UI (3.x), Mobile marketplace netleştirmesi
+- **P2 (Ayrı faz — muhtemelen Ekim-Kasım sonrası):** Recipe App / mobile genişleme (Buyer 1.2, 2.2, 3.x), yeni UI/tema seçimi
+
+**Kritik açık sorular (karar bekliyor):**
+1. Batch bazlı Vitrin görünümü competition law mimarisiyle nasıl uyumlu olacak? (Çiftçi 5.3)
+2. "Request more" butonu P17-E (RFQ) ile aynı mı, ayrı mı? (Buyer 5.2.2)
+3. Recipe App/mobile genişleme Ağustos soft launch kapsamında mı, yoksa ayrı faz mı? (Cross C1)
+4. Stok azalma (satış sonrası) tetikleyicisi hiç tanımlanmamış — sadece artış var (Çiftçi 5.1)
