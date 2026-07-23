@@ -47,7 +47,7 @@ tags:
 
 ## 🏗️ Lovable/Supabase Build Sırası
 
-> **P19 + P17 serisi (B/C/F/E/G) + P20 tamamen bitti, hepsi canlı doğrulandı.** **P17-A ve P17-D şirket kuruluşuna bağlı, bloke.** BENCHMARK Gap listesindeki bağımsız yapılabilecek her şey bitti (bkz. Gap durum tablosu altta). **Sıradaki büyük iş bloğu: P21 (Batch/Vitrin çoklu-batch mimarisi, soft launch öncesi P0) — Berkin'in 22-23.07.2026 el notlarından doğdu ve 2026-07-23'te onaylandı, detayları dosyanın sonundaki "Onaylanan Yol Haritası — P21/P22/P23" bölümünde.**
+> **P19 + P17 serisi (B/C/F/E/G) + P20 tamamen bitti, hepsi canlı doğrulandı.** **P17-A ve P17-D şirket kuruluşuna bağlı, bloke.** BENCHMARK Gap listesindeki bağımsız yapılabilecek her şey bitti (bkz. Gap durum tablosu altta). **Sıradaki büyük iş bloğu: P21 (Batch/Vitrin çoklu-batch mimarisi, soft launch öncesi P0) — Berkin'in 22-23.07.2026 el notlarından doğdu, 2026-07-23'te onaylandı ve gerçek kod/DB araştırmasıyla revize edildi, detayları dosyanın sonundaki "Onaylanan Yol Haritası — P21/P22/P23" bölümünde.**
 
 ### BENCHMARK Gap Durum Tablosu (2026-07-21 itibarıyla)
 | # | Gap | Şiddet | Durum |
@@ -154,7 +154,9 @@ Bu turda Lovable'a gönderilen 2 mesaj API hatası (`"Error occurred during tool
 90. **[Bu turda eklendi] Bir background job/agent tool çağrısı "Error occurred during tool execution" gibi belirsiz bir hata dönerse, işin gerçekten başarısız olduğu varsayılmamalı** — Lovable gibi agent'lar bazen işi arka planda tamamlayıp yine de hata görünümünde bir sonuç dönebiliyor. Bir sonraki adımda dosya/veri durumu bağımsız kontrol edilmeli, sadece hatayı görüp yeniden komut vermek (ve olası çift-çalıştırma riskini almak) yerine önce "gerçekten ne oldu" sorusuna cevap aranmalı.
 91. **[Bu turda eklendi] `dispatch_sms`/`send-sms` gibi gerçek dış servise (Twilio) para/mesaj harcayan bir entegrasyon test edilirken, gerçek bir SMS gönderilecek olması açıkça not düşülmeli** — test verisi gibi sessizce oluşturup silinemez, kullanıcının telefonuna gerçek bir mesaj gider. Test öncesi/sonrası tercih durumu (`notif_prefs`) değiştirilip test sonrası eski haline döndürülmeli.
 92. **[Bu turda eklendi] "Yeni bir kavram için tablo lazım" varsayımına geçmeden önce mevcut şema sorgulanmalı.** Berkin'in notlarında "Batch kavramı şemada tamamen yok" denmişti; gerçek şemayı sorguladığımda `listings`+`listing_harvest_entries`+`harvest_entries` üçlüsünün bunun temelini zaten attığı görüldü (aynı çiftçinin aynı crop'ta gerçekten birden fazla aktif listing'i mock data'da mevcuttu). Yanlış "sıfırdan yeni" varsayımı, gereksiz yere büyük bir migration'a yönlendirebilirdi. Ders: kavramsal bir boşluk iddiası, kod/şema okunmadan doğru kabul edilmemeli.
-93. **[Bu turda eklendi] Bir kolonun DB default'u ile frontend'in o kolonu insert sırasında explicit set edip etmediği farklı şeyler.** `listings.status` default'u `'active'` bulundu ama bunu `'draft'`a çevirmeden önce, mevcut "yeni listing oluştur" formunun `status`'ü explicit gönderip göndermediği kontrol edilmeli — göndermiyorsa default değişikliği mevcut akışı sessizce kırar (yeni listing'ler artık görünmez olur). Migration'dan önce bu kontrol P21-A'nın ilk adımı olarak planlandı.
+93. **[Bu turda eklendi] Bir kolonun DB default'u ile frontend'in o kolonu insert sırasında explicit set edip etmediği farklı şeyler.** `listings.status` default'u `'active'` bulundu ama bunu `'draft'`a çevirmeden önce, mevcut "yeni listing oluştur" formunun `status`'ü explicit gönderip göndermediği kontrol edilmeli — göndermiyorsa default değişikliği mevcut akışı sessizce kırar (yeni listing'ler artık görünmez olur). **[Güncellendi 2026-07-23]** Kontrol edildi: form her zaman explicit `status:'active'` gönderiyor (`queries.ts:806`), DB default'u hiç kullanılmıyor — bu yüzden migration yerine gerçek çözüm form/UX seviyesinde (bkz. P21-A).
+94. **[Bu turda eklendi] Bir "boşluk" iddiası kod okunmadan iki kez yanlış çıkabilir — önce "yok" denip sonra "var ama eksik" bulunabilir, üçüncü kez "aslında zaten var, sadece dağınık" çıkabilir.** P21-A için üç farklı katmanda üç farklı gerçek bulundu: (1) DB default'u active ama önemsiz çünkü form onu hiç kullanmıyor, (2) parsel-tetikli otomatik draft-listing mekanizması (`create_draft_listings_for_parcel` trigger'ı) zaten var ama tek-batch mantığında (parcel+crop başına 1 listing, ikincisini engelliyor), (3) stok "azalma trigger'ı" ihtiyacı zaten `enforce_offer_stock` ile karşılanmış (dinamik hesaplama, sayaç değil) ama `offer_items`'a uyarlanması gerekiyor. Ders: bir mimari boşluk hipotezini doğrulamadan planlamaya iki kod-okuma turu (biri "var mı" sorusu, biri "nasıl çalışıyor" sorusu) yatırım yapmak, üçüncü bir yanlış varsayımı da elemiş oluyor.
+95. **[Bu turda eklendi] Aynı hesaplama mantığının SQL trigger + frontend hook'ta paralel yazılması (RPC/view paylaşılmadan), birim normalizasyonu gibi ortak bir hatayı iki yerde aynı anda taşıyabilir.** `enforce_offer_stock` (SQL) ve `useListingStock` (frontend) aynı "available = batch_total - reserved" formülünü ayrı ayrı yazmış; ikisi de `harvest_entries.quantity`'nin birimini (`kg` vs `g`) doğrulamıyor. Fix tek bir yerde yapılırsa diğeri sessizce eski/yanlış kalır — P21-D bu ikisini tek kaynaktan (paylaşılan RPC) besleyecek şekilde birleştirmeyi de kapsıyor.
 
 ---
 
@@ -163,7 +165,8 @@ Bu turda Lovable'a gönderilen 2 mesaj API hatası (`"Error occurred during tool
 (önceki tablo + eklenenler:)
 | **P17-G tamamen tamamlandı (2026-07-21)** | 20 KPI view'ı + admin dashboard, canlı doğrulandı. Detaylar önceki sürümde. |
 | **P20 tamamlandı (2026-07-21)** | SMS bildirim genişletmesi (BENCHMARK Gap #8+#10) — gerçek, önceden var olan ama kırık bir bug (`offer_accepted`/`payment_confirmed` SMS'i hiç çalışmıyordu) bulunup düzeltildi; kargo/teslim/iptal/ihtilaf/RFQ-eşleşme event'leri SMS'e bağlandı; iki senaryo gerçek Twilio SMS'i ile uçtan uca doğrulandı. **BENCHMARK Gap listesindeki bağımsız yapılabilecek her şey artık bitti** — kalanlar (P17-A/D bloke, #9/#11/#12 uzun vadeli/P2) launch'u bloklamıyor. |
-| **P21/P22/P23 serisi onaylandı (2026-07-23)** | Berkin'in 22-23.07.2026 el notlarından (GİFTGİ 1-5, BUYER) doğan Batch/Care-Journal/Recipe-App genişlemesi, derinlemesine denetimden geçirildi (mevcut şema sorgulanarak) ve Berkin'in 7 kararıyla kesinleşti. Kalıcı P-serisi detayları dosyanın sonunda "Onaylanan Yol Haritası — P21/P22/P23" bölümünde. |
+| **P21/P22/P23 serisi onaylandı (2026-07-23)** | Berkin'in 22-23.07.2026 el notlarından (GİFTGİ 1-5, BUYER) doğan Batch/Care-Journal/Recipe-App genişlemesi, derinlemesine denetimden geçirildi (mevcut şema sorgulanarak) ve Berkin'in 7 kararıyla kesinleşti. |
+| **P21 gerçek koda göre revize edildi (2026-07-23, aynı gün)** | `listings.status` default migration'ı yerine form/UX değişikliği (P21-A); Keşfet'te çoklu-batch görünümü zaten dağınık halde var olduğu için "yeni kapasite" değil "düzenleme" işi olarak revize edildi (P21-B); stok azalma "trigger'ı" zaten `enforce_offer_stock` ile karşılanmış, `offer_items`'a uyarlanacak (P21-D); Vitrin'de çift stok gösterimi (ham+hesaplanmış) düzeltilecek (yeni: P21-G). Detaylar dosyanın sonunda. |
 
 ---
 
@@ -194,7 +197,7 @@ New PLAN FROM BERKİN NOTES
 
 # Hasat — Batch/Care Journal/Buyer Genişlemesi: Netleşen Kapsamlı Plan
 
-*Bu plan senin 7 cevabına göre oluşturuldu. Aşağıdaki "🟤 Onaylanan Yol Haritası — P21/P22/P23" bölümünde kalıcı P-serisi formatına işlenmiştir; bu bölüm taslak/tartışma kaydı olarak referans amaçlı korunuyor.*
+*Bu plan senin 7 cevabına göre oluşturuldu. Aşağıdaki "🟤 Onaylanan Yol Haritası — P21/P22/P23" bölümünde kalıcı P-serisi formatına işlenmiştir; bu bölüm taslak/tartışma kaydı olarak referans amaçlı korunuyor. P21 alt maddeleri, sonraki turlarda gerçek kod/DB araştırmasıyla revize edilmiştir — güncel hâli dosyanın en sonundadır.*
 
 ---
 
@@ -203,7 +206,7 @@ New PLAN FROM BERKİN NOTES
 | # | Senin cevabın | Aldığım mimari karar |
 |---|---|---|
 | 1 | Care journal ayrı, en kolay/anlaşılır neyse öyle | Ayrı tablo (`care_journal_entries`) + tek "Journal" sayfasında iki sekme |
-| 2 | Draft migration'ı bana bırak, önceliklendir | Kontrol ettim, gerçek boşluk doğrulandı → **P0, ilk iş** |
+| 2 | Draft migration'ı bana bırak, önceliklendir | Kontrol ettim, gerçek boşluk doğrulandı → **P0, ilk iş** (sonradan revize: migration değil form/UX işi) |
 | 3 | Şimdilik tek offer, tıklayınca batch'ler ayrı görünsün | `offer_items` ara tablosu (yeni) |
 | 4 | Sold/expired batch geçmiş siparişten hâlâ görülebilsin | RLS + query katmanında garanti edilecek, madde 4'te detay |
 | 5 | Eatr + ReciMe | Araştırdım, aşağıda özellik karşılaştırması var |
@@ -214,11 +217,8 @@ New PLAN FROM BERKİN NOTES
 
 ## BÖLÜM A — Şema Değişiklikleri (net karar verildi, implementasyona hazır)
 
-### A.1 — `listings.status` default düzeltmesi (P0, İLK İŞ)
-```sql
-ALTER TABLE listings ALTER COLUMN status SET DEFAULT 'draft';
-```
-**Önce yapılması gereken kontrol (Lovable'a sorulacak):** Mevcut "yeni listing oluştur" formunun/akışının `status` alanını explicit olarak `'active'` set edip etmediği kontrol edilmeli. Eğer form zaten explicit `status: 'active'` gönderiyorsa, DB default değişikliği hiçbir şeyi bozmaz (sadece "hiç status göndermeyen" gelecekteki insert'ler için güvenlik ağı olur). Eğer form hiç status göndermiyorsa (DB default'una güveniyorsa), bu değişiklik **mevcut "listing oluştur → hemen görünür" davranışını kırar** — form'un kendisine de bir "Yayınla" adımı eklenmesi gerekir. **Bu yüzden migration'dan önce Lovable'a bu soruyu sormak implementasyonun 0. adımı.**
+### A.1 — `listings.status` default düzeltmesi — **[İPTAL, bkz. P21-A revize]**
+~~`ALTER TABLE listings ALTER COLUMN status SET DEFAULT 'draft';`~~ Kontrol edildi: manuel form her zaman explicit `status:'active'` gönderiyor, DB default'u hiç kullanılmıyor. Gerçek çözüm P21-A'da form/UX seviyesinde revize edildi (bkz. dosya sonu).
 
 ### A.2 — Care Journal (rutin bakım) — YENİ tablolar
 Bevel modelini (toggle + frequency + threshold) Hasat'ın crop/parsel/batch yapısına uyarlayan 4 yeni tablo:
@@ -289,6 +289,7 @@ CREATE TABLE offer_items (
 - `offers.listing_id`/`quantity`/`price_per_unit` **geriye dönük uyumluluk için kalır** ama artık "birincil/toplam" değeri temsil eder — tek-batch teklifler `offer_items`'a da 1 satır olarak yazılır (kod tarafında ikisi senkron tutulur, aynı P20'deki `dispatch_sms`/`send-sms` dersini burada tekrar etmemek için tek yazma noktası/trigger önerilir).
 - Offer detay sayfasında "batch'lere göre dağılım" gösterimi `offer_items` üzerinden JOIN ile yapılır, her satırda o batch'e tıklanınca `listing_harvest_entries → harvest_entries` (Batch 5.4'teki calendar/list view) açılır.
 - `orders` tablosu değişmez (`offer_id` üzerinden zaten tüm zincire erişiyor).
+- **[Not, 2026-07-23]** `enforce_offer_stock` trigger'ı şu an `offer.listing_id` (tekil) üzerinden çalışıyor — `offer_items`'a geçince bu fonksiyon **satır bazlı** (her `offer_item.listing_id` için ayrı ayrı) stok kontrolü yapacak şekilde uyarlanmalı. Sıfırdan yazılmayacak, mevcut fonksiyon genişletilecek.
 
 **Buyer tarafında akış (6. cevabın uyarlaması):** Buyer Keşfet'te bir crop+çiftçi kartına tıkladığında, o çiftçinin o crop'taki **tüm aktif batch'leri** (birden fazla `listings` satırı) tek bir ürün detay sayfasında listelenir — her batch kendi stoğu ve (varsa farklı) fiyatıyla görünür. Buyer her batch'ten istediği miktarı seçer, alt toplam **canlı güncellenir** (her satır quantity×price, toplamı sepette gösterilir). "Teklif gönder" dendiğinde tek bir `offers` satırı + N adet `offer_items` satırı oluşur.
 
@@ -330,7 +331,7 @@ CREATE TABLE offer_items (
 3. Buyer her batch için ayrı bir miktar input'u görür (max=o batch'in stoğu). İkisinden de seçebilir.
 4. Sayfanın altında **canlı toplam**: `Σ(seçilen_miktar × batch_fiyatı)` — batch'ler farklı fiyatlıysa toplam buna göre değişir (senin "toplam fiyat değişsin" notu).
 5. "Teklif Gönder" → `offers` + `offer_items` (A.3'teki şema) oluşur, tek offer, N batch satırı.
-6. Offer/Order detay sayfasında (buyer ve farmer tarafında) her batch satırına tıklanınca o batch'in `care_journal_entries`+`harvest_entries` calendar/list view'ı (Çiftçi 5.4/Buyer 5.3) açılır.
+6. Offer/Order detay sayfasında (buyer ve farmer tarafında) her batch satırına tıklanınca o batch'in `care_journal_entries`+`harvest_entries` calendar/list view'ı (Çiftçi 5.4/Buyer 5.3) açılır — **her batch'in journal geçmişi kendine özeldir, batch'ler arasında paylaşılmaz.**
 
 ---
 
@@ -338,27 +339,39 @@ CREATE TABLE offer_items (
 
 1. ✅ A.2/A.3'teki tablo/kolon adları onaylandı.
 2. ✅ P21/P22/P23 kod adlandırması ve sıralaması onaylandı.
-3. ⬜ Sıradaki adım: **P21-A'yı** (draft mode) Lovable'a `plan_mode=true` ile gönderip gerçek frontend davranışını (status nerede set ediliyor) öğrenmek — Berkin'in sinyaliyle başlatılacak.
+3. ✅ P21-A için gerçek kod araştırması yapıldı (bkz. dosya sonu) — migration planı iptal, form/UX çözümüne revize edildi.
+4. ✅ Vitrin'de ikinci aktif listing açılırken artık **engelleme + "batch olarak bağla" yönlendirmesi** gösterilecek (yeni: P21-A revize).
+5. ✅ Vitrin'deki çift stok gösterimi (ham+hesaplanmış) tek sayıya indirilecek (yeni: P21-G).
 
 ----------------------------
 
-## 🟤 Onaylanan Yol Haritası — P21/P22/P23 *(onaylandı 2026-07-23)*
+## 🟤 Onaylanan Yol Haritası — P21/P22/P23 *(onaylandı 2026-07-23, P21 gerçek kod araştırmasıyla revize edildi — aynı gün)*
 
-> Yukarıdaki "New PLAN FROM BERKİN NOTES" bölümü taslak/tartışma kaydı olarak korunuyor. Bu bölüm, Berkin'in 2026-07-23'te verdiği onay ve 7 karar sonrası **kalıcı, resmi roadmap girişidir.** İçerik yukarıdaki taslakla aynı mimari kararlara dayanır, aşağıda P-kod formatında sabitlenmiştir.
+> Yukarıdaki "New PLAN FROM BERKİN NOTES" bölümü taslak/tartışma kaydı olarak korunuyor. Bu bölüm, Berkin'in 2026-07-23'te verdiği onay, 7 karar ve ardından yapılan gerçek kod/DB araştırması sonrası **kalıcı, resmi roadmap girişidir.**
 
-### Temel bulgu — Batch sıfırdan değil
-`listings` (Vitrin kartı) + `listing_harvest_entries` (çoktan-çoğa junction, 410 satır) + `harvest_entries` (hasat/bakım kaydı, 406 satır) üçlüsü **Batch kavramının temelini zaten atmış durumda** — gerçek mock data'da Ahmet'in safran'ı için zaten 3 ayrı listing (batch) var. P21 serisi bu üçlünün üstüne isimlendirme, çoklu-batch görünürlüğü ve iş kuralı ekliyor, sıfırdan yeni bir "batch" tablosu açmıyor.
+### Temel bulgu — Batch sıfırdan değil, hatta kısmen zaten "canlı"
+
+`listings` (Vitrin kartı) + `listing_harvest_entries` (çoktan-çoğa junction, 410 satır) + `harvest_entries` (hasat/bakım kaydı, 406 satır) üçlüsü **Batch kavramının temelini zaten atmış durumda.** Gerçek kod araştırmasıyla üç katman daha netleşti:
+
+1. **Otomatik draft-batch mekanizması zaten çalışıyor** (`create_draft_listings_for_parcel` fonksiyonu, `parcels_after_insert`/`_after_update` trigger'ları) — parsel/crop eklendiğinde otomatik **tek** draft listing açılıyor (quantity=0, fiyat `price_history` ortalamasından seed'leniyor). Aynı parcel+crop için ikincisini açmıyor.
+2. **Harvest entry → listing otomatik bağlama zaten var** (`tg_harvest_entries_after_insert_autolink`) — yeni hasat kaydı, aynı farmer+parcel+crop'a sahip **her** draft/active listing'e otomatik bağlanıyor. Birden fazla eşleşen listing varsa hepsine bağlanıyor — belirsizlik kaynağı.
+3. **Stok kontrolü zaten var, sayaç değil dinamik hesaplama** (`enforce_offer_stock` SQL fonksiyonu + `useListingStock` frontend hook, ikisi paralel/ayrı yazılmış aynı formül): `available = SUM(bağlı harvest_entries.quantity) − SUM(kabul edilmiş offer'ların miktarı)`, `listings.quantity`'ye sadece fallback olarak düşülüyor.
+4. **Manuel "Yeni Ürün" formu her zaman `status:'active'` gönderiyor**, DB default'unu hiç kullanmıyor; **duplicate/ikinci listing engeli yok** — bu yüzden aynı çiftçinin aynı crop'ta birden fazla (bazen amaçsızca) listing'i bugün bile oluşabiliyor.
+5. **Buyer Keşfet zaten dedup/gruplama yapmadan tüm active listing'leri ayrı kart olarak gösteriyor** — çoklu-batch görünümü "yeni bir kapasite" değil, var olan dağınık bir davranışın düzenlenmesi.
+6. **Vitrin kartında ham `listings.quantity` ile hesaplanmış `available` yan yana, tutarsız şekilde gösteriliyor.**
+
+P21 serisi bu altı bulgunun üstüne **düzenleme, tutarlılık ve UX netliği** ekliyor — çoğu yerde sıfırdan yeni bir mekanizma inşa etmiyor.
 
 ### P21 — Batch & Vitrin Çoklu-Batch Mimarisi (P0, soft launch öncesi)
 
 | Kod | Konu | Kapsam | Bağımlılık | Durum |
 |---|---|---|---|---|
-| P21-A | Draft mode düzeltmesi | Önce Lovable'a `status` alanının frontend'de nerede/nasıl set edildiği soruluyor → `ALTER TABLE listings ALTER COLUMN status SET DEFAULT 'draft'` migration'ı → yeni listing formuna açık "Yayınla" adımı | Yok — **ilk iş** | ⬜ Planlandı |
-| P21-B | Çoklu-batch Keşfet/ürün detay sayfası | Aynı çiftçinin aynı crop'taki tüm aktif batch'leri (listing) Keşfet'te crop+farmer bazında gruplu kart olarak gösterilir; ürün detay sayfasında her batch kendi stoğu+fiyatıyla ayrı satır, buyer her batch'ten istediği miktarı seçebilir, toplam canlı hesaplanır | P21-A | ⬜ Planlandı |
+| P21-A | Batch açma akışı — engelle + bağlamaya yönlendir | Çiftçi aynı parcel+crop için "Yeni Ürün" formunu doldurduğunda, mevcut listing(ler) tespit edilir → **ikinci bir aktif listing açmak engellenir**, yerine "Bu crop için zaten N batch var — yeni hasadını mevcut bir batch'e bağlamak mı istersin, yoksa yeni bir batch mi açmak istersin?" seçimi sunulur. "Yeni batch" seçilirse `status='draft'` ile açılır, çiftçi kendi "✓ Yayınla" akışıyla (zaten var) canlıya alır | Yok — **ilk iş** | ⬜ Planlandı |
+| P21-B | Çoklu-batch Keşfet/ürün detay sayfası | Aynı çiftçinin aynı crop'taki tüm aktif batch'leri (listing) Keşfet'te **crop+farmer bazında gruplu tek kart** olarak gösterilir (var olan dağınık kart listesi düzenleniyor, `useActiveListings` sonrası client-side gruplama). Ürün detay sayfası: her batch kendi satırında (`useListingStock` ile hesaplanan available, fiyat, hasat tarihi, kalite), miktar input'u batch başına, **canlı toplam** (Σ miktar×fiyat). Her batch satırına tıklanınca **o batch'e özel** journal log'ları (care_journal_entries + harvest_entries) ayrı ayrı açılır — batch'ler arasında journal geçmişi paylaşılmaz | P21-A | ⬜ Planlandı |
 | P21-C | Multi-batch tek offer şeması | Yeni tablo `offer_items` (offer_id, listing_id, quantity, price_per_unit) — Berkin kararı: şimdilik tek `offers` satırı, tıklayınca batch'ler ayrı ayrı görünür. `offers.listing_id/quantity/price_per_unit` geriye dönük uyumluluk için kalır (birincil/toplam değer) | P21-B | ⬜ Planlandı |
-| P21-D | Stok azalma tetikleyicisi | `offer_items` kabul edildiğinde ilgili `listings.quantity` otomatik düşsün (trigger, P17-B'nin `orders.status` trigger pattern'ine benzer) | P21-C | ⬜ Planlandı |
+| P21-D | Stok kontrolünü `offer_items`'a uyarlama + birim/fallback tutarlılığı | Sıfırdan trigger **yazılmayacak** — mevcut `enforce_offer_stock` fonksiyonu `offer_items` satır bazlı çalışacak şekilde güncellenecek (her `offer_item.listing_id` için ayrı kontrol). Aynı turda: (a) `harvest_entries.quantity` birim normalizasyonu eklenecek (kg/g karışıklığı riski), (b) fallback moduna (bağlı harvest_entries toplamı 0 → `listings.quantity`'ye düşme) görünür/loglanan bir işaret eklenecek — sessiz geçiş olmayacak, (c) SQL ve frontend (`useListingStock`) aynı hesaplamayı **tek bir paylaşılan RPC**'den çekecek şekilde birleştirilecek | P21-C | ⬜ Planlandı |
 | P21-E | Traceability RLS garantisi | Berkin kararı: satılmış/expired batch, buyer'ın geçmiş siparişinden hâlâ görülebilsin. RLS politikası: buyer'ın `listings`/`harvest_entries`/`care_journal_entries` okuma erişimi "bu listing'den geçmişte siparişi var mı" koşuluna bağlanır (`offer_items`→`offers`→`orders` zinciri üzerinden). Keşfet query'si status filtreler, sipariş-geçmişi query'si filtrelemez — iki ayrı sorgu yolu | P21-C | ⬜ Planlandı |
-| P21-F | Batch detay sayfası (traceability) | Bir batch'e (listing) tıklanınca aynı filtrelerle Journal Logs (care_journal_entries + harvest_entries) calendar/list view — hem çiftçi hem buyer (salt-okunur) tarafında | P22-A, P21-C | ⬜ Planlandı |
+| P21-G | Vitrin stok gösterim tutarlılığı | `farmer.storefront.tsx`'teki çift gösterim (ham `listings.quantity` + hesaplanmış `available` yan yana) tek bir sayıya indirilecek — sadece `available` (P21-D'nin paylaşılan RPC'sinden) gösterilecek | P21-D | ⬜ Planlandı |
 
 **Not (rekabet hukuku netliği):** Aynı çiftçinin kendi batch'leri arasında farklı fiyat göstermesi rekabet hukuku riski taşımıyor — riskli olan çiftçiler-arası fiyat şeffaflığı/kolüzyondu (bu yüzden `price_history` aggregated-only tutuluyor), tek çiftçinin kendi ürünü için fiyat farkı göstermesi bambaşka bir konu ve sorunsuz. Berkin'in 6. kararıyla (toplam fiyat batch'lere göre değişsin) bu netleşti.
 
@@ -391,12 +404,13 @@ Berkin kararı (7. cevap): Recipe App şimdilik tüm `buyer_type` segmentlerine 
 
 ### Berkin'in 7 kararı (referans, 2026-07-23)
 1. Care journal ayrı tablo, tek sayfa iki sekme ile en anlaşılır gösterim (→ P22-A/D)
-2. Draft migration'ı Claude kontrol etsin, doğru önceliklendirme ile plana girsin (→ P21-A, ilk iş)
+2. Draft migration'ı Claude kontrol etsin, doğru önceliklendirme ile plana girsin (→ P21-A, gerçek koda göre revize edildi)
 3. Multi-batch şimdilik tek offer, tıklayınca batch'ler+journal ayrı görünür (→ P21-C, `offer_items`)
 4. Sold/expired batch geçmiş siparişten hâlâ görülebilir (→ P21-E, RLS)
 5. Referans app'ler: Eatr (id6479693198) + ReciMe (id1593779280) (→ P23-A araştırma girdisi)
-6. Aynı çiftçinin aynı crop'ta çoklu batch'i Keşfet'te ikisi de görünür, buyer stok görüp seçer, toplam fiyat değişir (→ P21-B)
+6. Aynı çiftçinin aynı crop'ta çoklu batch'i Keşfet'te ikisi de görünür, buyer stok görüp seçer, toplam fiyat değişir; her batch'in journal log'u kendine özel (→ P21-B)
 7. Recipe App şimdilik tüm buyer_type'lara açık (→ P23-A kapsam)
+8. **[2026-07-23, ek karar]** Vitrin'de ikinci aktif listing açılırken engellenir, çiftçiye mevcut batch'e bağlama seçeneği sunulur (→ P21-A revize)
 
 ### Sıradaki adım
-P21-A'yı Lovable'a `plan_mode=true` ile göndermek: `listings.status` alanının frontend'de nerede/nasıl set edildiğini öğrenmek — Berkin onayladığında başlatılacak.
+P21-A için Lovable'a `plan_mode=true` ile gönderilecek prompt hazırlanacak: "Yeni Ürün" formuna duplicate-crop kontrolü + "mevcut batch'e bağla / yeni batch aç" seçimi eklenmesi — Berkin onayladığında başlatılacak.
