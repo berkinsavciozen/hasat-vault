@@ -189,77 +189,174 @@ Bu turda Lovable'a gönderilen 2 mesaj API hatası (`"Error occurred during tool
 ----------------------------
 New PLAN FROM BERKİN NOTES
 
-# Hasat — Çiftçi & Buyer Update Kapsamı Konsolide Tablosu
+# Hasat — Batch/Care Journal/Buyer Genişlemesi: Netleşen Kapsamlı Plan
 
-*Kaynak: 22.07.2026 tarihli el notları (GİFTGİ 1-5, BUYER, HASAT tarihli sayfa). Bu tablo finalize etme ve önceliklendirme için çalışma dokümanıdır.*
-
-## ÇİFTÇİ TARAFI
-
-#	Segment		Madde	Mevcut Durum / Ne Anlama Geliyor	Eklenebilir Not (Claude önerisi)	Önerilen Öncelik	Alt Madde	İlişkili P-Serisi / Not	Durum
-1.1	Journal Enhancement	"Check Customize Journal in Bevel, put cron types' default journal themes (şablons) as tabs (or drop down selector) to manage and edit that crop types journal entries - put toggle to each journal entry type to show/not show on default journal page for quick access. And put/delete journal entry types for customization. Each journal entry type (sulama hasat vs) 
-Comparing with bevel, our customize journal screen should have settings option for managing the frequency to track each journal entry types for that spesific crop type differently. Also put glossary for all journal entry actions ideal case for that crop type in one paragraph as a tooltip. This should be managed centrally and we should provide this glossary for every crop types - generate one time only for now and we can enhance in time. (For example: ""Growing tomatoes requires specific, routine daily and weekly activities divided into core stages:Daily to Weekly Routine MaintenanceIrrigation Management: Rely on drip irrigation. Water deeply (seeping 10–12 inches into the soil) at the base of the plant rather than overhead to prevent fungal and bacterial rot on the leaves.Support & Trellising: Tie tomato stems vertically to bamboo stakes or wire trellises early to keep fruit and leaves off the ground and improve air circulation.Pruning & Suckering: Pinch off tiny ""suckers"" (new shoots growing at a 45-degree angle between the main stem and a side branch) to redirect the plant’s energy into larger fruit. Trim lower leaves from the bottom 12 inches of the stem to deter pests and disease.Pest & Weed Control: Monitor the fields constantly for weeds, especially in the first 30 days. Check underneath leaves and near the soil for common pests like aphids or tomato hornworms.Nutrition & FertilizationVegetative Stage: Feed young plants a balanced, slightly nitrogen-heavy fertilizer (e.g., 10-10-10 or equivalent N-P-K).Flowering & Fruiting: Switch to a low-nitrogen, high-potassium/high-phosphorus blend. Never use heavy nitrogen fertilizers after the first fruits set, as this causes lush foliage but prevents fruit formation.HarvestingHarvest Timing: For fresh market sales, harvest tomatoes every other day or 2-3 times per week once they are about half-ripe or showing a clear color change (pink/orange/red), as this ensures firmness during transportation.Picking Technique: Gently twist the tomato to separate the stem from the vine, or cut the stem with clippers/knives for delicate or cluster varieties.Long-Term PlanningCrop Rotation: Never plant tomatoes in a field where closely related crops (potatoes, peppers, eggplants) have grown within the last 3–4 years to avoid soil-borne wilts and nematodes.Tomato Farming PerspectivesFarmers emphasize the importance of daily care, soil health, and consistent plant management.Real-World Advice from FarmersTwo professionals highlight the importance of soil care and consistent pruning.“Honestly if you focus on healthy soil, consistent watering, decent nutrition, and keeping the plants manageable, you're already way ahead of most tomato problems people run into.”YouTube · Next Level Gardening · 2 months ago“If growing vining tomatoes, pinch off suckers (new, tiny stems and leaves between branches and the main stem). This aids air circulation and allows more sunlight into the middle of the plant. """	Her crop type için özel default journal draft	Şu an journal_entries düz kayıt, crop-type'a özel default şablon yok	Draft'ın kaynağı: Hasat editörü mü sağlayacak, çiftçi mi özelleştirecek?	P1	—	Yeni — mevcut journal şemasının üstüne	Planlanmadı
-1.2	Journal Enhancement		Crop Type Hasat Glossary (dikey template)	Parselde birden fazla crop varsa glossary görünümü ayrışmalı	Glossary içeriği versiyon kontrolü gerekebilir	P1	1.2.1 Parsel >1 ise Tabs ile ayrım	Yeni	Planlanmadı
-1.3	Journal Enhancement		Her crop/journal type için glossary çalışma mantığı	Henüz tanımsız — sadece "nasıl olacak" sorusu	Glossary'nin çiftçi tarafından mı yoksa merkezi mi yönetileceği netleşmeli	P2	—	Yeni	Netleştirme gerekiyor
-1.4	Journal Enhancement		Yeni crop type ekleme akışı	Crop type ekleme UI'ı zaten var mı kontrol edilmeli	Yeni crop type eklerken market_sources/crop_market_sources ile de senkron olmalı (P19 borsa şemasıyla çakışabilir)	P1	Örnek: Ayas Domates	P19 ile kesişim	Kontrol gerekiyor
-1.5	Journal Enhancement		Farklı crop type'lar için default Journal Theme add/edit	Journal Theme kavramı hiç yok, yeni	—	P1	—	Yeni	Planlanmadı
-1.6	Journal Enhancement		Her crop type için Calendar view	Şu anki journal UI'da calendar/list toggle yok	3. segmentteki calendar view ile aynı bileşen olabilir, ayrı geliştirilmemeli	P2	—	3. segmentle birleştirilebilir	Planlanmadı
-2.1	Journal Entry Types & Themes	Just like Bevel's Customize Journal Flow and Screen with minor adjustments just like pre-described	Standard presets + custom entry type seçenekleri	Şu an tek tip journal entry var	—	P1	—	Yeni	Planlanmadı
-2.2	Journal Entry Types & Themes	OK	Cold storage/paketleme & lojistik/güvenlik entry type'ları	Yeni kategori seti	Bu kategoriler P17-D (invoice/e-müstahsil) ile veri bağlantısı kurabilir (lojistik kaydı → fatura)	P2	—	P17-D ile bağlantılı olabilir	Planlanmadı
-2.3	Journal Entry Types & Themes	For each crop types, default journal entry types should have different frequencies target thresholds and deadlines if available	Theme attribute'ları: entry type, frequency, duration (opsiyonel)	Yapısal şema değişikliği gerektirir	—	P1	Preset + custom	Şema migration'ı gerekir	Planlanmadı
-2.4	Journal Entry Types & Themes	Bu akıştaki isimlendirmeleri hem müşterinin kolay anlaşılacağı hem de sistemler tarafından kolay ayrıştırılabilir hale nasıl getiririz önerin ne olur her biri iiçin?	Akış: Entry Types → Preset/Custom Themes (crop bazlı) → kullanıcı parsel-crop themes (dikey) → multi-parsel tabs	Tüm zincir yeni	UI akışı P17-A/B gibi çok adımlı flow'lara benziyor, aynı wizard pattern kullanılabilir	P1	—	Yeni mimari	Planlanmadı
-2.5	Journal Entry Types & Themes	In Customize Journal Scrren only show crop types that have draft batches (which means new parsel created with this crop) or live batches in the vitrin. So only interested crop types.	Yeni parsel/crop type eklenince default Theme otomatik oluşsun	Otomasyon gerektirir (trigger veya edge function)	P19'daki sync-izmir-hal-prices gibi bir trigger/cron pattern uygulanabilir	P2	—	Teknik pattern: mevcut trigger'lara benzer	Planlanmadı
-3.1	Journal Sayfası UI	Check bevels default view and adapt please.	Default görünüm: theme'e göre upcoming task list view	Şu anki journal sayfası bu görünümde değil	—	P1	—	Yeni UI	Planlanmadı
-3.2	Journal Sayfası UI	Check bevels vertical segmentation for Nightime Automatic etc. Instead we should provide different segmented components for each crop types batches and all respective journal entries should be automatically linked to respective batches in vitrin	Crop/parsel için dikey bileşen, chip'li attribute gösterimi, ayrık/birleşik seçenek	Yeni component	—	P2	—	Yeni UI	Planlanmadı
-3.3	Journal Sayfası UI	OK	Filtreler: Parcel (All), Crop Type (All), Journal entry type	Filtre mantığı P19'daki fiyat sayfası filtrelerine benzer şekilde tasarlanabilir	Aynı filtre component'i P19'daki PricesPageBody'den yeniden kullanılabilir mi kontrol edilmeli	P1	—	Kod tekrar kullanımı fırsatı	Planlanmadı
-3.4	Journal Sayfası UI	Overdue günleri, default journal page de kırmız ile göster böylece o günlerde veya zaman aralıklarında eksik kayıt olduğu görünür olsun. Onun dışında default liste sayfasında overdueları ayrıca gösterme. Bildirimi de şimdilik dahil etmeyebiliriz.	time ≥ today AND overdue highlight (dropdown)	Yeni mantık	Overdue highlight'a ek olarak bildirim/reminder mekanizması hiç bahsedilmemiş	P2	—	Eksik: notification	Netleştirme gerekiyor
-3.5	Journal Sayfası UI	Different than Bevel, ensure our calendar view and list view are all working correctly and shows the journal themes for each crop type correctly.	Calendar view: aylık/haftalık/günlük, filtreler korunur, sadece date filter değişir	P19'daki PriceChart'ın zaman aralığı sekmeleri (3 Ay/6 Ay/1 Yıl) mantığına benzer ama farklı granülarite	Aynı takım (Son 3 Ay/6 Ay/1 Yıl) mantığı burada da uygulanabilir mi, yoksa native calendar mı gerekiyor netleşmeli	P1	—	P19 pattern referansı	Planlanmadı
-4.1	Batch Logic (temel)	Aslında vitrin sayfasında bir batch mantığı zaten vardı bunu iyileştirmeliyiz, journal ve sipariş bağlantıları eksiksiz olmalı ve otomatik doğru set edilmeli müşteri aksiyonlarına göre	Her HASAT = Batch (journal type)	Batch kavramı şemada tamamen yok	—	P0	—	Yeni — kök kavram	Planlanmadı
-4.2	Batch Logic (temel)	ok	Her Batch: ID + isim input + mapping	Yeni tablo gerektirir (batches?)	—	P0	—	Şema tasarımı gerekiyor	Planlanmadı
-4.3	Batch Logic (temel)	ok	Her crop type'ın farklı batch'leri olabilir	1-N ilişki: crop_type → batches	—	P0	—	Şema tasarımı gerekiyor	Planlanmadı
-4.4	Batch Logic (temel)	ok + ayrıca journal girrerken de hangi batch e eklendiği veya ekleneceği net ve otomatik doldurulmuş editable gelmeli	Yeni parsel=crop type eklenince Batch otomatik oluşsun	2.5 ile aynı otomasyon paterni	Journal Theme otomasyonuyla aynı trigger'da birleştirilebilir	P1	—	2.5 ile birleştirilebilir	Planlanmadı
-4.5	Batch Logic (temel)	ok	Journal & Batch, Parcel'e bağlı, DB'de senkron edit	Foreign key ilişkileri netleşmeli	—	P0	—	Şema tasarımı	Planlanmadı
-4.6	Batch Logic (temel)	Bu hem batch hem de vitrine otomatik eklenen ürünlerle ilglili	Her zaman önce Draft mode	Yayınlama öncesi taslak zorunluluğu	Draft→Publish state machine, mevcut orders.status enum pattern'i gibi tasarlanabilir (P17-B'de orders.status genişletildi, benzer yaklaşım)	P1	—	P17-B pattern referansı	Planlanmadı
-5.1	Batch / Stok & Vitrin	ok	Yeni Hasat journal entry eklenince stok artsın	Stok hareketi journal'a bağlı otomasyon	Stok azalma tarafı (satış/sipariş sonrası) da simetrik olarak tanımlanmalı, sadece artış yazılmış	Eksik: stok azalma tetikleyicisi	—	P0	Netleştirme gerekiyor
-5.2	Batch / Stok & Vitrin	ok	Batch view = Vitrin	Vitrin'in veri kaynağı batch bazlı olacak şekilde değişir	—	P0	—	Mevcut Vitrin'in üstüne yeniden mimari	Planlanmadı
-5.3	Batch / Stok & Vitrin	ok	Crop type'ın birden fazla batch'i varsa isim+ID ile liste	Vitrin kart yapısı değişir (tekli üründen batch listesine)	Rekabet hukuku mimarisiyle (aggregated-only price history, min-5-farmer threshold) çakışmamalı — batch bazlı görünürlük bireysel fiyat feed'ine dönüşmemeli	P0	—	Competition law riski — dikkat	Hukuki kontrol gerekiyor
-5.4	Batch / Stok & Vitrin	ok	Batch'e tıklayınca aynı filtrelerle Journal Logs calendar/list view	3. segmentteki UI'nın batch-detay versiyonu	Batch bazlı traceability gösterimi, Hasat'ın "trust infrastructure" tezine hizmet eder, P17-C (review) ile bağlanabilir	P1	—	3. segment + P17-C bağlantısı	Planlanmadı
-
-## BUYER TARAFI
-
-#	Segment		Madde	Mevcut Durum / Ne Anlama Geliyor	Eklenebilir Not (Claude önerisi)	Alt Madde	Önerilen Öncelik	İlişkili P-Serisi / Not	Durum
-1.1	Kapsam Keşfi	Buyer'ın hem shopping (mevcut) feature ları için hem de recipeApp mantığı için gerekecek actions, I/O, tablolar, servisler, fonksiyonalitelerini çıkarıp ortak ve ayrışan işleri bulup shopping mantığında çalışanları bozmadan recipeapp i de dahil ederek buyer app i mobile taşımak istiyorum. Bunun için https://apps.apple.com/TR/app/id6479693198 https://apps.apple.com/TR/app/id1593779280 gibi applerin bütün özelliklerini kontrol edip şimdilik kopylayabiliriz. UI için ekteki recipe ve shoppin app tasarım örneklerini kullan. Yeni recipeapp i full functionallity ile mevcut database bağlamamız ve yeni buyer app ini mobile taşımamız gerek 	Buyer için tüm use case'ler (actions, I/O, tablolar, servisler, fonksiyonaliteler)	Henüz tanımsız, keşif aşaması	Mevcut buyer flow'unun (browse/order/subscription/review) hangi kısmının aynı kalıp hangisinin yeni olacağı önce ayrılmalı, scope creep riski var	—	P0	Önce netleştirme gerekiyor	Netleştirme gerekiyor
-1.2	Kapsam Keşfi	Verdiğim örnek app leri ve hasat.com çiftçi tarafını da düşünerek buyer tarafında bu kapsamda neler yapılabilir araştır lütfen ve bana önerilerle gel. Duruma göre onları da plana dahil edelim	Recipe App consumers için unique value	Tanımsız, iş fikri seviyesinde	—	—	P2	Ayrı ürün keşfi	Netleştirme gerekiyor
-2.1	Mobile/Recipe App Mimarisi	Buyer özellikle mobile first hale gelmeli recipe ve shopping birlikte	Aynı DB, enhanced servisler mobile'a adapte → React Native (shopping side)	Backend aynı, frontend yeni platform	—	—	P1 (soft launch sonrası olabilir)	Mobile roadmap	Planlanmadı
-2.2	Mobile/Recipe App Mimarisi	Shopping tarafı yeni recipe ile paralel çalışmalı ve use caseler bağlantılı çalışmalı (Örnek bir use case: Bir yeni recipe eklendiğinde veya tarandığında, gerekli ürünleri alması için çifçtilerin vitrin sayfasına veya keşfet sayfasına doğru filtrelerle yönelnedirebiliriz)	Aynı DB + yeni tablolar/servisler/auth/AI/dokümantasyon (Recipe App için)	Recipe App tamamen ayrı bir ürün hattı gibi görünüyor	Recipe App'in gelir modeli finansal modelde (v0.6) yok — ayrı gelir kalemi mi, yoksa retention aracı mı belirlenmeli; crop→recipe eşleştirme için yeni bir curation/veri seti gerekir	—	P2	Finansal modelle bağlantısı yok — eksik	Netleştirme gerekiyor
-3.1	UI/UX	Genişletilmiş ihtiyaçlara göre ve mobil odaklı örnek template e uygun bir UI buyer tarafı için baştan düşünülmeli	Yeni UI/UX sayfaları	Mobile-first tasarım gerekiyor	Mobile tasarım dili mevcut Lovable web tasarım sistemiyle tutarlı mı olacak, erken netleşmeli	—	P2	frontend-design skill referansı olabilir	Netleştirme gerekiyor
-3.2	UI/UX	Mobil uyumluluk nasıl sağlanacak ve IOS android app store larında paylaşılabilir hale nasıl getirilecek? Bu yaılırken çifçti tarafı da mobile taşınabilir mi?	Yeni theme referansları seçilmeli	Görsel kimlik kararı	—	—	P2	—	Planlanmadı
-4.1	Prod. Marketplace Netleştirmesi	ok	Aynı DB, mobile'a taşınacak	Mimari netleştirme	—	—	P1	—	Planlanmadı
-4.2	Prod. Marketplace Netleştirmesi	ok	Yeni özellikler eklenecek	Kapsam TBD	—	—	P2	—	Netleştirme gerekiyor
-4.3	Prod. Marketplace Netleştirmesi	ok	iOS & Android gereksinimleri kontrol edilecek	Platform-spesifik kısıtlar henüz araştırılmadı	App Store/Play Store compliance: in-app purchase kuralları premium/subscription (₺149/ay) için geçerli olabilir; KVKK/gizlilik metinleri mobile için ayrı gerekebilir; OTP mı kalacak yoksa biometric/social login eklenecek mi	—	P1	₺149 premium ile in-app purchase kuralı çakışması riski	Hukuki/teknik araştırma gerekiyor
-5.1	Batch Görünümü & Talep Akışı	ok	Crop type'ın birden fazla batch'i varsa Vitrin'de isim+ID liste	Çiftçi tarafı 5.3 ile aynı veri, buyer görünümü	—	—	P0	Çiftçi 5.3 ile aynı geliştirme	Planlanmadı
-5.2	Batch Görünümü & Talep Akışı	ok	Örnek senaryo: 12 birim istek, Batch1=10, Batch2=5	Multi-batch sepete ekleme mantığı, sipariş modelinde değişiklik gerektirir	"Request more" butonu P17-E (Structured RFQ) ile aynı mekanizma mı olacak yoksa ayrı basit form mu — ikisi çakışmamalı, tek akışa indirilmeli	5.2.1 Batch1 yetersizse Batch2'den ekleme seçeneği; 5.2.2 Hiçbiri yetmezse "request more" butonu	P0	P17-E ile çakışma riski — netleştirilmeli	Netleştirme gerekiyor
-5.3	Batch Görünümü & Talep Akışı	ok	Batch'e tıklayınca journal loglarının calendar/list view'ı	Çiftçi 5.4 ile aynı UI, buyer'a salt-okunur gösterim	Buyer'a batch bazlı traceability gösterimi, sipariş sonrası "hangi hasattan geldi" bilgisini review/dispute akışına (P17-B/C) bağlayabilir	—	P1	P17-B/C bağlantısı	Planlanmadı
-
-## ÇAPRAZ / ROL-BAĞIMSIZ (22.07.2026 — Soft Launch Checklist)
-
-| # | Madde | Mevcut Durum | Eklenebilir Not | Öncelik | Durum |
-|---|-------|--------------|-------------------|---------|-------|
-| C1 | Soft launch'a kadar ne eksik? (feature-wise) | Sadece soru, henüz liste yok | Yukarıdaki tüm çiftçi/buyer maddeleri bu listeye girdi adayı — hangileri Ağustos'tan önce, hangileri sonra netleşmeli | P0 | Bu tablo bu sorunun cevabına temel oluşturuyor |
-| C2 | Soft launch'a kadar maliyet ne olacak? | Tanımsız | Finansal modelde (v0.6) bu kapsam genişlemesi (Batch, Recipe App, mobile) henüz yok — v0.7 revizyonu gerekebilir | P0 | Netleştirme gerekiyor |
-| C3 | Soft launch sırasında capital ihtiyacı | Tanımsız | C2 ile bağlı | P0 | Netleştirme gerekiyor |
-| C4 | Marketing & Brand eksikleri | Tanımsız | Recipe App/mobile gibi yeni segmentler marka mesajını etkiler, önce kapsam netleşmeli | P1 | Netleştirme gerekiyor |
-| C5 | Legal wise & Accounting eksikleri | Tanımsız | Batch/Vitrin'in competition law riski (5.3) ve mobile in-app purchase kuralları (Buyer 4.3) bu listeye doğrudan giriyor | P0 | Netleştirme gerekiyor |
+*Bu plan senin 7 cevabına göre oluşturuldu. TODO.md'ye henüz işlenmedi — onayını bekliyor. Onayladıktan sonra P-serisi olarak (P21, P22...) TODO.md'ye geçireceğiz.*
 
 ---
 
-## Önceliklendirme Özeti (P0 = soft launch kritik, P1 = önemli ama esnek, P2 = sonraya bırakılabilir)
+## Cevaplarının özeti ve aldığım kararlar
 
-- **P0 (Ağustos soft launch öncesi karar gerekli):** Batch temel mimarisi (4.1-4.6), Stok/Vitrin entegrasyonu (5.1-5.4), Buyer batch görünümü ve talep akışı (5.1-5.3), Competition law kontrolü, Soft launch checklist'in tamamı
-- **P1 (Yapılabilir ama saffron sezonuna kadar erteneilebilir):** Journal Enhancement (1.x), Journal Entry Types/Themes (2.x), Journal UI (3.x), Mobile marketplace netleştirmesi
-- **P2 (Ayrı faz — muhtemelen Ekim-Kasım sonrası):** Recipe App / mobile genişleme (Buyer 1.2, 2.2, 3.x), yeni UI/tema seçimi
+| # | Senin cevabın | Aldığım mimari karar |
+|---|---|---|
+| 1 | Care journal ayrı, en kolay/anlaşılır neyse öyle | Ayrı tablo (`care_journal_entries`) + tek "Journal" sayfasında iki sekme |
+| 2 | Draft migration'ı bana bırak, önceliklendir | Kontrol ettim, gerçek boşluk doğrulandı → **P0, ilk iş** |
+| 3 | Şimdilik tek offer, tıklayınca batch'ler ayrı görünsün | `offer_items` ara tablosu (yeni) |
+| 4 | Sold/expired batch geçmiş siparişten hâlâ görülebilsin | RLS + query katmanında garanti edilecek, madde 4'te detay |
+| 5 | Eatr + ReciMe | Araştırdım, aşağıda özellik karşılaştırması var |
+| 6 | Aynı çiftçinin aynı crop'ta birden fazla batch'i → Keşfet'te ikisi de görünsün, buyer stok görüp seçsin, toplam fiyat değişsin | Ürün detay sayfası = batch seçici, `offer_items` ile fiyat dinamik hesaplanır |
+| 7 | Recipe App şimdilik herkese açık | `buyer_type` segmentasyonu launch'ta yok, ileride veri ile karar verilir |
 
-**Kritik açık sorular (karar bekliyor):**
-1. Batch bazlı Vitrin görünümü competition law mimarisiyle nasıl uyumlu olacak? (Çiftçi 5.3)
-2. "Request more" butonu P17-E (RFQ) ile aynı mı, ayrı mı? (Buyer 5.2.2)
-3. Recipe App/mobile genişleme Ağustos soft launch kapsamında mı, yoksa ayrı faz mı? (Cross C1)
-4. Stok azalma (satış sonrası) tetikleyicisi hiç tanımlanmamış — sadece artış var (Çiftçi 5.1)
+---
+
+## BÖLÜM A — Şema Değişiklikleri (net karar verildi, implementasyona hazır)
+
+### A.1 — `listings.status` default düzeltmesi (P0, İLK İŞ)
+```sql
+ALTER TABLE listings ALTER COLUMN status SET DEFAULT 'draft';
+```
+**Önce yapılması gereken kontrol (Lovable'a sorulacak):** Mevcut "yeni listing oluştur" formunun/akışının `status` alanını explicit olarak `'active'` set edip etmediği kontrol edilmeli. Eğer form zaten explicit `status: 'active'` gönderiyorsa, DB default değişikliği hiçbir şeyi bozmaz (sadece "hiç status göndermeyen" gelecekteki insert'ler için güvenlik ağı olur). Eğer form hiç status göndermiyorsa (DB default'una güveniyorsa), bu değişiklik **mevcut "listing oluştur → hemen görünür" davranışını kırar** — form'un kendisine de bir "Yayınla" adımı eklenmesi gerekir. **Bu yüzden migration'dan önce Lovable'a bu soruyu sormak implementasyonun 0. adımı.**
+
+### A.2 — Care Journal (rutin bakım) — YENİ tablolar
+Bevel modelini (toggle + frequency + threshold) Hasat'ın crop/parsel/batch yapısına uyarlayan 3 yeni tablo:
+
+```sql
+-- Global preset + custom entry type tanımları (örn. "Sulama", "İlaçlama", "Soğuk Depo Kontrolü")
+CREATE TABLE journal_entry_types (
+  code text PRIMARY KEY,              -- sistem-parse edilebilir, snake_case, örn. 'irrigation'
+  display_name text NOT NULL,         -- kullanıcıya görünen TR isim, örn. 'Sulama'
+  category text NOT NULL,             -- 'care' | 'cold_storage' | 'logistics' | 'safety'
+  input_type text NOT NULL DEFAULT 'toggle', -- 'toggle' | 'quantity' | 'note'
+  is_preset boolean NOT NULL DEFAULT true,   -- sistem preset'i mi, çiftçinin custom'u mu
+  created_by uuid REFERENCES profiles(id),   -- custom ise kim oluşturdu, preset ise NULL
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+-- Crop bazlı default temalar: hangi entry type'lar hangi sıklıkta takip edilecek
+CREATE TABLE journal_themes (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  crop text NOT NULL REFERENCES crop_config(crop),
+  entry_type_code text NOT NULL REFERENCES journal_entry_types(code),
+  frequency_days integer,             -- kaç günde bir (preset default, örn. sulama=2)
+  threshold jsonb,                    -- opsiyonel eşik/hedef değer (örn. {"target_liters": 20})
+  is_preset boolean NOT NULL DEFAULT true,
+  farmer_id uuid REFERENCES profiles(id), -- NULL=global preset, doluysa çiftçinin override'ı
+  created_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (crop, entry_type_code, farmer_id)
+);
+
+-- Merkezi, tek seferlik AI-üretilen glossary (crop × entry_type bazlı tooltip metni)
+CREATE TABLE crop_journal_glossary (
+  crop text NOT NULL REFERENCES crop_config(crop),
+  entry_type_code text NOT NULL REFERENCES journal_entry_types(code),
+  glossary_text text NOT NULL,        -- senin domates örneğin gibi, tek paragraf
+  generated_by text NOT NULL DEFAULT 'ai', -- 'ai' | 'manual' — şeffaflık için
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (crop, entry_type_code)
+);
+
+-- Gerçek günlük bakım kayıtları (Bevel'deki "Today's Entries" karşılığı)
+CREATE TABLE care_journal_entries (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  parcel_id uuid NOT NULL REFERENCES parcels(id),
+  farmer_id uuid NOT NULL REFERENCES profiles(id),
+  crop text NOT NULL,
+  entry_type_code text NOT NULL REFERENCES journal_entry_types(code),
+  entry_date date NOT NULL DEFAULT CURRENT_DATE,
+  status text NOT NULL,               -- 'done' | 'skipped' | 'partial' (toggle'ın 3 hali, Bevel'deki X/-/✓ gibi)
+  value jsonb,                        -- input_type='quantity' ise miktar, 'note' ise metin
+  listing_id uuid REFERENCES listings(id), -- HANGİ BATCH'E ait — otomatik dolu, editable (4.4 notun)
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+```
+
+**Neden ayrı tablo (senin sorunun cevabı — "en kolay/anlaşılır" hangisi):** `harvest_entries` zaten olay-bazlı, tekil ve stok-etkili bir kayıt (miktar+kalite+maliyet). Bunu toggle-bazlı günlük rutin kayıtlarla (sulama yaptım/yapmadım) aynı tabloya karıştırmak, hem sorgu mantığını (biri stoğa yazar biri yazmaz) hem de UI'yı karmaşıklaştırır. Ayrı tutup **tek "Journal" sayfasında iki sekme** göstermek ("Rutin Bakım" — toggle liste, Bevel tarzı; "Hasat Kayıtları" — mevcut `harvest_entries` formu) çiftçi için en az kafa karıştırıcı çözüm: iki farklı eylem türü (günlük check-in vs. olay kaydı), iki görsel dil, ama aynı sayfa/aynı crop/parsel bağlamı.
+
+### A.3 — Multi-batch offer (senin cevabın: tek offer, batch'ler ayrı görünür)
+```sql
+CREATE TABLE offer_items (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  offer_id uuid NOT NULL REFERENCES offers(id) ON DELETE CASCADE,
+  listing_id uuid NOT NULL REFERENCES listings(id),
+  quantity numeric NOT NULL,
+  price_per_unit numeric NOT NULL,    -- batch'ler farklı fiyatlı olabilir (6. cevabın)
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+```
+- `offers.listing_id`/`quantity`/`price_per_unit` **geriye dönük uyumluluk için kalır** ama artık "birincil/toplam" değeri temsil eder — tek-batch teklifler `offer_items`'a da 1 satır olarak yazılır (kod tarafında ikisi senkron tutulur, aynı P20'deki `dispatch_sms`/`send-sms` dersini burada tekrar etmemek için tek yazma noktası/trigger önerilir).
+- Offer detay sayfasında "batch'lere göre dağılım" gösterimi `offer_items` üzerinden JOIN ile yapılır, her satırda o batch'e tıklanınca `listing_harvest_entries → harvest_entries` (Batch 5.4'teki calendar/list view) açılır.
+- `orders` tablosu değişmez (`offer_id` üzerinden zaten tüm zincire erişiyor).
+
+**Buyer tarafında akış (6. cevabın uyarlaması):** Buyer Keşfet'te bir crop+çiftçi kartına tıkladığında, o çiftçinin o crop'taki **tüm aktif batch'leri** (birden fazla `listings` satırı) tek bir ürün detay sayfasında listelenir — her batch kendi stoğu ve (varsa farklı) fiyatıyla görünür. Buyer her batch'ten istediği miktarı seçer, alt toplam **canlı güncellenir** (her satır quantity×price, toplamı sepette gösterilir). "Teklif gönder" dendiğinde tek bir `offers` satırı + N adet `offer_items` satırı oluşur.
+
+### A.4 — Traceability sonrası satış/expire garantisi (senin cevabın: hep görünür kalsın)
+Şema tarafında ek bir şey gerekmiyor (zincir zaten silinmiyor), **ama iki şey netleşmeli:**
+1. **RLS politikası:** Buyer'ın `listings`/`harvest_entries`/`care_journal_entries`'e okuma erişimi, "bu listing'den bir siparişi var mı" koşuluna bağlı olmalı (aksi halde ya herkese açık olur ki bazı veriler — maliyet gibi — çiftçiye özel kalmalı, ya da hiç erişemez). Önerilen politika: `EXISTS (SELECT 1 FROM offer_items oi JOIN offers o ON o.id=oi.offer_id JOIN orders ord ON ord.offer_id=o.id WHERE oi.listing_id = listings.id AND ord.buyer_id = auth.uid())`.
+2. **UI'da "satılmış/süresi geçmiş batch" göstergesi:** Vitrin/Keşfet'te artık görünmesin (status filtrelenir) ama buyer'ın **kendi sipariş geçmişinde** o batch'in detay sayfası hâlâ açılabilsin — bu, listing status'unü kontrol eden filtreyi sadece "keşfet" query'sine uygulayıp "sipariş detayı" query'sine uygulamamak demek (kod seviyesinde ayrı iki sorgu yolu, tek bir "status=active" WHERE'ü her yerde kopyalamamak).
+
+---
+
+## BÖLÜM B — Eatr & ReciMe Araştırması (senin 5. cevabın)
+
+İki uygulamayı da inceledim, ikisi de "Recipe" tarafında ama farklı iki model:
+
+### Eatr (AI Healthy Diet Meal Plan)
+- Pişirme süresine göre filtre (15 dk / 1 saat altı)
+- Beceri seviyesine göre kişiselleştirme (yeni başlayan → uzman)
+- Diyet tercihi filtreleri (keto/vegan/pesketaryen)
+- Detaylı besin değeri bilgisi her tarifte
+- Adım adım pişirme rehberi
+- **Monetizasyon: haftalık/yıllık subscription (₺600-3.500 aralığı), 7 gün ücretsiz deneme** — App Store yorumlarında **iptal/refund şikayetleri belirgin** (kullanıcılar "7 gün ücretsiz" deyip yıllık ücret kesildiğini fark etmemiş). **Ders için not:** Hasat'ın premium/Recipe App aboneliği bu hataları tekrarlamamalı — iptal akışı ve deneme süresi bildirimleri (P20'deki SMS altyapısı burada da kullanılabilir: "deneme süren bugün bitiyor" hatırlatması).
+
+### ReciMe (Recipe Manager)
+- **Sosyal medyadan (Instagram/TikTok/YouTube/Pinterest) tarif kaydetme** — Hasat için düşük öncelik, farklı bir problem çözüyor.
+- **"Order Groceries – Turn your grocery list into a delivery! Order directly in-app"** — **bu, tam olarak senin 2.2'deki cross-sell önerinle örtüşen özellik**, gerçek bir pazarda kanıtlanmış bir pattern. ReciMe muhtemelen 3. parti bir grocery delivery API'sine bağlanıyor; Hasat'ta bu zaten **kendi envanterimiz** olduğu için 3. parti entegrasyonuna gerek yok, doğrudan Vitrin/Keşfet'e bağlanabilir — bu bizim için ReciMe'den daha güçlü bir konumdayız.
+- Malzeme bazlı ölçü dönüşümü (porsiyon başına ingredient scale) — Hasat'ta batch miktar seçimiyle (A.3) doğal olarak örtüşür.
+- Cookbook'lara organize etme, cloud sync, çoklu cihaz.
+
+**Sonuç — Recipe App feature hedefi için önerim:** ReciMe'nin "grocery list → sipariş" akışını Eatr'ın "diyet/süre filtreleri + besin değeri" içeriğiyle birleştirmek, ama **sosyal medya import özelliğini** (ReciMe'nin ana değeri) ilk sürümde atlamak — bu Hasat'ın çekirdek değeriyle ilgisiz, büyük bir mühendislik yükü, MVP'ye gerek yok.
+
+---
+
+## BÖLÜM C — Buyer Discovery Akışı (6. cevabının detaylı tasarımı)
+
+**Senaryo:** Ahmet çiftçinin safran'ında 2 aktif batch var (Batch A: 500g @ ₺X, Batch B: 500g @ ₺Y — farklı hasat tarihleri, muhtemelen farklı fiyat).
+
+1. Buyer Keşfet'te "Safran — Ahmet Yılmaz" kartına tıklar (crop+farmer bazında gruplu kart, batch sayısı toplanmış gösterilir: "1kg mevcut, 2 parti").
+2. Ürün detay sayfası açılır — her batch kendi kartında: Batch A (500g, ₺X/g, hasat tarihi, kalite), Batch B (500g, ₺Y/g, hasat tarihi, kalite).
+3. Buyer her batch için ayrı bir miktar input'u görür (max=o batch'in stoğu). İkisinden de seçebilir.
+4. Sayfanın altında **canlı toplam**: `Σ(seçilen_miktar × batch_fiyatı)` — batch'ler farklı fiyatlıysa toplam buna göre değişir (senin "toplam fiyat değişsin" notu).
+5. "Teklif Gönder" → `offers` + `offer_items` (A.3'teki şema) oluşur, tek offer, N batch satırı.
+6. Offer/Order detay sayfasında (buyer ve farmer tarafında) her batch satırına tıklanınca o batch'in `care_journal_entries`+`harvest_entries` calendar/list view'ı (Çiftçi 5.4/Buyer 5.3) açılır.
+
+---
+
+## BÖLÜM D — Önerilen P-Serisi Sıralaması (TODO.md'ye işlenmeye hazır taslak)
+
+| Kod | Konu | Kapsam | Öncelik | Bağımlılık |
+|---|---|---|---|---|
+| **P21-A** | Draft mode düzeltmesi | A.1 migration + Lovable'a "status nerede set ediliyor" sorusu + form güncellemesi | P0, ilk iş | Yok |
+| **P21-B** | Batch/Vitrin çoklu-batch görünürlüğü | Keşfet'te crop+farmer gruplu kart, batch seçici ürün detay sayfası (Bölüm C) | P0 | P21-A |
+| **P21-C** | Multi-batch offer şeması | `offer_items` tablosu + offer/order detay sayfasında batch breakdown UI | P0 | P21-B |
+| **P21-D** | Stok azalma tetikleyicisi | `offer_items` kabul edildiğinde ilgili `listings.quantity` otomatik düşsün (trigger) | P0 | P21-C |
+| **P21-E** | Traceability RLS garantisi | A.4'teki RLS politikası + "satılmış batch hâlâ görülebilir" testi | P0 | P21-C |
+| **P22-A** | Care Journal şeması | A.2'deki 4 tablo (migration) | P1 | Yok (paralel gidebilir) |
+| **P22-B** | Journal Entry Types yönetimi (Bevel-tarzı Customize Journal ekranı) | Preset+custom CRUD, kategori sekmeleri, frequency/threshold modal | P1 | P22-A |
+| **P22-C** | Crop Glossary (AI-üretilen, merkezi) | Tek seferlik AI-generation + tooltip UI | P1 | P22-A |
+| **P22-D** | Journal sayfası UI (2 sekme: Rutin Bakım + Hasat Kayıtları) | List/Calendar view, filtreler, overdue highlight | P1 | P22-B, P22-C |
+| **P22-E** | Yeni crop type ekleme wizard'ı | crop_config + crop_market_sources + journal_themes + default batch tetikleyicisini tek akışta birleştir | P1 | P22-A |
+| **P23-A** | Buyer mobile + Recipe App keşif/tasarım | Bölüm B'deki feature hedefi, UI tasarımı | P2 | P21 serisi tamamlanmalı (batch verisi stabil olmalı) |
+| **P23-B** | Recipe↔Crop eşleştirme + crop_request otomasyonu | Recipe malzemesi Hasat'ta yoksa otomatik RFQ (P17-E) tetikleme | P2 | P23-A |
+| **P23-C** | Mobile (React Native) + App Store/Play Store compliance | In-app purchase, KVKK, OTP/biometric | P2 | P23-A |
+
+**Not:** P21 serisi (Batch) soft launch'tan önce (Ağustos) bitmesi gereken kısım. P22 (Care Journal) saffron sezonuna kadar (Ekim) esnek. P23 (Recipe/Mobile) ayrı bir faz, soft launch'u bloklamıyor.
+
+---
+
+## Onay Bekleyen Son Kontrol Noktaları
+
+1. Yukarıdaki 4 yeni tablo (A.2) ve 1 yeni tablo (A.3) isimlerini/kolon adlarını onaylıyor musun, yoksa değiştirmek istediğin bir isimlendirme var mı?
+2. P21/P22/P23 kod adlandırması ve sıralaması uygun mu, yoksa mevcut P20'den sonra farklı numaralandırma tercih eder misin?
+3. Onaylarsan bir sonraki adım: **P21-A'yı** (draft mode) Lovable'a `plan_mode=true` ile gönderip gerçek frontend davranışını (status nerede set ediliyor) öğrenmek — bunu şimdi başlatabilirim.
+
+Onayını verdiğinde bu planı TODO.md'nin "New PLAN FROM BERKİN NOTES" bölümünün altına, kalıcı P-serisi formatında işleyeceğim.
