@@ -60,7 +60,7 @@ tags:
 
 ## 🏗️ Lovable/Supabase Build Sırası
 
-> **P19 + P17 serisi (B/C/F/E/G) + P20 + P21 (A, B+C) + P24 tamamen bitti, hepsi canlı doğrulandı.** **P17-A ve P17-D şirket kuruluşuna bağlı, bloke.** BENCHMARK Gap listesindeki bağımsız yapılabilecek her şey bitti (bkz. Gap durum tablosu altta). **P22 serisi (A/B/C/D/E/F) tamamen bitti, hepsi `main`'de (PR #1 ve PR #3 ikisi de merge edildi) — tek kalan iş tarayıcı QA.** Detaylar dosyanın sonundaki "Onaylanan Yol Haritası — P21/P22/P23" bölümünde. **Not:** Bir sonraki Lovable turuna geçmeden önce workspace kredisi kontrol edilmeli (P24 sonunda bitmişti).
+> **P19 + P17 serisi (B/C/F/E/G) + P20 + P21 (A, B+C) + P24 tamamen bitti, hepsi canlı doğrulandı.** **P17-A ve P17-D şirket kuruluşuna bağlı, bloke.** BENCHMARK Gap listesindeki bağımsız yapılabilecek her şey bitti (bkz. Gap durum tablosu altta). **P22 serisi (A/B/C/D/E/F) tamamen bitti, hepsi `main`'de (PR #1, #3, #4 merge edildi) — tek kalan iş tarayıcı QA.** Detaylar dosyanın sonundaki "Onaylanan Yol Haritası — P21/P22/P23" bölümünde. **Not:** Bir sonraki Lovable turuna geçmeden önce workspace kredisi kontrol edilmeli (P24 sonunda bitmişti).
 
 ### BENCHMARK Gap Durum Tablosu (2026-07-21 itibarıyla)
 | # | Gap | Şiddet | Durum |
@@ -479,9 +479,29 @@ Berkin kararı (1. cevap): `harvest_entries`'ten (hasat olayı) ayrı bir tablo.
 
 **Doğrulama:** Gerçek kayıt oluşturma testinde bir hata bulundu ve düzeltildi — sistem başta işin birimini ürünün varsayılan birimine göre yazıyordu, ama bağlı olduğu batch farklı bir birimdeyse (örn. batch kg, varsayılan g) kayıt reddediliyordu (P21'de kurulan "birim uyuşmazlığı" koruması tam da bunu yakalamak için vardı). Düzeltme: birim artık her zaman bağlanılan batch'in kendi biriminden alınıyor. kg birimli gerçek bir batch ile yeniden test edilip doğru çalıştığı doğrulandı, `tsc --noEmit` temiz.
 
+### ✅ P22-F'nin yan etkileri — sonradan tarandı ve 4 gerçek regresyon bulunup düzeltildi *(2026-07-24, PR #3 merge edildikten sonra)*
+
+**Neden bu tarama yapıldı:** Rutin bakım kayıtları artık gerçek günlük (`harvest_entries`) satırları olduğu için (miktar=0, fiyat=0), bu tabloyu okuyan HER yeri (sadece Günlük sayfasını değil) tek tek gözden geçirdik — çünkü `harvest_entries` sadece Günlük sayfasında değil, AI sohbet asistanında, stok/parti sayfalarında ve izlenebilirlik (traceability) rozetinde de kullanılıyor.
+
+**Bulunan ve düzeltilen 4 gerçek hata (kodda, filtre eksikliğinden):**
+1. **AI sohbet asistanı** — çiftçi AI'ya bir şey sorduğunda arka planda gönderilen "Son hasatların" bağlamı, artık rutin bakım kayıtlarını da (örn. "Sulama Yap, 0 kg") gerçek hasatmış gibi gösteriyordu. Gerçek bir test kaydıyla doğrulandı: en son eklenen bir "sulama" kaydı, listenin EN ÜSTÜNE çıkıp gerçek hasatları bağlamdan tamamen dışarı itiyordu (bağlam sadece son 5 kayıtla sınırlı). **Düzeltildi** — bu sorgu artık sadece gerçek hasat kayıtlarını alıyor.
+2. **AI'nın "günlük kaydı ekle" aracı (MCP `list_recent_harvests`)** — aynı sorun, çiftçi "son hasatlarım ne?" diye sorduğunda AI'ya yanlış veri dönüyordu. **Düzeltildi.**
+3. **AI sohbetinden günlük kaydı eklerken "bu tarihte zaten kayıt var" kontrolü** — bir çiftçi aynı gün hem sulama yapıp "Yaptım" dese hem de AI'ya o günün hasadını yazdırsa, sistem yanlışlıkla sulama kaydını "mevcut kayıt" sayıp üzerine yazma seçeneği sunuyordu. **Düzeltildi.**
+4. **Parti (batch) detay sayfasındaki "Hasat Kayıtları" listesi** (çiftçinin kendi görünümü) — bir rutin bakım kaydı bu partiye bağlanmışsa, "0 kg · Kalite A" gibi anlamsız bir satır gösteriyordu. **Düzeltildi** — miktar 0 ise artık miktar hiç gösterilmiyor (Günlük sayfasındaki kartlarda zaten olan davranışla aynı hale getirildi).
+
+**Kontrol edilip GÜVENLİ bulunan yerler (düzeltme gerekmedi):**
+- **Stok hesaplama** (bir teklif kabul edilirken "bu partide yeterli stok var mı" kontrolü) — bu hesap partiye bağlı kayıtların miktarını TOPLAR; 0 miktarlı bir rutin bakım kaydı toplamı değiştirmiyor. Gerçek bir test kaydıyla doğrulandı (2.5 kg gerçek hasat + 0 kg rutin bakım aynı partiye bağlandı, toplam hâlâ doğru şekilde 2.5 kg).
+- **Otomatik hasat hatırlatma SMS'i** (abonelik sistemi, P24) — bu tamamen farklı bir tablodan (`harvest_subscriptions`) besleniyor, `harvest_entries`'e hiç bakmıyor. Etkilenmiyor.
+- **KPI/analitik view'ları** (P17-G) — hiçbiri `harvest_entries`'i doğrudan okumuyor. Etkilenmiyor.
+
+**Ürün sorusu — Berkin karar verdi (2026-07-24): olduğu gibi kalsın.** Buyer'ın gördüğü **"Ürün Geçmişi" zaman çizelgesi ve "İzlenebilirlik" rozeti**, bir partiye bağlı TÜM günlük kayıtlarının hangi bakım adımlarını (dikim/bakım/hasat/kurutma vb.) kapsadığına bakarak hesaplanıyor. Rutin bakım kayıtları da artık bu hesaba dahil oluyor — yani bir çiftçi tek dokunuşla (fotoğrafsız, miktarsız) bir "Sulama Yap" kaydı düşürdüğünde, partinin izlenebilirlik rozeti (örn. "Temel" → "İyi Belgelenmiş") yükselebilir. Berkin bunu istenen bir sonuç olarak onayladı (daha kolay günlük tutma = daha fazla belgeleme, tam da P22-F'nin amacı) — kod tarafında ek bir değişiklik yapılmadı.
+
+**Ayrıca küçük bir kozmetik not:** Rutin bakım kayıtları buyer'ın gördüğü zaman çizelgesinde her zaman "Kalite A" ile görünüyor (rutin bakım formunda kalite alanı yok, sabit A gönderiliyor) — bir sulama kaydında "Kalite A" yazması anlamsız ama zararsız; düzeltme gerektirmiyor, sadece not.
+
 ### PR durumu
 [PR #1](https://github.com/berkinsavciozen/hasat-d2c-marketplace/pull/1) `main`'e merge edildi (2026-07-24) — P22-A/B/C/D `main`'de.
 [PR #3](https://github.com/berkinsavciozen/hasat-d2c-marketplace/pull/3) `main`'e merge edildi (2026-07-24) — P22-D'nin parsel-gruplama düzeltmesi + P22-E + P22-F artık `main`'de.
+[PR #4](https://github.com/berkinsavciozen/hasat-d2c-marketplace/pull/4) `main`'e merge edildi (2026-07-24) — P22-F'nin yan etki düzeltmeleri (`d504d00`) artık `main`'de. **Tüm P22 serisi artık tek parça halinde `main`'de, tarayıcı QA'ya hazır.**
 
 ### ⚠️ Kalan iş: P22-D+E+F birleşik tarayıcı QA (test hesabı: çiftçi `05001234567`, OTP `123456`)
 
@@ -497,9 +517,12 @@ Berkin kararı (1. cevap): `harvest_entries`'ten (hasat olayı) ayrı bir tablo.
 10. Parsel oluşturma ekranında (Tarla Günlüğü veya Onboarding) **"Yetiştirdiğiniz ürün yok mu? Talep edin"** seçeneğini bul, bir talep gönder — Berkin'in telefonuna SMS geldiğini doğrula.
 11. Buyer tarafında (Keşfet / onboarding) katalogda **olmayan** bir ürün adıyla "Ürün Talep Et" formunu doldur, gönder — yine SMS gelmeli. Katalogda **var olan** bir ürünle aynı formu doldurursan SMS gelmemeli (sadece talep kaydedilmeli).
 12. Sayfanın altındaki **crop bilgi panellerini** (Safran, Kekik, Lavanta vb.) aç — glossary metinlerinin doğru sırada geldiğini doğrula.
+13. **(Yeni)** Ana sayfadaki (veya Günlük sayfasındaki) **AI sohbet asistanına** "son hasatlarım neler?" gibi bir soru sor — cevapta az önce "Yaptım" dediğin rutin bakım işinin (örn. sulama) **gerçek bir hasat gibi görünmediğini** doğrula (sadece gerçek hasat kayıtların listelenmeli).
+14. **(Yeni)** Rutin bakımını "Yaptım" dediğin ürünün bağlı olduğu **partiyi** (parti/batch detay sayfası, "Hasat Kayıtları" bölümü — çiftçi kendi görünümünde) aç, listede o kaydın **"0 kg" gibi anlamsız bir miktar göstermediğini** doğrula.
+15. **(Yeni, bilgi amaçlı — karar zaten verildi)** Aynı partinin buyer'a görünen sayfasındaki **"İzlenebilirlik" rozetini ve "Ürün Geçmişi" zaman çizelgesini** rutin bakım kaydından önce ve sonra karşılaştır. Rozetin tek bir "Yaptım" tıklamasıyla (fotoğrafsız, miktarsız) yükselmesi bilinçli bir karar (Berkin onayladı) — bu adım sadece davranışın beklediğin gibi çalıştığını gözünle teyit etmen için.
 
 ### Sıradaki adım
-P22 serisi (A/B/C/D/E/F) tamamen bitti, hepsi `main`'de (PR #1 ve PR #3 ikisi de merge edildi, 2026-07-24). Kalan tek şey: yukarıdaki tarayıcı QA test case'i (Berkin'in kendi testinde yapacağı). QA tamamlandığında P22 serisi tamamen kapanmış olacak.
+P22 serisi (A/B/C/D/E/F) ve P22-F'nin yan etki düzeltmeleri tamamen bitti, hepsi `main`'de (PR #1, #3, #4 — üçü de merge edildi, 2026-07-24). Kalan tek şey: yukarıdaki tarayıcı QA test case'i (Berkin'in kendi testinde yapacağı). QA tamamlandığında P22 serisi tamamen kapanmış olacak.
 
 ### P23 — Buyer Mobile & Recipe App (P2, ayrı faz — soft launch'u bloklamıyor) — ⬜ Planlandı, henüz başlanmadı
 
