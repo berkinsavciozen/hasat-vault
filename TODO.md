@@ -29,7 +29,10 @@ tags:
 - [x] **P21-B+C — Buyer Çoklu-Batch Keşif/Ürün Detay/Tek Teklif Mimarisi TAMAMLANDI, gerçek veriyle uçtan uca doğrulandı (2026-07-23)**
 - [x] **P24 — Abonelik Sistemi Denetimi, Regresyon Düzeltmesi ve Discoverability TAMAMEN TAMAMLANDI (2026-07-23, son madde 2026-07-24'te manuel QA ile kapandı)**
 - [x] **P22-A — Care Journal Şeması (4+1 tablo) TAMAMLANDI, gerçek insert/RLS testiyle doğrulandı (2026-07-24)**
-- [x] **P22-B — Rutin Bakımı Özelleştir Ekranı TAMAMLANDI (Lovable), diff+typecheck+SQL-eşdeğeri testle doğrulandı, tarayıcı QA bekliyor (2026-07-24)**
+- [x] **P22-B — Rutin Bakımı Özelleştir Ekranı TAMAMLANDI (Lovable) (2026-07-24)**
+- [x] **P22-C — Crop Glossary Üretimi TAMAMLANDI (70 crop × 204 satır, tam kapsama) (2026-07-24)**
+- [x] **P22-D — Journal Sayfası UI (2 sekme) TAMAMLANDI (Claude Code doğrudan) (2026-07-24)**
+- [x] **P22-A/B/C/D PR'ı (#1) `main`'e merge edildi (2026-07-24) — tarayıcı QA bekliyor (bkz. "Kalan iş")**
 
 ### P16 — TÜM SERİ TAMAMLANDI ✅
 (Detaylar önceki sürümlerde)
@@ -47,15 +50,7 @@ tags:
 ### Düşük öncelikli cila
 (Değişmedi — bkz. önceki sürüm)
 - [ ] `useSetDefaultAddress` diğer adresleri `false`'a çekmiyor — düşük öncelik.
-- [ ] **[Yeni]** P22-B (Rutin Bakımı Özelleştir) tarayıcı QA'sı — test case:
-  1. Çiftçi hesabıyla (`05001234567`, OTP `123456`) giriş yap, `/farmer/journal`'a git.
-  2. Üst bardaki "⚙️ Rutin Bakımı Özelleştir" linkine tıkla.
-  3. Bir kategori sekmesi seç (örn. Sulama), "Sulama Yap" satırındaki anahtarı aç.
-  4. Açılan pencerede bir sıklık seç (örn. "3 günde bir"), isteğe bağlı bir not yaz, Kaydet'e bas.
-  5. Sayfayı yenile — anahtarın hâlâ açık olduğunu ve seçtiğin sıklığın göründüğünü doğrula.
-  6. Aynı anahtarı kapat — kapandığını doğrula (pencere açılmamalı).
-  7. "+ Kendi Bakım Eylemini Ekle"ye tıkla, bir isim yaz (örn. "Toprak pH Ölçümü"), bir sıklık seç, Ekle'ye bas — listede görünmeli ve anahtarı otomatik açık olmalı.
-  8. `/farmer/journal` (ana günlük sayfası) hâlâ eskisi gibi çalışıyor mu kontrol et (bozulma olmamalı).
+- [ ] **[Yeni]** P22-B+D birleşik tarayıcı QA'sı — güncel test case aşağıda "⚠️ Kalan iş" bölümünde (P22-B'nin özelleştirme ekranı + P22-D'nin Rutin Bakım sekmesi tek akışta test ediliyor, linkin yeni konumu P22-D'de değişti).
 - [x] `buyer.producer.$id`'nin guest-erişiminde `BuyerShell`'in hatasız render olduğu **manuel QA ile doğrulandı (Berkin, 2026-07-24)** — gizli sekmede sayfa hatasız yüklendi, guest CTA metinleri doğru göründü, `/login`'e yönlendirme çalıştı. (bkz. P24 doğrulama tablosu)
 
 ---
@@ -417,20 +412,6 @@ Berkin kararı (1. cevap): `harvest_entries`'ten (hasat olayı) ayrı bir tablo.
 
 **Not (P21'den miras):** Crop adlandırması artık her yerde `crop_config.crop` kanonik slug'ı — P22'nin yeni tabloları da `crop text NOT NULL REFERENCES crop_config(crop)` FK'sini olduğu gibi kullanabilir, ek bir case-normalizasyon riski yok (P21-A'da temizlendi).
 
-### P23 — Buyer Mobile & Recipe App (P2, ayrı faz — soft launch'u bloklamıyor) — ⬜ Planlandı, henüz başlanmadı
-
-Berkin kararı (7. cevap): Recipe App şimdilik tüm `buyer_type` segmentlerine açık.
-
-**Referans araştırması (Berkin'in 2 App Store linki):**
-- **Eatr:** süre/beceri/diyet filtreleri, besin değeri bilgisi. Abonelik iptal/refund şikayetleri var — Hasat bu hatayı tekrarlamamalı.
-- **ReciMe:** "Order Groceries" özelliği Berkin'in cross-sell fikriyle örtüşüyor, Hasat kendi envanterine sahip olduğu için yapısal avantajlı.
-
-| Kod | Konu | Kapsam | Bağımlılık | Durum |
-|---|---|---|---|---|
-| P23-A | Buyer mobile + Recipe App keşif/tasarım | React Native, shopping+recipe birlikte mobile-first | P21 tamamlandı ✅ (artık başlanabilir) | ⬜ Planlandı |
-| P23-B | Recipe↔Crop eşleştirme + RFQ otomasyonu | Malzeme Hasat'ta yoksa otomatik `crop_requests` önerisi | P23-A | ⬜ Planlandı |
-| P23-C | Mobile compliance | App Store/Play Store in-app purchase, KVKK, OTP/biometric | P23-A | ⬜ Planlandı |
-
 ### ✅ P22-C — Crop Glossary Üretimi — TAMAMLANDI *(2026-07-24, Claude Code + Supabase MCP)*
 
 **Kapsam:** `crop_journal_glossary` tablosuna (P22-A'da açılmıştı, boştu) her crop'un `crop_config.lifecycle_steps`'indeki HER adım için bir açıklama paragrafı yazıldı — toplam **70 crop × ilgili adımlar = 204 satır**, tam kapsama (eksik yok, SQL ile doğrulandı). Safran ve Safran Soğanı (platformun amiral gemisi) en detaylı/pratik içeriği aldı (somut sıcaklık/süre/derinlik eşikleri), diğer 68 crop kısa-öz ama yine de somut pratik bilgi (zamanlama, aralık, eşik) içeriyor — Berkin'in isteğiyle sadece safran değil tüm crop'lar detaylı/pratik tonda yazıldı.
@@ -470,18 +451,36 @@ Berkin kararı (7. cevap): Recipe App şimdilik tüm `buyer_type` segmentlerine 
 ### ✅ PR merge edildi (2026-07-24)
 [PR #1](https://github.com/berkinsavciozen/hasat-d2c-marketplace/pull/1) Berkin tarafından `main`'e merge edildi (CI check yok, review yorumu yok, temiz geçti). P22-A/B/C/D artık `main`'de, bir sonraki Lovable senkronunda/canlı önizlemede görünecek.
 
-### ⚠️ Kalan iş
-2. **Tarayıcı QA** (P22-B'nin test case'ine ek olarak, merge sonrası):
-   - `/farmer/journal`'a git, iki sekmeyi gör (Hasat Kayıtları varsayılan aktif).
-   - Rutin Bakım'a tıkla — Ahmet'in hesabında "Sulama Yap" (Güney Bahçe parseli, "yaklaşıyor" durumunda olabilir) ve "Gübre Ver" görünmeli.
-   - Bir satırda "✓ Yaptım"a bas, durum anında güncellenmeli.
-   - "Takvim" görünümüne geç, az önce eklediğin kayıt görünmeli.
-   - "Sadece gecikmiş" filtresini aç/kapat.
-   - Sayfanın altında crop bilgi panellerini aç (Safran, Kekik, Lavanta vb.) — glossary metinleri doğru sırada görünmeli.
-   - Hasat Kayıtları sekmesine dön, hiçbir şeyin bozulmadığını doğrula.
+### ⚠️ Kalan iş: P22-B+D birleşik tarayıcı QA (test hesabı: çiftçi `05001234567`, OTP `123456`)
+
+1. Giriş yap, `/farmer/journal`'a git — iki sekme görmelisin: **Hasat Kayıtları** (varsayılan aktif, eskisi gibi) + **Rutin Bakım** (yeni).
+2. Hasat Kayıtları sekmesinde hiçbir şeyin bozulmadığını doğrula (istatistik barı, "+ Parsel", kayıt listesi, "+ Yeni Kayıt").
+3. **Rutin Bakım** sekmesine tıkla — Ahmet'in hesabında zaten aktif olan "Sulama Yap" (Güney Bahçe parseli) ve "Gübre Ver" görünmeli.
+4. Üstteki **"⚙️ Rutin Bakımı Özelleştir"** linkine tıkla (P22-D'de buraya taşındı — artık istatistik barında değil).
+5. Bir kategori sekmesi seç, yeni bir eylemin anahtarını aç, bir sıklık seç, Kaydet'e bas.
+6. "Rutin Bakım" ekranına geri dön (sekme değiştirip geri gel) — yeni açtığın eylemin listede, doğru durumla (yaklaşıyor/hiç yapılmamış) göründüğünü doğrula.
+7. Bir satırda **"✓ Yaptım"**a bas — durum anında güncellenmeli (yeşil "X gün sonra" gibi).
+8. **"Takvim"** görünümüne geç — az önce eklediğin kayıt ay-gruplu listede görünmeli.
+9. **"Sadece gecikmiş"** filtresini aç/kapat, listenin buna göre değiştiğini doğrula.
+10. Sayfanın altındaki **crop bilgi panellerini** (Safran, Kekik, Lavanta vb.) aç — glossary metinlerinin doğru sırada (Korm/Dikim → Bakım → Hasat → Kurutma gibi) geldiğini doğrula.
+11. "+ Kendi Bakım Eylemini Ekle" ile özel bir eylem ekle — listede görünmeli, otomatik aktif olmalı.
 
 ### Sıradaki adım
-P22-A + P22-B + P22-C + P22-D tamamlandı ve `main`'e merge edildi (2026-07-24). Kalan tek şey: yukarıdaki tarayıcı QA test case'i (Berkin'in kendi testinde yapacağı). Sonrasında P22 serisi tamamen kapanmış olacak (P22-E — yeni crop type ekleme wizard'ı — hariç, o ayrı bir iş).
+P22-A + P22-B + P22-C + P22-D tamamlandı ve `main`'e merge edildi (2026-07-24). Kalan tek şey: yukarıdaki tarayıcı QA test case'i (Berkin'in kendi testinde yapacağı). Sonrasında P22 serisi tamamen kapanmış olacak (P22-E — yeni crop type ekleme wizard'ı — hariç, o ayrı bir iş, kapsamı aşağıda).
+
+### P23 — Buyer Mobile & Recipe App (P2, ayrı faz — soft launch'u bloklamıyor) — ⬜ Planlandı, henüz başlanmadı
+
+Berkin kararı (7. cevap): Recipe App şimdilik tüm `buyer_type` segmentlerine açık.
+
+**Referans araştırması (Berkin'in 2 App Store linki):**
+- **Eatr:** süre/beceri/diyet filtreleri, besin değeri bilgisi. Abonelik iptal/refund şikayetleri var — Hasat bu hatayı tekrarlamamalı.
+- **ReciMe:** "Order Groceries" özelliği Berkin'in cross-sell fikriyle örtüşüyor, Hasat kendi envanterine sahip olduğu için yapısal avantajlı.
+
+| Kod | Konu | Kapsam | Bağımlılık | Durum |
+|---|---|---|---|---|
+| P23-A | Buyer mobile + Recipe App keşif/tasarım | React Native, shopping+recipe birlikte mobile-first | P21 tamamlandı ✅ (artık başlanabilir) | ⬜ Planlandı |
+| P23-B | Recipe↔Crop eşleştirme + RFQ otomasyonu | Malzeme Hasat'ta yoksa otomatik `crop_requests` önerisi | P23-A | ⬜ Planlandı |
+| P23-C | Mobile compliance | App Store/Play Store in-app purchase, KVKK, OTP/biometric | P23-A | ⬜ Planlandı |
 
 ### Kural #104 (2026-07-24'te eklendi)
 Berkin'in kararı: bundan sonra Claude Code planları, arayüzde test edilmesi gereken adımlar için **kullanıcı-akışı dilinde adım adım bir test case** olarak sunulmalı (hangi sayfa açılacak, hangi butona tıklanacak, ne görülmesi bekleniyor) — trigger/kolon/event isimleri gibi DB-jargonuyla değil. Genel plan anlatımı da (yeni tablo/akış gibi kapsamlı işlerde) bir PM'in anlatacağı gibi olmalı: kullanıcı ne yapıyor, FE'de ne değişiyor, BE'de ne değişiyor — teknik isimler (trigger/policy adı gibi) sadece gerekince, ayrıntı seviyesinde geçmeli.
