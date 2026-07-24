@@ -27,7 +27,8 @@ tags:
 - [x] **P20 — SMS/Bildirim genişletmesi + lojistik bildirimleri TAMAMLANDI, gerçek Twilio testiyle uçtan uca doğrulandı (2026-07-21)**
 - [x] **P21-A — Kontrollü Batch Mimarisi TAMAMLANDI, gerçek veriyle uçtan uca doğrulandı (2026-07-23)**
 - [x] **P21-B+C — Buyer Çoklu-Batch Keşif/Ürün Detay/Tek Teklif Mimarisi TAMAMLANDI, gerçek veriyle uçtan uca doğrulandı (2026-07-23)**
-- [x] **P24 — Abonelik Sistemi Denetimi, Regresyon Düzeltmesi ve Discoverability TAMAMLANDI (bir madde manuel QA bekliyor) (2026-07-23)**
+- [x] **P24 — Abonelik Sistemi Denetimi, Regresyon Düzeltmesi ve Discoverability TAMAMEN TAMAMLANDI (2026-07-23, son madde 2026-07-24'te manuel QA ile kapandı)**
+- [x] **P22-A — Care Journal Şeması (4 tablo) TAMAMLANDI, gerçek insert/RLS testiyle doğrulandı (2026-07-24)**
 
 ### P16 — TÜM SERİ TAMAMLANDI ✅
 (Detaylar önceki sürümlerde)
@@ -45,13 +46,13 @@ tags:
 ### Düşük öncelikli cila
 (Değişmedi — bkz. önceki sürüm)
 - [ ] `useSetDefaultAddress` diğer adresleri `false`'a çekmiyor — düşük öncelik.
-- [ ] **[Yeni]** `buyer.producer.$id`'nin guest-erişiminde `BuyerShell`'in hatasız render olduğu manuel QA ile doğrulanmalı (Lovable kredisi bittiği için otomatik doğrulanamadı — bkz. P24).
+- [x] `buyer.producer.$id`'nin guest-erişiminde `BuyerShell`'in hatasız render olduğu **manuel QA ile doğrulandı (Berkin, 2026-07-24)** — gizli sekmede sayfa hatasız yüklendi, guest CTA metinleri doğru göründü, `/login`'e yönlendirme çalıştı. (bkz. P24 doğrulama tablosu)
 
 ---
 
 ## 🏗️ Lovable/Supabase Build Sırası
 
-> **P19 + P17 serisi (B/C/F/E/G) + P20 + P21 (A, B+C) + P24 tamamen bitti, hepsi canlı doğrulandı (P24'te 1 madde manuel QA bekliyor).** **P17-A ve P17-D şirket kuruluşuna bağlı, bloke.** BENCHMARK Gap listesindeki bağımsız yapılabilecek her şey bitti (bkz. Gap durum tablosu altta). **Sıradaki büyük iş bloğu: P22 (Care Journal / Rutin Bakım, saffron sezonuna kadar esnek) — detayları dosyanın sonundaki "Onaylanan Yol Haritası — P21/P22/P23" bölümünde.** **Not:** Bir sonraki Lovable turuna geçmeden önce workspace kredisi kontrol edilmeli (P24 sonunda bitmişti).
+> **P19 + P17 serisi (B/C/F/E/G) + P20 + P21 (A, B+C) + P24 tamamen bitti, hepsi canlı doğrulandı.** **P17-A ve P17-D şirket kuruluşuna bağlı, bloke.** BENCHMARK Gap listesindeki bağımsız yapılabilecek her şey bitti (bkz. Gap durum tablosu altta). **P22-A (Care Journal şeması) tamamlandı (2026-07-24) — sıradaki iş P22-B (Customize Journal ekranı, Lovable/frontend işi).** Detaylar dosyanın sonundaki "Onaylanan Yol Haritası — P21/P22/P23" bölümünde. **Not:** Bir sonraki Lovable turuna geçmeden önce workspace kredisi kontrol edilmeli (P24 sonunda bitmişti).
 
 ### BENCHMARK Gap Durum Tablosu (2026-07-21 itibarıyla)
 | # | Gap | Şiddet | Durum |
@@ -201,7 +202,7 @@ Bu turda Lovable'a gönderilen 2 mesaj API hatası (`"Error occurred during tool
 
 ---
 
-## 🟡 P24 — Abonelik Sistemi Denetimi, Regresyon Düzeltmesi ve Discoverability — **TAMAMEN TAMAMLANDI ✅ (bir madde manuel QA bekliyor)** *(2026-07-23)*
+## 🟡 P24 — Abonelik Sistemi Denetimi, Regresyon Düzeltmesi ve Discoverability — **TAMAMEN TAMAMLANDI ✅** *(2026-07-23, son madde 2026-07-24'te kapandı)*
 
 **Kapsam:** Berkin'in Lovable ile ayrı ilerlettiği "Abonelikler" (`harvest_subscriptions`) özelliğinin denetimi + bulunan gerçek eksiklerin tamamlanması + kullanıcı testiyle bulunan 2 discoverability sorununun çözümü.
 
@@ -225,9 +226,11 @@ Bu turda Lovable'a gönderilen 2 mesaj API hatası (`"Error occurred during tool
    - **Giriş yapmışsa:** her ürün kartında "Teklif Ver →" (zaten vardı) + "Hasat Aboneliği Oluştur →" aynen çalışıyor.
    - **Giriş yapmamışsa:** alttaki ana buton **"Abonelik ve Teklif için Hasat'a Üye Ol →"**'a dönüşüyor, her ürün kartındaki buton da **"Üye Ol & Teklif Ver →"**'a dönüşüp `/login?role=buyer`'a yönlendiriyor.
 
-### ⚠️ Tamamlanmamış doğrulama (Lovable kredisi bitti)
+### ✅ Doğrulama tamamlandı (2026-07-24)
 
-Son değişikliğin (`buyer.producer.$id` guest-erişimi) routing-guard seviyesi diff ile doğrulandı (sadece `/buyer/producer/` istisnası, diğer `/buyer/*` korunuyor — güvenli). **Ama `BuyerShell` component'inin (nav bar/layout) giriş yapmamış bir ziyaretçide gerçekten hatasız render olduğu son adımda doğrulanamadı** — Lovable workspace kredisi tükendi. **Bu madde manuel QA gerektiriyor:** çıkış yapılmış bir tarayıcı sekmesinde `/buyer/producer/$id` (gerçek bir farmer id ile) açılıp sayfanın hatasız yüklendiği, alttaki butonun "Üye Ol" metniyle göründüğü ve tıklanınca login'e gittiği kontrol edilmeli.
+Son değişikliğin (`buyer.producer.$id` guest-erişimi) routing-guard seviyesi diff ile doğrulanmıştı (sadece `/buyer/producer/` istisnası, diğer `/buyer/*` korunuyor — güvenli). Claude Code oturumunda ek olarak: (a) sayfanın kullandığı tüm veri hook'ları (`useFarmerPublicProfile`, `useFarmerActiveListings`, `useParcelsByFarmer`, `useFarmerProducerStats`, `useFarmerRatingSummary`, `useFarmerRecentReviews`) kod okunarak `enabled: !!farmerId` ile gate'li olduğu (userId'ye değil) doğrulandı, (b) `listings`/`harvest_entries`/`reviews`/`public_farmer_profiles` için anon SELECT RLS politikaları gerçek SQL sorgusuyla teyit edildi, (c) `parcels`/`orders`'ta anon'a özel satır politikası olmasa da tablo-seviye grant olduğu için sorgu hataya değil boş sonuca düşüyor (crash riski yok) — bu da doğrulandı. **`BuyerShell` component'inin (nav bar/layout) giriş yapmamış bir ziyaretçide gerçekten hatasız render olduğu Berkin tarafından gizli sekmede manuel test edilip doğrulandı** (2026-07-24). Madde kapandı.
+
+**Not (Claude Code oturumu):** Bu oturumda `dev server` açıp Playwright ile otomatik tarayıcı testi de denendi, ama ortamın ağ politikası tarayıcının Supabase host'una doğrudan bağlanmasını 403 ile engelledi (org policy denial, bypass edilmedi) — bu yüzden canlı doğrulama Berkin'in kendi tarayıcısında yapıldı.
 
 ### Doğrulama özeti
 | Kontrol | Sonuç |
@@ -241,7 +244,7 @@ Son değişikliğin (`buyer.producer.$id` guest-erişimi) routing-guard seviyesi
 | Storefront "Abone Ol" CTA | ✅ Diff ile doğrulandı |
 | `buyer.producer.$id` guest-erişim guard istisnası | ✅ Diff ile doğrulandı (scope: sadece bu path) |
 | `buyer.producer.$id` guest CTA metinleri | ✅ Diff ile doğrulandı |
-| `BuyerShell`'in guest'te hatasız render olduğu | ⚠️ **Doğrulanamadı — Lovable kredisi bitti, manuel QA gerekiyor** |
+| `BuyerShell`'in guest'te hatasız render olduğu | ✅ Manuel QA ile doğrulandı (Berkin, 2026-07-24) |
 
 ---
 
@@ -277,7 +280,8 @@ Son değişikliğin (`buyer.producer.$id` guest-erişimi) routing-guard seviyesi
 | **P21 gerçek koda göre revize edildi (2026-07-23)** | Draft migration'ı yerine form/UX çözümü; Keşfet grouping "yeni kapasite" değil "düzenleme" olarak revize edildi. |
 | **P21-A TAMAMLANDI (2026-07-23)** | Kontrollü batch açma akışı canlı doğrulandı; `min(uuid)` bug'ı ve crop case-mismatch bulunup düzeltildi, backfill yapıldı. |
 | **P21-B+C TAMAMLANDI (2026-07-23)** | `offer_items` şeması, çoklu-batch Keşfet/ürün sayfası, satır-bazlı stok kontrolü, birim-uyuşmazlık trigger'ı, traceability RLS — hepsi gerçek veriyle doğrulandı. |
-| **P24 — Abonelik denetimi tamamlandı (2026-07-23)** | `send-sms` regresyonu (P20'nin kaybolmuş hali) bulunup düzeltildi; otomatik hasat-hatırlatma cron job'u eklendi (Berkin kararı: otomatikleştir); fiyat kilidi bilinçli olarak öneri seviyesinde bırakıldı (Berkin kararı); 2 discoverability deliği (üretici profiline erişim yolu + guest-erişim) düzeltildi. **1 madde (guest'te BuyerShell render'ı) Lovable kredisi bittiği için manuel QA bekliyor.** |
+| **P24 — Abonelik denetimi tamamlandı (2026-07-23)** | `send-sms` regresyonu (P20'nin kaybolmuş hali) bulunup düzeltildi; otomatik hasat-hatırlatma cron job'u eklendi (Berkin kararı: otomatikleştir); fiyat kilidi bilinçli olarak öneri seviyesinde bırakıldı (Berkin kararı); 2 discoverability deliği (üretici profiline erişim yolu + guest-erişim) düzeltildi. Guest'te `BuyerShell` render'ı 2026-07-24'te Berkin tarafından manuel QA ile doğrulandı — P24 tamamen kapandı. |
+| **P22-A — Care Journal şeması tamamlandı (2026-07-24)** | 4 tablo (`journal_themes`, `journal_entry_types`, `crop_journal_glossary`, `care_journal_entries`) Claude Code + Supabase MCP ile doğrudan uygulandı; RLS izolasyonu, sahte-preset engeli (CHECK constraint), başkası-adına-yazma engeli ve entry-type silme koruması gerçek insert/RLS simülasyonuyla test edildi, test verisi temizlendi. |
 
 ---
 
@@ -356,11 +360,28 @@ Berkin kararı (1. cevap): `harvest_entries`'ten (hasat olayı) ayrı bir tablo.
 
 | Kod | Konu | Kapsam | Bağımlılık | Durum |
 |---|---|---|---|---|
-| P22-A | Care Journal şeması | 4 yeni tablo: `journal_entry_types`, `journal_themes`, `crop_journal_glossary`, `care_journal_entries` (`listing_id` FK ile batch bağlantısı — P21 sayesinde artık hangi batch'e bağlanacağı net) | Yok | ⬜ Planlandı |
+| P22-A | Care Journal şeması | 4 yeni tablo: `journal_entry_types`, `journal_themes`, `crop_journal_glossary`, `care_journal_entries` (`listing_id` FK ile batch bağlantısı — P21 sayesinde artık hangi batch'e bağlanacağı net) | Yok | ✅ **TAMAMLANDI (2026-07-24)** |
 | P22-B | Customize Journal ekranı (Bevel referansı) | Preset+custom entry type CRUD, kategori sekmeleri, frequency/threshold modalı | P22-A | ⬜ Planlandı |
 | P22-C | Crop Glossary üretimi | AI ile tek seferlik paragraf-tooltip üretimi | P22-A | ⬜ Planlandı |
 | P22-D | Journal sayfası UI | İki sekme, list/calendar view, filtreler, overdue highlight | P22-B, P22-C | ⬜ Planlandı |
 | P22-E | Yeni crop type ekleme wizard'ı | `crop_config` + `crop_market_sources` + `journal_themes` + otomatik-draft-batch'i tek akışta birleştir | P22-A | ⬜ Planlandı |
+
+### ✅ P22-A — Care Journal Şeması — TAMAMLANDI *(2026-07-24, Claude Code + Supabase MCP ile doğrudan)*
+
+**Yapılanlar (migration `20260724080401_p22a_care_journal_schema`):**
+1. **`journal_themes`** — Bevel-tarzı üst kategori (Sulama, Beslenme, Hastalık&Zararlı vb.). `crop` nullable FK (`crop_config.crop`) — null=genel tema, dolu=crop'a özel. Herkese (anon+authenticated) SELECT açık.
+2. **`journal_entry_types`** — Tema içindeki spesifik bakım eylemi. `farmer_id` nullable (null=global preset, dolu=çiftçiye özel custom). CHECK constraint: `is_preset=true ⟺ farmer_id IS NULL` — tutarlılık DB seviyesinde garanti. RLS: preset'ler herkese açık, custom'lar sadece sahibine; çiftçi kendi custom'ını CRUD edebilir ama sahte preset üretemez (`with_check`'te `is_preset=false` zorunlu).
+3. **`crop_journal_glossary`** — Crop+terim başına açıklama metni (P22-C'de AI ile doldurulacak). `unique(crop, term)`, herkese SELECT açık.
+4. **`care_journal_entries`** — Asıl bakım kaydı. `farmer_id`/`parcel_id`/`crop` NOT NULL, `listing_id` nullable (batch bağlantısı), `entry_type_id` FK `on delete restrict` (kullanılan bir entry type silinemez). RLS: tamamen çiftçiye özel CRUD (`auth.uid()=farmer_id`).
+5. Ortak `set_updated_at()` trigger fonksiyonu (public schema) yazıldı — mevcut `update_updated_at_column()` fonksiyonunun `storage` şemasında (Supabase internal) olduğu, app tablolarında kullanılamayacağı bulundu.
+
+**Doğrulama (gerçek insert + RLS simülasyonu, Ahmet Yılmaz'ın verisiyle):**
+- Preset tema+entry type insert ✅; sahte preset (`is_preset=true` + `farmer_id` dolu) insert denemesi → CHECK constraint doğru reddetti ✅.
+- Gerçek `care_journal_entries` kaydı (Ahmet'in Güney Bahçe parseli + aktif safran listing'i) insert edildi, `updated_at` trigger'ı UPDATE'te doğru tetiklendi ✅.
+- Kullanımdaki bir `entry_type` silinmeye çalışıldı → `on delete restrict` doğru engelledi ✅.
+- RLS izolasyonu: başka bir çiftçi (Zehra) Ahmet'in kayıtlarını göremedi (0 satır) ✅, Ahmet kendi kaydını gördü (1 satır) ✅, anon preset tema/entry-type'ı gördü ama `care_journal_entries`'ten hiçbir şey göremedi (0 satır) ✅.
+- Yazma güvenliği: çiftçi kendi custom entry type'ını ekleyebildi ✅, sahte preset eklemeye çalışınca RLS reddetti ✅, başka bir çiftçi adına `care_journal_entries` yazmaya çalışınca RLS reddetti ✅.
+- Tüm test verisi temizlendi (4 tablo da 0 satır olarak doğrulandı).
 
 **Not (P21'den miras):** Crop adlandırması artık her yerde `crop_config.crop` kanonik slug'ı — P22'nin yeni tabloları da `crop text NOT NULL REFERENCES crop_config(crop)` FK'sini olduğu gibi kullanabilir, ek bir case-normalizasyon riski yok (P21-A'da temizlendi).
 
@@ -379,4 +400,7 @@ Berkin kararı (7. cevap): Recipe App şimdilik tüm `buyer_type` segmentlerine 
 | P23-C | Mobile compliance | App Store/Play Store in-app purchase, KVKK, OTP/biometric | P23-A | ⬜ Planlandı |
 
 ### Sıradaki adım
-P22-A için Lovable'a plan/implementasyon isteği gönderilecek: Care Journal şeması (4 tablo) — Berkin onayladığında başlatılacak. **Not:** `plan_mode=true` göndersek de Lovable'ın doğrudan implementasyona geçebileceği unutulmamalı (ders #96) — her turda `get_diff`/DB ile bağımsız doğrulama yapılacak. **Ayrıca:** `/buyer/producer/$id` guest-erişiminin manuel QA'sı (P24) ve Lovable workspace kredisinin yeterli olduğu kontrol edilmeli.
+P22-A tamamlandı (2026-07-24, bkz. yukarı). Sıradaki iş **P22-B — Customize Journal ekranı** (Bevel referanslı preset+custom entry type CRUD UI'ı) — bu frontend/UI işi olduğu için Lovable'a gönderilecek, kapsamı Berkin ile netleştirilip tek, iyi spesifiye edilmiş bir mesajla başlatılacak. **Not:** `plan_mode=true` göndersek de Lovable'ın doğrudan implementasyona geçebileceği unutulmamalı (ders #96) — her turda `get_diff`/DB ile bağımsız doğrulama yapılacak.
+
+### Kural #104 (2026-07-24'te eklendi)
+Berkin'in kararı: bundan sonra Claude Code planları, arayüzde test edilmesi gereken adımlar için **kullanıcı-akışı dilinde adım adım bir test case** olarak sunulmalı (hangi sayfa açılacak, hangi butona tıklanacak, ne görülmesi bekleniyor) — trigger/kolon/event isimleri gibi DB-jargonuyla değil. Genel plan anlatımı da (yeni tablo/akış gibi kapsamlı işlerde) bir PM'in anlatacağı gibi olmalı: kullanıcı ne yapıyor, FE'de ne değişiyor, BE'de ne değişiyor — teknik isimler (trigger/policy adı gibi) sadece gerekince, ayrıntı seviyesinde geçmeli.
