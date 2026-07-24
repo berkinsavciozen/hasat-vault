@@ -60,7 +60,7 @@ tags:
 
 ## 🏗️ Lovable/Supabase Build Sırası
 
-> **P19 + P17 serisi (B/C/F/E/G) + P20 + P21 (A, B+C) + P24 tamamen bitti, hepsi canlı doğrulandı.** **P17-A ve P17-D şirket kuruluşuna bağlı, bloke.** BENCHMARK Gap listesindeki bağımsız yapılabilecek her şey bitti (bkz. Gap durum tablosu altta). **P22 serisi (A/B/C/D/E/F) tamamen bitti, hepsi `main`'de (PR #1 ve PR #3 ikisi de merge edildi) — tek kalan iş tarayıcı QA.** Detaylar dosyanın sonundaki "Onaylanan Yol Haritası — P21/P22/P23" bölümünde. **Not:** Bir sonraki Lovable turuna geçmeden önce workspace kredisi kontrol edilmeli (P24 sonunda bitmişti).
+> **P19 + P17 serisi (B/C/F/E/G) + P20 + P21 (A, B+C) + P24 tamamen bitti, hepsi canlı doğrulandı.** **P17-A ve P17-D şirket kuruluşuna bağlı, bloke.** BENCHMARK Gap listesindeki bağımsız yapılabilecek her şey bitti (bkz. Gap durum tablosu altta). **P22 serisi (A/B/C/D/E/F) tamamen bitti, hepsi `main`'de (PR #1, #3, #4 merge edildi) — tek kalan iş tarayıcı QA.** Detaylar dosyanın sonundaki "Onaylanan Yol Haritası — P21/P22/P23" bölümünde. **Not:** Bir sonraki Lovable turuna geçmeden önce workspace kredisi kontrol edilmeli (P24 sonunda bitmişti).
 
 ### BENCHMARK Gap Durum Tablosu (2026-07-21 itibarıyla)
 | # | Gap | Şiddet | Durum |
@@ -494,14 +494,14 @@ Berkin kararı (1. cevap): `harvest_entries`'ten (hasat olayı) ayrı bir tablo.
 - **Otomatik hasat hatırlatma SMS'i** (abonelik sistemi, P24) — bu tamamen farklı bir tablodan (`harvest_subscriptions`) besleniyor, `harvest_entries`'e hiç bakmıyor. Etkilenmiyor.
 - **KPI/analitik view'ları** (P17-G) — hiçbiri `harvest_entries`'i doğrudan okumuyor. Etkilenmiyor.
 
-**Açık bir ürün sorusu (Berkin'e danışılmalı, kod tarafında bir şey bozuk değil):** Buyer'ın gördüğü **"Ürün Geçmişi" zaman çizelgesi ve "İzlenebilirlik" rozeti**, bir partiye bağlı TÜM günlük kayıtlarının hangi bakım adımlarını (dikim/bakım/hasat/kurutma vb.) kapsadığına bakarak hesaplanıyor. Rutin bakım kayıtları da artık bu hesaba dahil oluyor — yani bir çiftçi tek dokunuşla (fotoğrafsız, miktarsız) bir "Sulama Yap" kaydı düşürdüğünde, partinin izlenebilirlik rozeti (örn. "Temel" → "İyi Belgelenmiş") yükselebilir. Bu muhtemelen **istenen bir sonuç** (daha kolay günlük tutma = daha fazla belgeleme, tam da P22-F'nin amacı), ama buyer'a gösterilen bir güven rozetinin artık fotoğraf/kanıt gerektirmeyen tek-dokunuşlu kayıtlarla da yükselebilmesi bilinçli bir ürün kararı olmalı — sessizce değiştirilmedi, aşağıdaki test case'e bir doğrulama adımı olarak eklendi.
+**Ürün sorusu — Berkin karar verdi (2026-07-24): olduğu gibi kalsın.** Buyer'ın gördüğü **"Ürün Geçmişi" zaman çizelgesi ve "İzlenebilirlik" rozeti**, bir partiye bağlı TÜM günlük kayıtlarının hangi bakım adımlarını (dikim/bakım/hasat/kurutma vb.) kapsadığına bakarak hesaplanıyor. Rutin bakım kayıtları da artık bu hesaba dahil oluyor — yani bir çiftçi tek dokunuşla (fotoğrafsız, miktarsız) bir "Sulama Yap" kaydı düşürdüğünde, partinin izlenebilirlik rozeti (örn. "Temel" → "İyi Belgelenmiş") yükselebilir. Berkin bunu istenen bir sonuç olarak onayladı (daha kolay günlük tutma = daha fazla belgeleme, tam da P22-F'nin amacı) — kod tarafında ek bir değişiklik yapılmadı.
 
 **Ayrıca küçük bir kozmetik not:** Rutin bakım kayıtları buyer'ın gördüğü zaman çizelgesinde her zaman "Kalite A" ile görünüyor (rutin bakım formunda kalite alanı yok, sabit A gönderiliyor) — bir sulama kaydında "Kalite A" yazması anlamsız ama zararsız; düzeltme gerektirmiyor, sadece not.
 
 ### PR durumu
 [PR #1](https://github.com/berkinsavciozen/hasat-d2c-marketplace/pull/1) `main`'e merge edildi (2026-07-24) — P22-A/B/C/D `main`'de.
 [PR #3](https://github.com/berkinsavciozen/hasat-d2c-marketplace/pull/3) `main`'e merge edildi (2026-07-24) — P22-D'nin parsel-gruplama düzeltmesi + P22-E + P22-F artık `main`'de.
-**Yeni commit `d504d00`** (yukarıdaki 4 regresyon düzeltmesi) `claude/hasat-environment-inventory-ft0ehg` branch'inde, henüz `main`'e karşı bir PR'ı yok — Berkin'in isteğiyle PR açılacak.
+[PR #4](https://github.com/berkinsavciozen/hasat-d2c-marketplace/pull/4) `main`'e merge edildi (2026-07-24) — P22-F'nin yan etki düzeltmeleri (`d504d00`) artık `main`'de. **Tüm P22 serisi artık tek parça halinde `main`'de, tarayıcı QA'ya hazır.**
 
 ### ⚠️ Kalan iş: P22-D+E+F birleşik tarayıcı QA (test hesabı: çiftçi `05001234567`, OTP `123456`)
 
@@ -519,10 +519,10 @@ Berkin kararı (1. cevap): `harvest_entries`'ten (hasat olayı) ayrı bir tablo.
 12. Sayfanın altındaki **crop bilgi panellerini** (Safran, Kekik, Lavanta vb.) aç — glossary metinlerinin doğru sırada geldiğini doğrula.
 13. **(Yeni)** Ana sayfadaki (veya Günlük sayfasındaki) **AI sohbet asistanına** "son hasatlarım neler?" gibi bir soru sor — cevapta az önce "Yaptım" dediğin rutin bakım işinin (örn. sulama) **gerçek bir hasat gibi görünmediğini** doğrula (sadece gerçek hasat kayıtların listelenmeli).
 14. **(Yeni)** Rutin bakımını "Yaptım" dediğin ürünün bağlı olduğu **partiyi** (parti/batch detay sayfası, "Hasat Kayıtları" bölümü — çiftçi kendi görünümünde) aç, listede o kaydın **"0 kg" gibi anlamsız bir miktar göstermediğini** doğrula.
-15. **(Yeni, ürün kararı — Berkin'in gözden geçirmesi gerekiyor)** Aynı partinin buyer'a görünen sayfasındaki **"İzlenebilirlik" rozetini ve "Ürün Geçmişi" zaman çizelgesini** rutin bakım kaydından önce ve sonra karşılaştır. Rozet, tek bir "Yaptım" tıklamasıyla (fotoğrafsız, miktarsız) yükseliyorsa bu bilinçli bir sonuç mu yoksa rozetin sadece gerçek hasat/fotoğraflı kayıtlara mı bağlı kalması gerekiyor mu, karar vermen gerekiyor — kod tarafında bir hata değil, bir ürün tercihi.
+15. **(Yeni, bilgi amaçlı — karar zaten verildi)** Aynı partinin buyer'a görünen sayfasındaki **"İzlenebilirlik" rozetini ve "Ürün Geçmişi" zaman çizelgesini** rutin bakım kaydından önce ve sonra karşılaştır. Rozetin tek bir "Yaptım" tıklamasıyla (fotoğrafsız, miktarsız) yükselmesi bilinçli bir karar (Berkin onayladı) — bu adım sadece davranışın beklediğin gibi çalıştığını gözünle teyit etmen için.
 
 ### Sıradaki adım
-P22 serisi (A/B/C/D/E/F) tamamen bitti, hepsi `main`'de (PR #1 ve PR #3 ikisi de merge edildi, 2026-07-24). P22-F'nin yan etkilerini taramak için yapılan ek düzeltmeler (`d504d00`) branch'te bekliyor, henüz PR'ı yok. Kalan işler: (1) yukarıdaki tarayıcı QA test case'i, (2) İzlenebilirlik rozeti konusunda Berkin'in karar vermesi, (3) `d504d00` için PR açılması (Berkin isterse).
+P22 serisi (A/B/C/D/E/F) ve P22-F'nin yan etki düzeltmeleri tamamen bitti, hepsi `main`'de (PR #1, #3, #4 — üçü de merge edildi, 2026-07-24). Kalan tek şey: yukarıdaki tarayıcı QA test case'i (Berkin'in kendi testinde yapacağı). QA tamamlandığında P22 serisi tamamen kapanmış olacak.
 
 ### P23 — Buyer Mobile & Recipe App (P2, ayrı faz — soft launch'u bloklamıyor) — ⬜ Planlandı, henüz başlanmadı
 
