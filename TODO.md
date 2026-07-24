@@ -62,7 +62,7 @@ tags:
 
 ## 🏗️ Lovable/Supabase Build Sırası
 
-> **P19 + P17 serisi (B/C/F/E/G) + P20 + P21 (A, B+C) + P24 tamamen bitti, hepsi canlı doğrulandı.** **P17-A ve P17-D şirket kuruluşuna bağlı, bloke.** BENCHMARK Gap listesindeki bağımsız yapılabilecek her şey bitti (bkz. Gap durum tablosu altta). **P22-A + P22-B tamamlandı (2026-07-24) — P22-B'nin tarayıcı QA'sı Berkin'i bekliyor (bkz. test case altta), sonra P22-C (Crop Glossary) sırada.** Detaylar dosyanın sonundaki "Onaylanan Yol Haritası — P21/P22/P23" bölümünde. **Not:** Bir sonraki Lovable turuna geçmeden önce workspace kredisi kontrol edilmeli (P24 sonunda bitmişti).
+> **P19 + P17 serisi (B/C/F/E/G) + P20 + P21 (A, B+C) + P24 tamamen bitti, hepsi canlı doğrulandı.** **P17-A ve P17-D şirket kuruluşuna bağlı, bloke.** BENCHMARK Gap listesindeki bağımsız yapılabilecek her şey bitti (bkz. Gap durum tablosu altta). **P22-A + P22-B + P22-C tamamlandı (2026-07-24) — P22-B'nin tarayıcı QA'sı Berkin'i bekliyor (bkz. test case altta), sonra P22-D (Journal UI) sırada.** Detaylar dosyanın sonundaki "Onaylanan Yol Haritası — P21/P22/P23" bölümünde. **Not:** Bir sonraki Lovable turuna geçmeden önce workspace kredisi kontrol edilmeli (P24 sonunda bitmişti).
 
 ### BENCHMARK Gap Durum Tablosu (2026-07-21 itibarıyla)
 | # | Gap | Şiddet | Durum |
@@ -372,7 +372,7 @@ Berkin kararı (1. cevap): `harvest_entries`'ten (hasat olayı) ayrı bir tablo.
 |---|---|---|---|---|
 | P22-A | Care Journal şeması | 4 yeni tablo: `journal_entry_types`, `journal_themes`, `crop_journal_glossary`, `care_journal_entries` (`listing_id` FK ile batch bağlantısı — P21 sayesinde artık hangi batch'e bağlanacağı net) | Yok | ✅ **TAMAMLANDI (2026-07-24)** |
 | P22-B | Customize Journal ekranı (Bevel referansı) | Preset+custom entry type CRUD, kategori sekmeleri, frequency/threshold modalı | P22-A | ✅ **TAMAMLANDI (2026-07-24)** |
-| P22-C | Crop Glossary üretimi | AI ile tek seferlik paragraf-tooltip üretimi | P22-A | ⬜ Planlandı |
+| P22-C | Crop Glossary üretimi | AI ile tek seferlik paragraf-tooltip üretimi | P22-A | ✅ **TAMAMLANDI (2026-07-24)** |
 | P22-D | Journal sayfası UI | İki sekme, list/calendar view, filtreler, overdue highlight | P22-B, P22-C | ⬜ Planlandı |
 | P22-E | Yeni crop type ekleme wizard'ı | `crop_config` + `crop_market_sources` + `journal_themes` + otomatik-draft-batch'i tek akışta birleştir | P22-A | ⬜ Planlandı |
 
@@ -431,8 +431,22 @@ Berkin kararı (7. cevap): Recipe App şimdilik tüm `buyer_type` segmentlerine 
 | P23-B | Recipe↔Crop eşleştirme + RFQ otomasyonu | Malzeme Hasat'ta yoksa otomatik `crop_requests` önerisi | P23-A | ⬜ Planlandı |
 | P23-C | Mobile compliance | App Store/Play Store in-app purchase, KVKK, OTP/biometric | P23-A | ⬜ Planlandı |
 
+### ✅ P22-C — Crop Glossary Üretimi — TAMAMLANDI *(2026-07-24, Claude Code + Supabase MCP)*
+
+**Kapsam:** `crop_journal_glossary` tablosuna (P22-A'da açılmıştı, boştu) her crop'un `crop_config.lifecycle_steps`'indeki HER adım için bir açıklama paragrafı yazıldı — toplam **70 crop × ilgili adımlar = 204 satır**, tam kapsama (eksik yok, SQL ile doğrulandı). Safran ve Safran Soğanı (platformun amiral gemisi) en detaylı/pratik içeriği aldı (somut sıcaklık/süre/derinlik eşikleri), diğer 68 crop kısa-öz ama yine de somut pratik bilgi (zamanlama, aralık, eşik) içeriyor — Berkin'in isteğiyle sadece safran değil tüm crop'lar detaylı/pratik tonda yazıldı.
+
+**İçerik yaklaşımı:** Terim = `crop_config.lifecycle_steps[].label` (örn. "Bakım", "Hasat", safran'a özel "Korm/Dikim" gibi). Böylece P22-D'de (Journal UI) bir bakım adımı gösterilirken `crop`+`step.label` ile doğrudan glossary'e join yapılabilir, ekstra bir eşleme katmanı gerekmiyor.
+
+**Doğrulama:**
+- Her satırın `term`'i, ilgili crop'un `lifecycle_steps` etiketleriyle SQL ile karşılaştırılıp tam eşleştiği doğrulandı (yazım hatası/typo riski elendi).
+- Coverage sorgusu: her crop_config satırının HER lifecycle_step'i için bir glossary satırı olduğu doğrulandı — **204/204, eksik yok.**
+- Anon RLS okuma testi geçti (guest kullanıcı da görebiliyor, P24'teki gibi guest-erişim senaryolarında sorun çıkmaz).
+- 4 migration'a bölünerek uygulandı (baharat/tıbbi bitki; meyve/sert kabuklu; tahıl/baklagil/sebze/yumru/yağlık/endüstri bitkisi; özel adım kombinasyonları), her biri sonrasında satır sayısı/kapsama kontrol edildi.
+
+**Not (içerik doğruluğu):** Sayısal eşikler (sıcaklık, süre, derinlik, mesafe) genel agronomik pratiklere dayanıyor — Türkiye'nin farklı bölgeleri (iklim/toprak) için küçük sapmalar olabilir. Kritik olmayan yerlerde "genellikle/yaklaşık" gibi yumuşatıcı ifadeler kullanıldı. Bu içerik bir AI tarafından (bölgesel doğrulama olmadan) üretildi — canlıya çıkmadan önce en azından öncelikli crop'larda (safran + platformda en çok işlem gören birkaç crop) bir insan gözden geçirmesi faydalı olur, ama P22-D'nin geliştirilmesini bloklamaz.
+
 ### Sıradaki adım
-P22-A + P22-B tamamlandı (2026-07-24, bkz. yukarı). P22-B'nin tarayıcı QA'sı (yukarıdaki test case) Berkin'i bekliyor. Sonra sırada **P22-C — Crop Glossary üretimi** (AI ile crop+terim başına tek seferlik açıklama metni, `crop_journal_glossary` tablosu zaten hazır).
+P22-A + P22-B + P22-C tamamlandı (2026-07-24). P22-B'nin tarayıcı QA'sı (yukarıdaki test case) Berkin'i bekliyor. Sırada **P22-D — Journal sayfası UI** (iki sekmeli — Rutin Bakım + Hasat Kayıtları, list/calendar view, overdue highlight) — hem P22-B'nin toggle/tercih verisini hem P22-C'nin glossary tooltip'lerini tüketecek, bu yüzden ikisi de bitmiş olmalıydı (şimdi bitti).
 
 ### Kural #104 (2026-07-24'te eklendi)
 Berkin'in kararı: bundan sonra Claude Code planları, arayüzde test edilmesi gereken adımlar için **kullanıcı-akışı dilinde adım adım bir test case** olarak sunulmalı (hangi sayfa açılacak, hangi butona tıklanacak, ne görülmesi bekleniyor) — trigger/kolon/event isimleri gibi DB-jargonuyla değil. Genel plan anlatımı da (yeni tablo/akış gibi kapsamlı işlerde) bir PM'in anlatacağı gibi olmalı: kullanıcı ne yapıyor, FE'de ne değişiyor, BE'de ne değişiyor — teknik isimler (trigger/policy adı gibi) sadece gerekince, ayrıntı seviyesinde geçmeli.
