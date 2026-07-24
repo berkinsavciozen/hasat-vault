@@ -62,7 +62,7 @@ tags:
 
 ## 🏗️ Lovable/Supabase Build Sırası
 
-> **P19 + P17 serisi (B/C/F/E/G) + P20 + P21 (A, B+C) + P24 tamamen bitti, hepsi canlı doğrulandı.** **P17-A ve P17-D şirket kuruluşuna bağlı, bloke.** BENCHMARK Gap listesindeki bağımsız yapılabilecek her şey bitti (bkz. Gap durum tablosu altta). **P22-A + P22-B + P22-C + P22-D tamamlandı (2026-07-24) — P22-D `main`'e merge edilmeyi ve tarayıcı QA'yı bekliyor (Lovable kredisi bittiği için Claude Code doğrudan yazdı, feature branch'te duruyor).** Detaylar dosyanın sonundaki "Onaylanan Yol Haritası — P21/P22/P23" bölümünde. **Not:** Bir sonraki Lovable turuna geçmeden önce workspace kredisi kontrol edilmeli (P24 sonunda bitmişti).
+> **P19 + P17 serisi (B/C/F/E/G) + P20 + P21 (A, B+C) + P24 tamamen bitti, hepsi canlı doğrulandı.** **P17-A ve P17-D şirket kuruluşuna bağlı, bloke.** BENCHMARK Gap listesindeki bağımsız yapılabilecek her şey bitti (bkz. Gap durum tablosu altta). **P22-A + P22-B + P22-C + P22-D tamamlandı ve `main`'e merge edildi (2026-07-24) — tek kalan iş tarayıcı QA (Lovable kredisi bittiği için P22-D Claude Code tarafından doğrudan yazıldı).** Detaylar dosyanın sonundaki "Onaylanan Yol Haritası — P21/P22/P23" bölümünde. **Not:** Bir sonraki Lovable turuna geçmeden önce workspace kredisi kontrol edilmeli (P24 sonunda bitmişti).
 
 ### BENCHMARK Gap Durum Tablosu (2026-07-21 itibarıyla)
 | # | Gap | Şiddet | Durum |
@@ -467,8 +467,10 @@ Berkin kararı (7. cevap): Recipe App şimdilik tüm `buyer_type` segmentlerine 
 - Dev server'da route gerçekten serve edildi (200), build/import hatası yok. **Tam tarayıcı/dokunma testi bu oturumun ağ kısıtlaması (Supabase'e 403) yüzünden yapılamadı** — aşağıdaki test case ile Berkin'in doğrulaması gerekiyor.
 - Ahmet'in hesabında Lovable'ın P22-B testinden kalma 2 aktif tercih (Sulama Yap, Gübre Ver) temizlenmeden bırakıldı — Berkin'in manuel testinde hazır veri olarak faydalı olabilir.
 
-### ⚠️ Berkin'i bekleyen 2 iş
-1. **PR'ı incele ve merge et:** https://github.com/berkinsavciozen/hasat-d2c-marketplace/pull/1 (P22-A/C/D + P22-B'nin merge'ü) — merge edilmeden P22-D canlı önizlemede görünmez.
+### ✅ PR merge edildi (2026-07-24)
+[PR #1](https://github.com/berkinsavciozen/hasat-d2c-marketplace/pull/1) Berkin tarafından `main`'e merge edildi (CI check yok, review yorumu yok, temiz geçti). P22-A/B/C/D artık `main`'de, bir sonraki Lovable senkronunda/canlı önizlemede görünecek.
+
+### ⚠️ Kalan iş
 2. **Tarayıcı QA** (P22-B'nin test case'ine ek olarak, merge sonrası):
    - `/farmer/journal`'a git, iki sekmeyi gör (Hasat Kayıtları varsayılan aktif).
    - Rutin Bakım'a tıkla — Ahmet'in hesabında "Sulama Yap" (Güney Bahçe parseli, "yaklaşıyor" durumunda olabilir) ve "Gübre Ver" görünmeli.
@@ -479,7 +481,7 @@ Berkin kararı (7. cevap): Recipe App şimdilik tüm `buyer_type` segmentlerine 
    - Hasat Kayıtları sekmesine dön, hiçbir şeyin bozulmadığını doğrula.
 
 ### Sıradaki adım
-P22-A + P22-B + P22-C + P22-D tamamlandı (2026-07-24). P22-D henüz `main`'e merge edilmedi — merge + tarayıcı QA Berkin'i bekliyor. Sonrasında P22 serisi tamamen kapanmış olacak (P22-E — yeni crop type ekleme wizard'ı — hariç, o ayrı bir iş).
+P22-A + P22-B + P22-C + P22-D tamamlandı ve `main`'e merge edildi (2026-07-24). Kalan tek şey: yukarıdaki tarayıcı QA test case'i (Berkin'in kendi testinde yapacağı). Sonrasında P22 serisi tamamen kapanmış olacak (P22-E — yeni crop type ekleme wizard'ı — hariç, o ayrı bir iş).
 
 ### Kural #104 (2026-07-24'te eklendi)
 Berkin'in kararı: bundan sonra Claude Code planları, arayüzde test edilmesi gereken adımlar için **kullanıcı-akışı dilinde adım adım bir test case** olarak sunulmalı (hangi sayfa açılacak, hangi butona tıklanacak, ne görülmesi bekleniyor) — trigger/kolon/event isimleri gibi DB-jargonuyla değil. Genel plan anlatımı da (yeni tablo/akış gibi kapsamlı işlerde) bir PM'in anlatacağı gibi olmalı: kullanıcı ne yapıyor, FE'de ne değişiyor, BE'de ne değişiyor — teknik isimler (trigger/policy adı gibi) sadece gerekince, ayrıntı seviyesinde geçmeli.
