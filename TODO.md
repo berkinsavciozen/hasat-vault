@@ -62,7 +62,7 @@ tags:
 
 ## 🏗️ Lovable/Supabase Build Sırası
 
-> **P19 + P17 serisi (B/C/F/E/G) + P20 + P21 (A, B+C) + P24 tamamen bitti, hepsi canlı doğrulandı.** **P17-A ve P17-D şirket kuruluşuna bağlı, bloke.** BENCHMARK Gap listesindeki bağımsız yapılabilecek her şey bitti (bkz. Gap durum tablosu altta). **P22-A + P22-B + P22-C tamamlandı (2026-07-24) — P22-B'nin tarayıcı QA'sı Berkin'i bekliyor (bkz. test case altta), sonra P22-D (Journal UI) sırada.** Detaylar dosyanın sonundaki "Onaylanan Yol Haritası — P21/P22/P23" bölümünde. **Not:** Bir sonraki Lovable turuna geçmeden önce workspace kredisi kontrol edilmeli (P24 sonunda bitmişti).
+> **P19 + P17 serisi (B/C/F/E/G) + P20 + P21 (A, B+C) + P24 tamamen bitti, hepsi canlı doğrulandı.** **P17-A ve P17-D şirket kuruluşuna bağlı, bloke.** BENCHMARK Gap listesindeki bağımsız yapılabilecek her şey bitti (bkz. Gap durum tablosu altta). **P22-A + P22-B + P22-C + P22-D tamamlandı (2026-07-24) — P22-D `main`'e merge edilmeyi ve tarayıcı QA'yı bekliyor (Lovable kredisi bittiği için Claude Code doğrudan yazdı, feature branch'te duruyor).** Detaylar dosyanın sonundaki "Onaylanan Yol Haritası — P21/P22/P23" bölümünde. **Not:** Bir sonraki Lovable turuna geçmeden önce workspace kredisi kontrol edilmeli (P24 sonunda bitmişti).
 
 ### BENCHMARK Gap Durum Tablosu (2026-07-21 itibarıyla)
 | # | Gap | Şiddet | Durum |
@@ -373,7 +373,7 @@ Berkin kararı (1. cevap): `harvest_entries`'ten (hasat olayı) ayrı bir tablo.
 | P22-A | Care Journal şeması | 4 yeni tablo: `journal_entry_types`, `journal_themes`, `crop_journal_glossary`, `care_journal_entries` (`listing_id` FK ile batch bağlantısı — P21 sayesinde artık hangi batch'e bağlanacağı net) | Yok | ✅ **TAMAMLANDI (2026-07-24)** |
 | P22-B | Customize Journal ekranı (Bevel referansı) | Preset+custom entry type CRUD, kategori sekmeleri, frequency/threshold modalı | P22-A | ✅ **TAMAMLANDI (2026-07-24)** |
 | P22-C | Crop Glossary üretimi | AI ile tek seferlik paragraf-tooltip üretimi | P22-A | ✅ **TAMAMLANDI (2026-07-24)** |
-| P22-D | Journal sayfası UI | İki sekme, list/calendar view, filtreler, overdue highlight | P22-B, P22-C | ⬜ Planlandı |
+| P22-D | Journal sayfası UI | İki sekme, list/calendar view, filtreler, overdue highlight | P22-B, P22-C | ✅ **TAMAMLANDI (2026-07-24, Claude Code doğrudan — Lovable kredisi bittiği için)** |
 | P22-E | Yeni crop type ekleme wizard'ı | `crop_config` + `crop_market_sources` + `journal_themes` + otomatik-draft-batch'i tek akışta birleştir | P22-A | ⬜ Planlandı |
 
 ### ✅ P22-A — Care Journal Şeması — TAMAMLANDI *(2026-07-24, Claude Code + Supabase MCP ile doğrudan)*
@@ -445,8 +445,41 @@ Berkin kararı (7. cevap): Recipe App şimdilik tüm `buyer_type` segmentlerine 
 
 **Not (içerik doğruluğu):** Sayısal eşikler (sıcaklık, süre, derinlik, mesafe) genel agronomik pratiklere dayanıyor — Türkiye'nin farklı bölgeleri (iklim/toprak) için küçük sapmalar olabilir. Kritik olmayan yerlerde "genellikle/yaklaşık" gibi yumuşatıcı ifadeler kullanıldı. Bu içerik bir AI tarafından (bölgesel doğrulama olmadan) üretildi — canlıya çıkmadan önce en azından öncelikli crop'larda (safran + platformda en çok işlem gören birkaç crop) bir insan gözden geçirmesi faydalı olur, ama P22-D'nin geliştirilmesini bloklamaz.
 
+### ✅ P22-D — Journal Sayfası UI — TAMAMLANDI *(2026-07-24, Claude Code doğrudan)*
+
+**Neden Lovable değil, Claude Code:** Lovable workspace kredisi bugün için tükendi (Berkin'in isteğiyle). P22-B'de kurulan "main branch Lovable'ın GitHub-sync'ine bağlı" kısıtı hâlâ geçerli — bu yüzden bu değişiklik **`main`'e değil, `claude/hasat-environment-inventory-ft0ehg` feature branch'ine** commit edildi (Lovable'ın P22-B commit'i `6810a4e0` önce merge edilip üzerine inşa edildi). **⚠️ Bu kod henüz canlı önizlemede (`hasat.lovable.app`) görünmüyor** — Berkin'in bunu `main`'e merge etmesi (PR ile veya Lovable'ın bir sonraki turunda GitHub'dan çekmesi) gerekiyor.
+
+**Yapılanlar:**
+- `/farmer/journal` iki sekmeli: **Hasat Kayıtları** (mevcut içerik, davranışı hiç değişmedi) + **Rutin Bakım** (yeni). Varsayılan aktif sekme Hasat Kayıtları (mevcut kullanıcı deneyimi bozulmasın diye).
+- Rutin Bakım sekmesi: her aktif tercih (`farmer_journal_prefs`) çiftçinin ilgili crop'a sahip **her parseli için ayrı bir satır** olarak genişletiliyor (Berkin'in "parsel bazında ayrı takip" kararı — şema değişikliği gerekmedi, sadece okuma mantığında `care_journal_entries`'i parsel bazında gruplayarak çözüldü). Her satır: son yapılma tarihi, sıradaki tarih, gecikmiş (kırmızı) / yaklaşıyor (sarı) / normal (yeşil) / hiç yapılmamış (nötr) durumu.
+- **"✓ Yaptım"** butonu gerçek bir `care_journal_entries` kaydı oluşturuyor (parsel birden fazla crop'luysa hangi crop olduğunu soran küçük bir sheet açılıyor).
+- Liste/Takvim görünüm geçişi (takvim = ay-gruplu geçmiş kayıt listesi, tam takvim-grid değil — spec'te bilinçli olarak sadeleştirildi).
+- "Sadece gecikmiş" filtre toggle'ı.
+- **"ℹ️ [Crop] Hakkında"** açılır panel(ler) — çiftçinin her crop'u için `crop_journal_glossary` içeriğini `crop_config.lifecycle_steps` sırasına göre gösterir (Berkin'in kararı: glossary tek tek eylem satırlarına değil, crop başına ayrı bir bilgi paneline bağlanacak).
+- "⚙️ Rutin Bakımı Özelleştir" linki eski yerinden (Hasat Kayıtları istatistik barı) Rutin Bakım sekmesine taşındı.
+- 5 yeni hook (`src/lib/hasat/queries.ts`): `useActiveJournalPrefsDetailed` (nested PostgREST select ile tema+eylem bilgisini tek sorguda getirir), `useCareEntriesLastPerformed`, `useLogCareEntry`, `useCareJournalEntries`, `useCropGlossary`.
+
+**Doğrulama:**
+- Gerçek `tsc --noEmit` hatasız geçti (Lovable'ın `bunx tsgo`'suna eşdeğer, bu ortamda private registry engeli olduğu için standart `tsc` kullanıldı).
+- `useActiveJournalPrefsDetailed`'ın kullandığı nested-select (`journal_entry_types(*, journal_themes(*))`) PostgREST embedding'inin SQL karşılığı (gerçek JOIN) Ahmet'in verisiyle test edildi, doğru sonuç döndü.
+- Gecikmiş/yaklaşan/hiç-yapılmamış durum hesaplaması gerçek bir `care_journal_entries` insert'iyle (5 gün önce yapılmış, 7 günlük sıklık → "yaklaşıyor" durumu) test edildi, doğru hesaplandı; test verisi silindi.
+- Crop bilgi paneli sıralaması safran'ın `lifecycle_steps`'i (Korm/Dikim → Bakım → Hasat → Kurutma) ile karşılaştırılıp doğru sırayı ürettiği doğrulandı.
+- Dev server'da route gerçekten serve edildi (200), build/import hatası yok. **Tam tarayıcı/dokunma testi bu oturumun ağ kısıtlaması (Supabase'e 403) yüzünden yapılamadı** — aşağıdaki test case ile Berkin'in doğrulaması gerekiyor.
+- Ahmet'in hesabında Lovable'ın P22-B testinden kalma 2 aktif tercih (Sulama Yap, Gübre Ver) temizlenmeden bırakıldı — Berkin'in manuel testinde hazır veri olarak faydalı olabilir.
+
+### ⚠️ Berkin'i bekleyen 2 iş
+1. **Bu branch'i `main`'e merge et** (PR ile veya tercih ettiğin yöntemle) — aksi halde P22-D canlı önizlemede görünmez.
+2. **Tarayıcı QA** (P22-B'nin test case'ine ek olarak, merge sonrası):
+   - `/farmer/journal`'a git, iki sekmeyi gör (Hasat Kayıtları varsayılan aktif).
+   - Rutin Bakım'a tıkla — Ahmet'in hesabında "Sulama Yap" (Güney Bahçe parseli, "yaklaşıyor" durumunda olabilir) ve "Gübre Ver" görünmeli.
+   - Bir satırda "✓ Yaptım"a bas, durum anında güncellenmeli.
+   - "Takvim" görünümüne geç, az önce eklediğin kayıt görünmeli.
+   - "Sadece gecikmiş" filtresini aç/kapat.
+   - Sayfanın altında crop bilgi panellerini aç (Safran, Kekik, Lavanta vb.) — glossary metinleri doğru sırada görünmeli.
+   - Hasat Kayıtları sekmesine dön, hiçbir şeyin bozulmadığını doğrula.
+
 ### Sıradaki adım
-P22-A + P22-B + P22-C tamamlandı (2026-07-24). P22-B'nin tarayıcı QA'sı (yukarıdaki test case) Berkin'i bekliyor. Sırada **P22-D — Journal sayfası UI** (iki sekmeli — Rutin Bakım + Hasat Kayıtları, list/calendar view, overdue highlight) — hem P22-B'nin toggle/tercih verisini hem P22-C'nin glossary tooltip'lerini tüketecek, bu yüzden ikisi de bitmiş olmalıydı (şimdi bitti).
+P22-A + P22-B + P22-C + P22-D tamamlandı (2026-07-24). P22-D henüz `main`'e merge edilmedi — merge + tarayıcı QA Berkin'i bekliyor. Sonrasında P22 serisi tamamen kapanmış olacak (P22-E — yeni crop type ekleme wizard'ı — hariç, o ayrı bir iş).
 
 ### Kural #104 (2026-07-24'te eklendi)
 Berkin'in kararı: bundan sonra Claude Code planları, arayüzde test edilmesi gereken adımlar için **kullanıcı-akışı dilinde adım adım bir test case** olarak sunulmalı (hangi sayfa açılacak, hangi butona tıklanacak, ne görülmesi bekleniyor) — trigger/kolon/event isimleri gibi DB-jargonuyla değil. Genel plan anlatımı da (yeni tablo/akış gibi kapsamlı işlerde) bir PM'in anlatacağı gibi olmalı: kullanıcı ne yapıyor, FE'de ne değişiyor, BE'de ne değişiyor — teknik isimler (trigger/policy adı gibi) sadece gerekince, ayrıntı seviyesinde geçmeli.
