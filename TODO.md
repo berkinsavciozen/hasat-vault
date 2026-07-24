@@ -468,7 +468,7 @@ Berkin kararı (7. cevap): Recipe App şimdilik tüm `buyer_type` segmentlerine 
 - Ahmet'in hesabında Lovable'ın P22-B testinden kalma 2 aktif tercih (Sulama Yap, Gübre Ver) temizlenmeden bırakıldı — Berkin'in manuel testinde hazır veri olarak faydalı olabilir.
 
 ### ⚠️ Berkin'i bekleyen 2 iş
-1. **Bu branch'i `main`'e merge et** (PR ile veya tercih ettiğin yöntemle) — aksi halde P22-D canlı önizlemede görünmez.
+1. **PR'ı incele ve merge et:** https://github.com/berkinsavciozen/hasat-d2c-marketplace/pull/1 (P22-A/C/D + P22-B'nin merge'ü) — merge edilmeden P22-D canlı önizlemede görünmez.
 2. **Tarayıcı QA** (P22-B'nin test case'ine ek olarak, merge sonrası):
    - `/farmer/journal`'a git, iki sekmeyi gör (Hasat Kayıtları varsayılan aktif).
    - Rutin Bakım'a tıkla — Ahmet'in hesabında "Sulama Yap" (Güney Bahçe parseli, "yaklaşıyor" durumunda olabilir) ve "Gübre Ver" görünmeli.
