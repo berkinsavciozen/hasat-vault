@@ -27,6 +27,7 @@ tags:
 - [x] **P20 — SMS/Bildirim genişletmesi + lojistik bildirimleri TAMAMLANDI, gerçek Twilio testiyle uçtan uca doğrulandı (2026-07-21)**
 - [x] **P21-A — Kontrollü Batch Mimarisi TAMAMLANDI, gerçek veriyle uçtan uca doğrulandı (2026-07-23)**
 - [x] **P21-B+C — Buyer Çoklu-Batch Keşif/Ürün Detay/Tek Teklif Mimarisi TAMAMLANDI, gerçek veriyle uçtan uca doğrulandı (2026-07-23)**
+- [x] **P24 — Abonelik Sistemi Denetimi, Regresyon Düzeltmesi ve Discoverability TAMAMLANDI (bir madde manuel QA bekliyor) (2026-07-23)**
 
 ### P16 — TÜM SERİ TAMAMLANDI ✅
 (Detaylar önceki sürümlerde)
@@ -44,12 +45,13 @@ tags:
 ### Düşük öncelikli cila
 (Değişmedi — bkz. önceki sürüm)
 - [ ] `useSetDefaultAddress` diğer adresleri `false`'a çekmiyor — düşük öncelik.
+- [ ] **[Yeni]** `buyer.producer.$id`'nin guest-erişiminde `BuyerShell`'in hatasız render olduğu manuel QA ile doğrulanmalı (Lovable kredisi bittiği için otomatik doğrulanamadı — bkz. P24).
 
 ---
 
 ## 🏗️ Lovable/Supabase Build Sırası
 
-> **P19 + P17 serisi (B/C/F/E/G) + P20 + P21 (A, B+C) tamamen bitti, hepsi canlı doğrulandı.** **P17-A ve P17-D şirket kuruluşuna bağlı, bloke.** BENCHMARK Gap listesindeki bağımsız yapılabilecek her şey bitti (bkz. Gap durum tablosu altta). **Sıradaki büyük iş bloğu: P22 (Care Journal / Rutin Bakım, saffron sezonuna kadar esnek) — detayları dosyanın sonundaki "Onaylanan Yol Haritası — P21/P22/P23" bölümünde, P21 artık TAMAMLANDI olarak işaretli.**
+> **P19 + P17 serisi (B/C/F/E/G) + P20 + P21 (A, B+C) + P24 tamamen bitti, hepsi canlı doğrulandı (P24'te 1 madde manuel QA bekliyor).** **P17-A ve P17-D şirket kuruluşuna bağlı, bloke.** BENCHMARK Gap listesindeki bağımsız yapılabilecek her şey bitti (bkz. Gap durum tablosu altta). **Sıradaki büyük iş bloğu: P22 (Care Journal / Rutin Bakım, saffron sezonuna kadar esnek) — detayları dosyanın sonundaki "Onaylanan Yol Haritası — P21/P22/P23" bölümünde.** **Not:** Bir sonraki Lovable turuna geçmeden önce workspace kredisi kontrol edilmeli (P24 sonunda bitmişti).
 
 ### BENCHMARK Gap Durum Tablosu (2026-07-21 itibarıyla)
 | # | Gap | Şiddet | Durum |
@@ -63,7 +65,7 @@ tags:
 | 7 | Hal fiyatı referans bandı | P1 | ✅ Kapandı (P19, sadece İzmir pilotu) |
 | 8 | Lojistik adımı (taşıma+takip) | P1/P0 | ✅ **Kapandı (P17-B alanları + P20 bildirimi)** |
 | 9 | Parselden tabağa QR görünümü | P2 | ⬜ Yapılmadı — landing v2 ile senkron |
-| 10 | SMS/WhatsApp bildirim genişletmesi | P2 | ✅ **Kapandı (P20)** |
+| 10 | SMS/WhatsApp bildirim genişletmesi | P2 | ✅ **Kapandı (P20, P24'te regresyonu düzeltildi)** |
 | 11 | Onaylı alıcıya vade/cari | P1→P2 | ⬜ Yapılmadı |
 | 12 | Hasat öncesi finansman | P2 | ⬜ Yapılmadı — partner gerektirir, uzun vade |
 
@@ -106,7 +108,7 @@ Yalnızca P17-A ve P17-D kaldı, ikisi de şirket kuruluşuna bağlı.
 
 ---
 
-## 🔵 P20 — SMS/Bildirim Genişletmesi + Lojistik Bildirimi — **TAMAMEN TAMAMLANDI ✅** *(2026-07-21)*
+## 🔵 P20 — SMS/Bildirim Genişletmesi + Lojistik Bildirimi — **TAMAMEN TAMAMLANDI ✅** *(2026-07-21, P24'te regresyonu düzeltildi)*
 
 **Kapsam:** BENCHMARK Gap #8 (lojistik adımı) ve #10 (SMS/WhatsApp bildirim genişletmesi)'nin bağımsız yapılabilecek kısmını kapatmak. Araştırma + backend Claude tarafından doğrudan Supabase MCP ile, frontend Lovable ile yapıldı.
 
@@ -115,6 +117,8 @@ Yalnızca P17-A ve P17-D kaldı, ikisi de şirket kuruluşuna bağlı.
 `public.dispatch_sms()` SQL fonksiyonu `offer_accepted` ve `payment_confirmed` event'lerini doğru tanıyor, `notif_prefs`'teki ilgili tercihi kontrol ediyor, tercih açıksa `send-sms` edge function'ını çağırıyordu — **ama `send-sms`'in kendi `COL` map'i (TypeScript) bu iki event'i tanımıyordu**, `skipped: no-pref-mapping` dönüp sessizce SMS'i atlıyordu. Sonuç: kullanıcı arayüzünde "Teklif Kabul Edildi" / "Ödeme Onaylandı" SMS toggle'ları vardı, kullanıcı açabiliyordu, ama **hiçbir zaman çalışmıyordu**. `dispatch_sms` (SQL) ve `send-sms` (edge function, TS) içinde event→kolon eşlemesi iki farklı yerde ayrı ayrı tutulduğu için birbirinden sapmıştı — klasik "iki kaynak, tek doğruluk" hatası.
 
 **Düzeltme:** `send-sms`'in `COL` map'i genişletildi, artık `dispatch_sms`'in SQL CASE'iyle birebir senkron (10 event: `new_offer`, `price_alert`, `harvest_time`, `offer_accepted`, `payment_confirmed`, `order_shipped`, `order_delivered`, `order_cancelled`, `dispute_opened`, `crop_request_match`). Kod içine iki mapping'in senkron tutulması gerektiğine dair yorum eklendi.
+
+**⚠️ [2026-07-23 güncelleme] Bu düzeltme P24 öncesinde bir yerde kaybolmuş/geri alınmıştı (COL map 3 event'e düşmüştü) — P24'te tekrar bulunup 13 event'e (10+3 yeni abonelik event'i) restore edildi. Detaylar P24 bölümünde.**
 
 ### Yapılanlar
 
@@ -197,6 +201,50 @@ Bu turda Lovable'a gönderilen 2 mesaj API hatası (`"Error occurred during tool
 
 ---
 
+## 🟡 P24 — Abonelik Sistemi Denetimi, Regresyon Düzeltmesi ve Discoverability — **TAMAMEN TAMAMLANDI ✅ (bir madde manuel QA bekliyor)** *(2026-07-23)*
+
+**Kapsam:** Berkin'in Lovable ile ayrı ilerlettiği "Abonelikler" (`harvest_subscriptions`) özelliğinin denetimi + bulunan gerçek eksiklerin tamamlanması + kullanıcı testiyle bulunan 2 discoverability sorununun çözümü.
+
+### 🔴 Bulunan regresyon (P20'nin kaybolmuş hali)
+
+`supabase/functions/send-sms/index.ts` COL map'i **10 event'ten 3'e düşmüştü** (`new_offer`, `price_alert`, `harvest_time` dışındaki 7 event — P20'de eklenenler — kayboldu; muhtemelen ayrı bir düzenleme turunda dosya üzerine yazılmış). SQL tarafındaki `dispatch_sms` fonksiyonu bu event'leri (+ 3 yeni abonelik event'i) hâlâ tanıyordu, ama edge function tanımadığı için tüm bu SMS'ler sessizce atlanıyordu.
+
+**Düzeltme:** COL map 13 event'e (10 eski + `subscription_new`, `subscription_accepted`, `subscription_rejected`) restore edildi, P20'deki "SQL ile senkron tut" yorumu tekrar eklendi. **Gerçek Twilio testiyle doğrulandı** — `subscription_new` (Ahmet'e) ve `subscription_accepted` (Zeynep'e) gerçekten gönderildi, `net._http_response`'ta id=42/43 olarak görüldü, test verisi temizlendi.
+
+### Diğer gerçek eksikler ve düzeltmeleri
+
+1. **Bildirim tercihleri UI'sında toggle yoktu** — `farmer.settings.notifs.tsx`'e "Yeni Abonelik Talebi", `buyer.settings.notifs.tsx`'e "Abonelik Kabul Edildi"/"Abonelik Reddedildi" toggle'ları eklendi. `NotifPrefsRow`/`NOTIF_PREF_DEFAULTS` güncellendi.
+2. **MCP `create-subscription.ts`** `crop`/`note` parametrelerini almıyordu (bu yüzden MCP üzerinden açılan abonelikler `crop=NULL` kalıyordu) ve `status:"active"` ile insert ediyordu (farmer onayını atlayarak). Düzeltildi: `crop`/`note` artık alınıyor, `status` DB default'una (`pending`) bırakıldı.
+3. **Otomatik hasat-tarihi hatırlatması yoktu** (Berkin kararı: otomatikleştir) — yeni SQL fonksiyonu `send_subscription_harvest_reminders()` + günlük pg_cron job (`subscription-harvest-reminders-daily`, jobid=2, her gün 07:00 UTC) eklendi. Aktif abonelikte `next_harvest_date` bugünden **3 gün sonraysa** hem buyer hem farmer'a in-app bildirim + SMS gönderiyor (mevcut, daha önce hiç kullanılmayan `harvest_time` event'i yeniden kullanıldı). **Gerçek Twilio testiyle doğrulandı** (Ahmet'e gönderildi, `harvest_time_sms` tercihi geçici açılıp test sonrası eski haline döndürüldü).
+4. **Fiyat kilidi (`price_lock`) enforcement yok** — Berkin kararı: şimdilik böyle kalsın, sadece UI önerisi (gerçek para henüz akmıyor, P17-A escrow bloke olduğu için risk düşük). **Bilinçli olarak değiştirilmedi.**
+
+### Discoverability — 2 gerçek navigasyon deliği bulundu ve düzeltildi
+
+1. **Abonelik CTA'sının olduğu sayfaya (`/buyer/producer/$id`) hiçbir yerden link yoktu.** Keşfet, ürün detay, sipariş sayfaları üretici adını hep storefront'a (`/s/$slug`) linkliyordu, `/buyer/producer/$id`'e değil — kullanıcı oraya URL bilmeden ulaşamıyordu. **Düzeltme:** Storefront (`/s/$slug`) sayfasına, giriş yapmış buyer içinse (kendi vitrinini görüntülemiyorsa) "📅 Hasat Aboneliği Oluştur" CTA'sı eklendi.
+2. **`/buyer/producer/$id` giriş yapmamış kullanıcıya hiç render olmuyordu** — parent layout (`buyer.tsx`) `beforeLoad`'ı tüm `/buyer/*` yollarını sert şekilde `/`'e redirect ediyordu. Berkin'in isteğiyle: bu route için guard'a istisna eklendi (diğer `/buyer/*` yolları etkilenmedi — diff ile doğrulandı), sayfanın kendisine `useIsLoggedIn` eklendi. Artık:
+   - **Giriş yapmışsa:** her ürün kartında "Teklif Ver →" (zaten vardı) + "Hasat Aboneliği Oluştur →" aynen çalışıyor.
+   - **Giriş yapmamışsa:** alttaki ana buton **"Abonelik ve Teklif için Hasat'a Üye Ol →"**'a dönüşüyor, her ürün kartındaki buton da **"Üye Ol & Teklif Ver →"**'a dönüşüp `/login?role=buyer`'a yönlendiriyor.
+
+### ⚠️ Tamamlanmamış doğrulama (Lovable kredisi bitti)
+
+Son değişikliğin (`buyer.producer.$id` guest-erişimi) routing-guard seviyesi diff ile doğrulandı (sadece `/buyer/producer/` istisnası, diğer `/buyer/*` korunuyor — güvenli). **Ama `BuyerShell` component'inin (nav bar/layout) giriş yapmamış bir ziyaretçide gerçekten hatasız render olduğu son adımda doğrulanamadı** — Lovable workspace kredisi tükendi. **Bu madde manuel QA gerektiriyor:** çıkış yapılmış bir tarayıcı sekmesinde `/buyer/producer/$id` (gerçek bir farmer id ile) açılıp sayfanın hatasız yüklendiği, alttaki butonun "Üye Ol" metniyle göründüğü ve tıklanınca login'e gittiği kontrol edilmeli.
+
+### Doğrulama özeti
+| Kontrol | Sonuç |
+|---|---|
+| `send-sms` COL map 13 event | ✅ `grep` ile doğrulandı |
+| `subscription_new` SMS (gerçek Twilio) | ✅ Ahmet'e gönderildi, `net._http_response` id=42 |
+| `subscription_accepted` SMS (gerçek Twilio) | ✅ Zeynep'e gönderildi, `net._http_response` id=43 |
+| `send_subscription_harvest_reminders()` + pg_cron | ✅ Fonksiyon + jobid=2 kuruldu, manuel tetiklendi |
+| Hatırlatma SMS (gerçek Twilio) | ✅ Ahmet'e gönderildi, `net._http_response` id=44, tercih+test verisi eski haline döndürüldü |
+| MCP `create-subscription` crop/note/status fix | ✅ Diff ile doğrulandı |
+| Storefront "Abone Ol" CTA | ✅ Diff ile doğrulandı |
+| `buyer.producer.$id` guest-erişim guard istisnası | ✅ Diff ile doğrulandı (scope: sadece bu path) |
+| `buyer.producer.$id` guest CTA metinleri | ✅ Diff ile doğrulandı |
+| `BuyerShell`'in guest'te hatasız render olduğu | ⚠️ **Doğrulanamadı — Lovable kredisi bitti, manuel QA gerekiyor** |
+
+---
+
 ## 🟡 AĞUSTOS 2026 — Soft Launch
 (Değişmedi)
 
@@ -207,19 +255,16 @@ Bu turda Lovable'a gönderilen 2 mesaj API hatası (`"Error occurred during tool
 
 ## 📋 Lovable/Supabase Prompt Yazma Kuralları
 
-(1-95 önceki sürümde — devam:)
-89. **[Önceki turda eklendi]** Aynı iş mantığının iki farklı yerde (SQL fonksiyonu + TypeScript edge function) ayrı ayrı tanımlanması, biri güncellenip diğeri güncellenmediğinde sessizce senkronsuz kalır.
-90. **[Önceki turda eklendi]** Bir background job/agent tool çağrısı belirsiz bir hata dönerse, işin gerçekten başarısız olduğu varsayılmamalı — bağımsız kontrol edilmeli.
-91. **[Önceki turda eklendi]** Gerçek dış servise (Twilio) para/mesaj harcayan bir entegrasyon test edilirken, gerçek bir SMS gönderileceği not düşülmeli, test öncesi/sonrası durum eski haline döndürülmeli.
-92. **[Önceki turda eklendi]** "Yeni bir kavram için tablo lazım" varsayımına geçmeden önce mevcut şema sorgulanmalı.
-93. **[Önceki turda eklendi, bu turda kesinleşti]** Bir kolonun DB default'u ile frontend'in o kolonu insert sırasında explicit set edip etmediği farklı şeyler — kontrol edildi, form her zaman explicit gönderiyordu, gerçek çözüm form/UX seviyesinde oldu (P21-A).
-94. **[Önceki turda eklendi]** Bir "boşluk" iddiası kod okunmadan üç farklı yanlış çıkabilir (yok → var ama eksik → aslında var ama dağınık) — plan yapmadan önce birden fazla kod-okuma turu yatırımı üçüncü bir yanlış varsayımı da eleyebilir.
-95. **[Önceki turda eklendi]** Aynı hesaplama mantığının SQL trigger + frontend hook'ta paralel yazılması, birim normalizasyonu gibi ortak bir hatayı iki yerde aynı anda taşıyabilir.
-96. **[Bu turda eklendi] `plan_mode=true` isteği Lovable tarafında güvenilir bir şekilde uygulanmıyor — agent araştırma yapması istendiğinde bile doğrudan koda geçip commit atabiliyor.** Bu, P21 boyunca en az 4 kez tekrarladı (her seferinde farklı bir konuda: batch açma akışı, buyer çoklu-batch akışı, birim dönüşümü, teslimat/ödeme parity). Ders: `plan_mode=true` sadece bir *tercih* sinyali, bir *garanti* değil — her mesajdan sonra `get_diff`/DB sorgusuyla gerçekten ne değiştiğini bağımsız doğrulamak zorunlu, "sadece plan istemiştim" diye implementasyonu görmezden gelinmemeli.
-97. **[Bu turda eklendi] Postgres'te her tip için her aggregate fonksiyon yok — `MIN()`/`MAX()` `uuid` tipinde tanımlı değil.** Bir trigger/fonksiyon `SELECT min(uuid_kolonu)` gibi bir ifade içeriyorsa bu ancak ilgili satır gerçekten insert edilene kadar fark edilmez (migration'ın kendisi hata vermez, sadece trigger tetiklendiğinde patlar) — yeni yazılan her trigger, migration'dan hemen sonra gerçek bir insert ile tetiklenip test edilmeli, "migration başarıyla uygulandı" ile "trigger doğru çalışıyor" aynı şey değil.
-98. **[Bu turda eklendi] Bir "tek kaynak, tek doğruluk" öğesi (örn. crop adı) sistemde birden fazla temsille (Title Case görüntü ismi vs. lowercase slug) var olduğunda, hangisinin *kanonik* (DB'ye yazılan) olduğu açıkça seçilmeli — görüntüleme ismi asla yazma değeri olarak kullanılmamalı.** Kanonik formu seçerken sistemin en çok bağımlı olduğu tarafı (burada: `crop_config.crop` slug'ı, çünkü P19'un tüm fiyat/borsa zinciri ona bağlıydı) esas almak, görsel olarak "daha okunaklı" görünen tarafı (Title Case) seçmekten daha güvenli — göz önünde olan her zaman daha az bağımlılığı olan taraf değildir.
-99. **[Bu turda eklendi] Bir alanın (burada: birim, g/kg/L/adet) "aynı crop içinde tek bir aile" olduğu varsayımı doğruysa, farklı birimler arasında toplama yaparken göz ardı etmek (sadece "N parti" göstermek) yerine gerçek dönüşüm yapmak tercih edilmeli — ama bu ancak crop_config'te zaten var olan bir kanonik-birim referansı (`default_unit`) varsa güvenli otomatikleştirilir; yoksa önce o referansın var olup olmadığı kontrol edilmeli.**
-100. **[Bu turda eklendi] Yeni bir akış (burada: çoklu-batch teklif sayfası) inşa edilirken, o akışın "kardeşi" olan mevcut bir akış (tek-batch teklif sayfası) sadece UI-seviyesinde değil *veri akışı* seviyesinde de (nereye ne zaman insert edildiği, hangi ara adımdan geçtiği) incelenmeli.** Yüzeysel karşılaştırma ("ikisi de miktar+fiyat topluyor") gerçek bir mimari farkı (biri anında insert ediyor, diğeri pending-store+payment-adımı üzerinden gidiyor) gözden kaçırabilir — bu fark, kullanıcı gerçek ekranı gördüğünde (Berkin'in ekran görüntüsü karşılaştırması gibi) ortaya çıktı, kod okumasıyla önceden yakalanabilirdi.
+(1-100 önceki sürümde — devam:)
+89-95. (Önceki turlarda eklendi — bkz. önceki sürüm.)
+96. **[Önceki turda eklendi]** `plan_mode=true` isteği Lovable tarafında güvenilir bir şekilde uygulanmıyor — her turda `get_diff`/DB ile bağımsız doğrulama zorunlu.
+97. **[Önceki turda eklendi]** Postgres'te `MIN()`/`MAX()` `uuid` tipinde tanımlı değil — yeni trigger'lar gerçek insert ile test edilmeli.
+98. **[Önceki turda eklendi]** Bir "tek kaynak, tek doğruluk" öğesi (crop adı gibi) birden fazla temsille varsa, kanonik (yazma) formu sistemin en çok bağımlı olduğu tarafa göre seçilmeli.
+99. **[Önceki turda eklendi]** Birim gibi bir alanın "aynı crop içinde tek aile" varsayımı doğruysa, toplama yaparken göz ardı etmek yerine `crop_config`'teki referansla gerçek dönüşüm yapılmalı.
+100. **[Önceki turda eklendi]** Yeni bir akış inşa edilirken, kardeşi olan mevcut akış UI-seviyesinde değil veri-akışı seviyesinde de incelenmeli.
+101. **[Bu turda eklendi] Bir önceki turda "gerçek Twilio testiyle doğrulanmış" bir düzeltme, sonraki bir turda (aynı dosyaya dokunan farklı bir çalışma sırasında) sessizce geri alınabilir/kaybolabilir — "bir kere doğrulandı" kalıcı bir garanti değil.** P20'de `send-sms` COL map'i 10 event'e çıkarılıp gerçek SMS'le doğrulanmıştı; P24'te aynı dosya 3 event'e dönmüş halde bulundu (muhtemelen Berkin'in ayrı bir Lovable oturumunda dosyanın üzerine yazılması). Ders: kritik bir entegrasyon noktasına (özellikle bir agent'ın serbestçe düzenleyebildiği paylaşılan bir dosyaya) tekrar dönüldüğünde, "zaten doğrulanmıştı" diye atlanmamalı, hızlı bir `grep`/durum kontrolüyle hâlâ doğru olduğu teyit edilmeli.
+102. **[Bu turda eklendi] Bir sayfaya "CTA ekle" demek yeterli değildir — o CTA'nın sahibi olduğu sayfaya kullanıcının gerçekten *ulaşabildiği* doğrulanmalı.** Abonelik CTA'sı zaten `/buyer/producer/$id`'de vardı ama sayfaya giden hiçbir link yoktu (ölü bir uç), ayrıca sayfa giriş yapmamış kullanıcıya üst layout guard'ı tarafından hiç render ettirilmiyordu. Bir özelliğin "var" olması, kullanıcının ona *ulaşabilmesiyle* aynı şey değil — yeni bir CTA/özellik eklerken navigasyon zincirinin baştan sona (nereden geliniyor, hangi guard'lardan geçiliyor) izlenmesi gerekir.
+103. **[Bu turda eklendi] Bir agent platformunun (Lovable) kredisi/kotası tükenebilir — bu durumda son yapılan değişikliğin "kod seviyesinde doğru" (diff temiz, tsgo geçti) olması, "çalışma zamanında hatasız" olduğu anlamına gelmez.** Kredi bittiğinde bir sonraki doğrulama adımı (bu turda: guest kullanıcıda component render testi) yapılamadan bırakılabilir — bu açıkça "doğrulanamadı, manuel QA gerekiyor" olarak işaretlenmeli, sessizce "tamamlandı" sayılmamalı.
 
 ---
 
@@ -230,12 +275,15 @@ Bu turda Lovable'a gönderilen 2 mesaj API hatası (`"Error occurred during tool
 | **P20 tamamlandı (2026-07-21)** | SMS bildirim genişletmesi — gerçek bir kırık bug bulunup düzeltildi, iki senaryo gerçek Twilio SMS'i ile doğrulandı. |
 | **P21/P22/P23 serisi onaylandı (2026-07-23)** | Berkin'in el notlarından doğan Batch/Care-Journal/Recipe-App genişlemesi, derinlemesine denetimden geçirildi ve 7 kararla kesinleşti. |
 | **P21 gerçek koda göre revize edildi (2026-07-23)** | Draft migration'ı yerine form/UX çözümü; Keşfet grouping "yeni kapasite" değil "düzenleme" olarak revize edildi. |
-| **P21-A TAMAMLANDI (2026-07-23)** | Kontrollü batch açma akışı canlı doğrulandı; `min(uuid)` bug'ı ve crop case-mismatch (Safran/safran karışıklığı, P19'un lowercase-slug mimarisiyle çakışıyordu) bulunup düzeltildi, backfill yapıldı. |
-| **P21-B+C TAMAMLANDI (2026-07-23)** | `offer_items` şeması, çoklu-batch Keşfet/ürün sayfası, satır-bazlı stok kontrolü, birim-uyuşmazlık trigger'ı, traceability RLS — hepsi gerçek veriyle (yeterli/yetersiz stok, birim uyuşmazlığı senaryoları) doğrulandı. Ek olarak Berkin'in canlı ekran karşılaştırmasıyla bulunan 3 eksik (teslimat/tarih alanları + ödeme-parity, MCP create-offer'ın offer_items'sız kalması, farmer tarafı parti dağılımı eksikliği) da aynı gün tamamlandı. |
+| **P21-A TAMAMLANDI (2026-07-23)** | Kontrollü batch açma akışı canlı doğrulandı; `min(uuid)` bug'ı ve crop case-mismatch bulunup düzeltildi, backfill yapıldı. |
+| **P21-B+C TAMAMLANDI (2026-07-23)** | `offer_items` şeması, çoklu-batch Keşfet/ürün sayfası, satır-bazlı stok kontrolü, birim-uyuşmazlık trigger'ı, traceability RLS — hepsi gerçek veriyle doğrulandı. |
+| **P24 — Abonelik denetimi tamamlandı (2026-07-23)** | `send-sms` regresyonu (P20'nin kaybolmuş hali) bulunup düzeltildi; otomatik hasat-hatırlatma cron job'u eklendi (Berkin kararı: otomatikleştir); fiyat kilidi bilinçli olarak öneri seviyesinde bırakıldı (Berkin kararı); 2 discoverability deliği (üretici profiline erişim yolu + guest-erişim) düzeltildi. **1 madde (guest'te BuyerShell render'ı) Lovable kredisi bittiği için manuel QA bekliyor.** |
 
 ---
 
 ## 📋 Son Test Sonuçları
+
+### P24 Tam Doğrulama (2026-07-23) — bkz. yukarıdaki "🟡 P24" bölümündeki doğrulama tablosu.
 
 ### P21-A + P21-B+C Tam Doğrulama (2026-07-23) ✅
 | Kontrol | Sonuç |
@@ -255,7 +303,7 @@ Bu turda Lovable'a gönderilen 2 mesaj API hatası (`"Error occurred during tool
 | Test verisi temizliği | ✅ Tüm test offer/offer_items/harvest_entries/listing kayıtları silindi |
 
 ### P20 Tam Doğrulama (2026-07-21) ✅
-(Değişmedi — bkz. önceki sürüm)
+(Değişmedi — bkz. önceki sürüm — **not: COL map kısmı P24'te tekrar bozulmuş halde bulundu, yeniden düzeltildi, bkz. P24**)
 
 ### P17-G Tam Doğrulama (2026-07-21) ✅
 (Değişmedi — bkz. önceki sürüm)
@@ -300,7 +348,7 @@ New PLAN FROM BERKİN NOTES
 | P21-D | Stok kontrolünü `offer_items`'a uyarlama + birim tutarlılığı | ✅ TAMAMLANDI |
 | P21-E | Traceability RLS garantisi | ✅ TAMAMLANDI |
 | P21-G | Vitrin/Keşfet stok gösterim tutarlılığı (birim dönüşümü dahil) | ✅ TAMAMLANDI |
-| P21-H *(yeni, bu turda ortaya çıktı)* | Çoklu-batch akışının teslimat/tarih/ödeme-parity + MCP create-offer + farmer breakdown eksikleri | ✅ TAMAMLANDI |
+| P21-H | Çoklu-batch akışının teslimat/tarih/ödeme-parity + MCP create-offer + farmer breakdown eksikleri | ✅ TAMAMLANDI |
 
 ### P22 — Care Journal (Rutin Bakım) (P1, saffron sezonuna kadar esnek) — ⬜ Planlandı, henüz başlanmadı
 
@@ -331,4 +379,4 @@ Berkin kararı (7. cevap): Recipe App şimdilik tüm `buyer_type` segmentlerine 
 | P23-C | Mobile compliance | App Store/Play Store in-app purchase, KVKK, OTP/biometric | P23-A | ⬜ Planlandı |
 
 ### Sıradaki adım
-P22-A için Lovable'a plan/implementasyon isteği gönderilecek: Care Journal şeması (4 tablo) — Berkin onayladığında başlatılacak. **Not:** `plan_mode=true` göndersek de Lovable'ın doğrudan implementasyona geçebileceği unutulmamalı (ders #96) — her turda `get_diff`/DB ile bağımsız doğrulama yapılacak.
+P22-A için Lovable'a plan/implementasyon isteği gönderilecek: Care Journal şeması (4 tablo) — Berkin onayladığında başlatılacak. **Not:** `plan_mode=true` göndersek de Lovable'ın doğrudan implementasyona geçebileceği unutulmamalı (ders #96) — her turda `get_diff`/DB ile bağımsız doğrulama yapılacak. **Ayrıca:** `/buyer/producer/$id` guest-erişiminin manuel QA'sı (P24) ve Lovable workspace kredisinin yeterli olduğu kontrol edilmeli.
