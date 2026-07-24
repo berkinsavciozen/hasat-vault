@@ -28,7 +28,8 @@ tags:
 - [x] **P21-A — Kontrollü Batch Mimarisi TAMAMLANDI, gerçek veriyle uçtan uca doğrulandı (2026-07-23)**
 - [x] **P21-B+C — Buyer Çoklu-Batch Keşif/Ürün Detay/Tek Teklif Mimarisi TAMAMLANDI, gerçek veriyle uçtan uca doğrulandı (2026-07-23)**
 - [x] **P24 — Abonelik Sistemi Denetimi, Regresyon Düzeltmesi ve Discoverability TAMAMEN TAMAMLANDI (2026-07-23, son madde 2026-07-24'te manuel QA ile kapandı)**
-- [x] **P22-A — Care Journal Şeması (4 tablo) TAMAMLANDI, gerçek insert/RLS testiyle doğrulandı (2026-07-24)**
+- [x] **P22-A — Care Journal Şeması (4+1 tablo) TAMAMLANDI, gerçek insert/RLS testiyle doğrulandı (2026-07-24)**
+- [x] **P22-B — Rutin Bakımı Özelleştir Ekranı TAMAMLANDI (Lovable), diff+typecheck+SQL-eşdeğeri testle doğrulandı, tarayıcı QA bekliyor (2026-07-24)**
 
 ### P16 — TÜM SERİ TAMAMLANDI ✅
 (Detaylar önceki sürümlerde)
@@ -46,13 +47,22 @@ tags:
 ### Düşük öncelikli cila
 (Değişmedi — bkz. önceki sürüm)
 - [ ] `useSetDefaultAddress` diğer adresleri `false`'a çekmiyor — düşük öncelik.
+- [ ] **[Yeni]** P22-B (Rutin Bakımı Özelleştir) tarayıcı QA'sı — test case:
+  1. Çiftçi hesabıyla (`05001234567`, OTP `123456`) giriş yap, `/farmer/journal`'a git.
+  2. Üst bardaki "⚙️ Rutin Bakımı Özelleştir" linkine tıkla.
+  3. Bir kategori sekmesi seç (örn. Sulama), "Sulama Yap" satırındaki anahtarı aç.
+  4. Açılan pencerede bir sıklık seç (örn. "3 günde bir"), isteğe bağlı bir not yaz, Kaydet'e bas.
+  5. Sayfayı yenile — anahtarın hâlâ açık olduğunu ve seçtiğin sıklığın göründüğünü doğrula.
+  6. Aynı anahtarı kapat — kapandığını doğrula (pencere açılmamalı).
+  7. "+ Kendi Bakım Eylemini Ekle"ye tıkla, bir isim yaz (örn. "Toprak pH Ölçümü"), bir sıklık seç, Ekle'ye bas — listede görünmeli ve anahtarı otomatik açık olmalı.
+  8. `/farmer/journal` (ana günlük sayfası) hâlâ eskisi gibi çalışıyor mu kontrol et (bozulma olmamalı).
 - [x] `buyer.producer.$id`'nin guest-erişiminde `BuyerShell`'in hatasız render olduğu **manuel QA ile doğrulandı (Berkin, 2026-07-24)** — gizli sekmede sayfa hatasız yüklendi, guest CTA metinleri doğru göründü, `/login`'e yönlendirme çalıştı. (bkz. P24 doğrulama tablosu)
 
 ---
 
 ## 🏗️ Lovable/Supabase Build Sırası
 
-> **P19 + P17 serisi (B/C/F/E/G) + P20 + P21 (A, B+C) + P24 tamamen bitti, hepsi canlı doğrulandı.** **P17-A ve P17-D şirket kuruluşuna bağlı, bloke.** BENCHMARK Gap listesindeki bağımsız yapılabilecek her şey bitti (bkz. Gap durum tablosu altta). **P22-A (Care Journal şeması) tamamlandı (2026-07-24) — sıradaki iş P22-B (Customize Journal ekranı, Lovable/frontend işi).** Detaylar dosyanın sonundaki "Onaylanan Yol Haritası — P21/P22/P23" bölümünde. **Not:** Bir sonraki Lovable turuna geçmeden önce workspace kredisi kontrol edilmeli (P24 sonunda bitmişti).
+> **P19 + P17 serisi (B/C/F/E/G) + P20 + P21 (A, B+C) + P24 tamamen bitti, hepsi canlı doğrulandı.** **P17-A ve P17-D şirket kuruluşuna bağlı, bloke.** BENCHMARK Gap listesindeki bağımsız yapılabilecek her şey bitti (bkz. Gap durum tablosu altta). **P22-A + P22-B tamamlandı (2026-07-24) — P22-B'nin tarayıcı QA'sı Berkin'i bekliyor (bkz. test case altta), sonra P22-C (Crop Glossary) sırada.** Detaylar dosyanın sonundaki "Onaylanan Yol Haritası — P21/P22/P23" bölümünde. **Not:** Bir sonraki Lovable turuna geçmeden önce workspace kredisi kontrol edilmeli (P24 sonunda bitmişti).
 
 ### BENCHMARK Gap Durum Tablosu (2026-07-21 itibarıyla)
 | # | Gap | Şiddet | Durum |
@@ -361,7 +371,7 @@ Berkin kararı (1. cevap): `harvest_entries`'ten (hasat olayı) ayrı bir tablo.
 | Kod | Konu | Kapsam | Bağımlılık | Durum |
 |---|---|---|---|---|
 | P22-A | Care Journal şeması | 4 yeni tablo: `journal_entry_types`, `journal_themes`, `crop_journal_glossary`, `care_journal_entries` (`listing_id` FK ile batch bağlantısı — P21 sayesinde artık hangi batch'e bağlanacağı net) | Yok | ✅ **TAMAMLANDI (2026-07-24)** |
-| P22-B | Customize Journal ekranı (Bevel referansı) | Preset+custom entry type CRUD, kategori sekmeleri, frequency/threshold modalı | P22-A | ⬜ Planlandı |
+| P22-B | Customize Journal ekranı (Bevel referansı) | Preset+custom entry type CRUD, kategori sekmeleri, frequency/threshold modalı | P22-A | ✅ **TAMAMLANDI (2026-07-24)** |
 | P22-C | Crop Glossary üretimi | AI ile tek seferlik paragraf-tooltip üretimi | P22-A | ⬜ Planlandı |
 | P22-D | Journal sayfası UI | İki sekme, list/calendar view, filtreler, overdue highlight | P22-B, P22-C | ⬜ Planlandı |
 | P22-E | Yeni crop type ekleme wizard'ı | `crop_config` + `crop_market_sources` + `journal_themes` + otomatik-draft-batch'i tek akışta birleştir | P22-A | ⬜ Planlandı |
@@ -383,6 +393,28 @@ Berkin kararı (1. cevap): `harvest_entries`'ten (hasat olayı) ayrı bir tablo.
 - Yazma güvenliği: çiftçi kendi custom entry type'ını ekleyebildi ✅, sahte preset eklemeye çalışınca RLS reddetti ✅, başka bir çiftçi adına `care_journal_entries` yazmaya çalışınca RLS reddetti ✅.
 - Tüm test verisi temizlendi (4 tablo da 0 satır olarak doğrulandı).
 
+**Ek:** `farmer_journal_prefs` tablosu (P22-B ihtiyacı için, aynı gün) — çiftçinin hangi bakım eylemini takip ettiği + kendi sıklık/eşik tercihi. Ayrı tablo yaklaşımı Berkin ile netleştirildi (preset'ler ortak kalır, çiftçi tercihi ayrı tutulur — kopyalama yerine). RLS izolasyonu, unique constraint (`farmer_id, entry_type_id`), toggle update ve `updated_at` trigger'ı gerçek insert testiyle doğrulandı.
+
+**Ek:** Preset seed verisi — 5 tema (Sulama, Beslenme, Hastalık & Zararlı, Budama & Bakım, Hasat Hazırlığı & Sonrası), 13 eylem, **hepsi `crop=NULL`** (crop-agnostic — platformdaki 70+ crop'un hepsinde aynı liste geçerli, safran'a özel değil; Berkin'in uyarısıyla revize edildi). Gerçek sorguyla doğrulandı.
+
+### ✅ P22-B — Rutin Bakımı Özelleştir Ekranı — TAMAMLANDI *(2026-07-24, Lovable)*
+
+**Neden Lovable:** `hasat-d2c-marketplace`'in `main` branch'i Lovable'ın GitHub-sync bot'u (`gpt-engineer-app[bot]`) tarafından yönetiliyor — canlı önizleme sadece Lovable üzerinden değişince güncelleniyor, Claude Code'un git erişimi ayrı bir branch'te. Bu yüzden FE işi Lovable'a gönderildi (DB tamamen Claude Code + Supabase MCP ile hazırlandıktan sonra).
+
+**Yapılanlar (tek mesajda kapsamlı spec, tek turda tamamlandı):**
+- Yeni route `/farmer/journal/customize` — kategori sekmeleri (`journal_themes`), her sekmede eylem listesi + toggle switch.
+- Toggle ON → sıklık/not seçim sheet'i açılıyor (`farmer_journal_prefs` upsert). Toggle OFF → direkt `is_active=false` (geçmiş korunuyor).
+- "+ Kendi Bakım Eylemini Ekle" — custom `journal_entry_types` insert + otomatik `farmer_journal_prefs` aktifleştirme.
+- 5 yeni React Query hook'u (`useJournalThemes`, `useJournalEntryTypes`, `useFarmerJournalPrefs`, `useToggleJournalPref`, `useCreateCustomEntryType`), `farmer.journal.index.tsx`'e giriş linki.
+- Commit: `6810a4e0` ("Rutin özelleştirme eklendi").
+
+**Bağımsız doğrulama (Lovable'ın "typecheck temiz" iddiasına güvenilmedi):**
+- `get_diff` ile gerçek diff okundu — sadece beklenen 4 dosya değişmiş (`queries.ts`, yeni `farmer.journal.customize.tsx`, `farmer.journal.index.tsx`, otomatik `routeTree.gen.ts`/`types.ts`).
+- `main` branch ayrı bir git worktree'ye çekilip **gerçek `tsc --noEmit` çalıştırıldı** (Lovable'ın kullandığı `bunx tsgo` bu ortamda private registry'ye takıldığı için standart `tsc` ile eşdeğer doğrulama yapıldı) — hatasız geçti.
+- FE'nin kullandığı sorgu kalıplarının (OR filtresi, `upsert(onConflict:"farmer_id,entry_type_id")`, custom-entry-type + otomatik-pref insert zinciri) gerçek SQL karşılıklarıyla Ahmet'in verisiyle test edildi — hepsi doğru çalıştı (toggle ON/OFF, frequency_days korunumu, custom ekleme). Test verisi temizlendi.
+
+**⚠️ Kalan doğrulama:** Kod-seviyesinde (diff + typecheck + SQL-eşdeğeri sorgu testi) tamamen doğrulandı, ama gerçek tarayıcıda görsel/dokunma testi yapılmadı — bu Claude Code oturumunun ağ politikası tarayıcının Supabase'e ulaşmasını engelliyor (bkz. yukarıdaki guest-QA notu). **Berkin'in manuel QA'sı gerekiyor:** `/farmer/journal`'a girip "⚙️ Rutin Bakımı Özelleştir"e tıkla, bir kategori sekmesinde bir eylemi aç (sıklık seç, kaydet), sayfayı yenile (tercih korunmalı), bir eylemi kapat, "Kendi Bakım Eylemini Ekle" ile özel bir eylem ekle (listede görünmeli + otomatik açık olmalı).
+
 **Not (P21'den miras):** Crop adlandırması artık her yerde `crop_config.crop` kanonik slug'ı — P22'nin yeni tabloları da `crop text NOT NULL REFERENCES crop_config(crop)` FK'sini olduğu gibi kullanabilir, ek bir case-normalizasyon riski yok (P21-A'da temizlendi).
 
 ### P23 — Buyer Mobile & Recipe App (P2, ayrı faz — soft launch'u bloklamıyor) — ⬜ Planlandı, henüz başlanmadı
@@ -400,7 +432,7 @@ Berkin kararı (7. cevap): Recipe App şimdilik tüm `buyer_type` segmentlerine 
 | P23-C | Mobile compliance | App Store/Play Store in-app purchase, KVKK, OTP/biometric | P23-A | ⬜ Planlandı |
 
 ### Sıradaki adım
-P22-A tamamlandı (2026-07-24, bkz. yukarı). Sıradaki iş **P22-B — Customize Journal ekranı** (Bevel referanslı preset+custom entry type CRUD UI'ı) — bu frontend/UI işi olduğu için Lovable'a gönderilecek, kapsamı Berkin ile netleştirilip tek, iyi spesifiye edilmiş bir mesajla başlatılacak. **Not:** `plan_mode=true` göndersek de Lovable'ın doğrudan implementasyona geçebileceği unutulmamalı (ders #96) — her turda `get_diff`/DB ile bağımsız doğrulama yapılacak.
+P22-A + P22-B tamamlandı (2026-07-24, bkz. yukarı). P22-B'nin tarayıcı QA'sı (yukarıdaki test case) Berkin'i bekliyor. Sonra sırada **P22-C — Crop Glossary üretimi** (AI ile crop+terim başına tek seferlik açıklama metni, `crop_journal_glossary` tablosu zaten hazır).
 
 ### Kural #104 (2026-07-24'te eklendi)
 Berkin'in kararı: bundan sonra Claude Code planları, arayüzde test edilmesi gereken adımlar için **kullanıcı-akışı dilinde adım adım bir test case** olarak sunulmalı (hangi sayfa açılacak, hangi butona tıklanacak, ne görülmesi bekleniyor) — trigger/kolon/event isimleri gibi DB-jargonuyla değil. Genel plan anlatımı da (yeni tablo/akış gibi kapsamlı işlerde) bir PM'in anlatacağı gibi olmalı: kullanıcı ne yapıyor, FE'de ne değişiyor, BE'de ne değişiyor — teknik isimler (trigger/policy adı gibi) sadece gerekince, ayrıntı seviyesinde geçmeli.
