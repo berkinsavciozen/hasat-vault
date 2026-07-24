@@ -1,6 +1,6 @@
 ---
 title: Hasat — Master Roadmap & Build Log
-updated: 2026-07-23
+updated: 2026-07-24
 tags:
   - hasat
   - todo
@@ -31,8 +31,11 @@ tags:
 - [x] **P22-A — Care Journal Şeması (4+1 tablo) TAMAMLANDI, gerçek insert/RLS testiyle doğrulandı (2026-07-24)**
 - [x] **P22-B — Rutin Bakımı Özelleştir Ekranı TAMAMLANDI (Lovable) (2026-07-24)**
 - [x] **P22-C — Crop Glossary Üretimi TAMAMLANDI (70 crop × 204 satır, tam kapsama) (2026-07-24)**
-- [x] **P22-D — Journal Sayfası UI (2 sekme) TAMAMLANDI (Claude Code doğrudan) (2026-07-24)**
-- [x] **P22-A/B/C/D PR'ı (#1) `main`'e merge edildi (2026-07-24) — tarayıcı QA bekliyor (bkz. "Kalan iş")**
+- [x] **P22-D — Journal Sayfası UI (2 sekme) TAMAMLANDI (Claude Code doğrudan) (2026-07-24), sonradan parsel-bazlı gruplamayla düzeltildi**
+- [x] **P22-E — Yeni Ürün Türü Talep Sistemi (çiftçi) + Katalog-Boşluğu SMS Bildirimi (buyer) TAMAMLANDI (2026-07-24)**
+- [x] **P22-F — Rutin Bakım mimarisi günlükle (harvest_entries) birleştirildi, ayrı tablo kaldırıldı TAMAMLANDI (2026-07-24)**
+- [x] **P22-A/B/C/D PR'ı (#1) `main`'e merge edildi (2026-07-24)**
+- [x] **P22-D düzeltmesi + P22-E + P22-F PR'ı (#3) `main`'e merge edildi (2026-07-24) — tarayıcı QA bekliyor, bkz. "Kalan iş"**
 
 ### P16 — TÜM SERİ TAMAMLANDI ✅
 (Detaylar önceki sürümlerde)
@@ -50,14 +53,14 @@ tags:
 ### Düşük öncelikli cila
 (Değişmedi — bkz. önceki sürüm)
 - [ ] `useSetDefaultAddress` diğer adresleri `false`'a çekmiyor — düşük öncelik.
-- [ ] **[Yeni]** P22-B+D birleşik tarayıcı QA'sı — güncel test case aşağıda "⚠️ Kalan iş" bölümünde (P22-B'nin özelleştirme ekranı + P22-D'nin Rutin Bakım sekmesi tek akışta test ediliyor, linkin yeni konumu P22-D'de değişti).
+- [ ] **[Yeni]** P22-D+E+F birleşik tarayıcı QA'sı — güncel test case aşağıda "⚠️ Kalan iş" bölümünde (Rutin Bakım'ın günlükle birleşmesi, parsel-bazlı gruplama, tarih filtresi, yeni ürün türü talep sistemi tek akışta test ediliyor).
 - [x] `buyer.producer.$id`'nin guest-erişiminde `BuyerShell`'in hatasız render olduğu **manuel QA ile doğrulandı (Berkin, 2026-07-24)** — gizli sekmede sayfa hatasız yüklendi, guest CTA metinleri doğru göründü, `/login`'e yönlendirme çalıştı. (bkz. P24 doğrulama tablosu)
 
 ---
 
 ## 🏗️ Lovable/Supabase Build Sırası
 
-> **P19 + P17 serisi (B/C/F/E/G) + P20 + P21 (A, B+C) + P24 tamamen bitti, hepsi canlı doğrulandı.** **P17-A ve P17-D şirket kuruluşuna bağlı, bloke.** BENCHMARK Gap listesindeki bağımsız yapılabilecek her şey bitti (bkz. Gap durum tablosu altta). **P22-A + P22-B + P22-C + P22-D tamamlandı ve `main`'e merge edildi (2026-07-24) — tek kalan iş tarayıcı QA (Lovable kredisi bittiği için P22-D Claude Code tarafından doğrudan yazıldı).** Detaylar dosyanın sonundaki "Onaylanan Yol Haritası — P21/P22/P23" bölümünde. **Not:** Bir sonraki Lovable turuna geçmeden önce workspace kredisi kontrol edilmeli (P24 sonunda bitmişti).
+> **P19 + P17 serisi (B/C/F/E/G) + P20 + P21 (A, B+C) + P24 tamamen bitti, hepsi canlı doğrulandı.** **P17-A ve P17-D şirket kuruluşuna bağlı, bloke.** BENCHMARK Gap listesindeki bağımsız yapılabilecek her şey bitti (bkz. Gap durum tablosu altta). **P22 serisi (A/B/C/D/E/F) tamamen bitti, hepsi `main`'de (PR #1 ve PR #3 ikisi de merge edildi) — tek kalan iş tarayıcı QA.** Detaylar dosyanın sonundaki "Onaylanan Yol Haritası — P21/P22/P23" bölümünde. **Not:** Bir sonraki Lovable turuna geçmeden önce workspace kredisi kontrol edilmeli (P24 sonunda bitmişti).
 
 ### BENCHMARK Gap Durum Tablosu (2026-07-21 itibarıyla)
 | # | Gap | Şiddet | Durum |
@@ -287,6 +290,10 @@ Son değişikliğin (`buyer.producer.$id` guest-erişimi) routing-guard seviyesi
 | **P21-B+C TAMAMLANDI (2026-07-23)** | `offer_items` şeması, çoklu-batch Keşfet/ürün sayfası, satır-bazlı stok kontrolü, birim-uyuşmazlık trigger'ı, traceability RLS — hepsi gerçek veriyle doğrulandı. |
 | **P24 — Abonelik denetimi tamamlandı (2026-07-23)** | `send-sms` regresyonu (P20'nin kaybolmuş hali) bulunup düzeltildi; otomatik hasat-hatırlatma cron job'u eklendi (Berkin kararı: otomatikleştir); fiyat kilidi bilinçli olarak öneri seviyesinde bırakıldı (Berkin kararı); 2 discoverability deliği (üretici profiline erişim yolu + guest-erişim) düzeltildi. Guest'te `BuyerShell` render'ı 2026-07-24'te Berkin tarafından manuel QA ile doğrulandı — P24 tamamen kapandı. |
 | **P22-A — Care Journal şeması tamamlandı (2026-07-24)** | 4 tablo (`journal_themes`, `journal_entry_types`, `crop_journal_glossary`, `care_journal_entries`) Claude Code + Supabase MCP ile doğrudan uygulandı; RLS izolasyonu, sahte-preset engeli (CHECK constraint), başkası-adına-yazma engeli ve entry-type silme koruması gerçek insert/RLS simülasyonuyla test edildi, test verisi temizlendi. |
+| **P22-B/C/D tamamlandı (2026-07-24)** | Özelleştir ekranı (Lovable), 70 crop × 204 satır glossary, iki-sekmeli Journal UI — hepsi PR #1 ile `main`'e merge edildi. |
+| **P22-D parsel-bazlı gruplamayla düzeltildi (2026-07-24)** | Berkin'in geri bildirimi: bir parselde birden fazla ürün olabileceği için Rutin Bakım satırları eylem yerine parsele göre gruplanmalı, crop her satırda açıkça görünmeli. |
+| **P22-E — Yeni ürün türü talep sistemi tamamlandı (2026-07-24)** | Çiftçi kataloğunda olmayan ürünü talep edebiliyor, buyer'ın katalog-dışı RFQ'su aynı kanalı tetikliyor — ikisi de Berkin'in telefonuna gerçek SMS ile ulaşıyor (mevcut kanıtlanmış Twilio altyapısı yeniden kullanıldı). Gerçek SMS testiyle doğrulandı. |
+| **P22-F — Rutin Bakım günlükle birleştirildi (2026-07-24)** | Berkin kararı: "rutin bakım'daki işler, günlükteki işlerle aynı olmalı." Ayrı `care_journal_entries` tablosu kaldırıldı, rutin bakım "Yaptım" artık gerçek bir günlük (`harvest_entries`) kaydı oluşturuyor ve P21'in batch-bağlama mekanizmasını aynen kullanıyor. Gerçek testte birim-uyuşmazlığı bug'ı bulunup düzeltildi (kayıt, ürünün varsayılan birimi yerine bağlı olduğu batch'in biriminden yazılmalıydı). |
 
 ---
 
@@ -359,7 +366,7 @@ New PLAN FROM BERKİN NOTES
 | P21-G | Vitrin/Keşfet stok gösterim tutarlılığı (birim dönüşümü dahil) | ✅ TAMAMLANDI |
 | P21-H | Çoklu-batch akışının teslimat/tarih/ödeme-parity + MCP create-offer + farmer breakdown eksikleri | ✅ TAMAMLANDI |
 
-### P22 — Care Journal (Rutin Bakım) (P1, saffron sezonuna kadar esnek) — ⬜ Planlandı, henüz başlanmadı
+### P22 — Care Journal (Rutin Bakım) (P1, saffron sezonuna kadar esnek) — ✅ Tamamlandı, `main`'de (2026-07-24), tarayıcı QA bekliyor
 
 Berkin kararı (1. cevap): `harvest_entries`'ten (hasat olayı) ayrı bir tablo. Tek "Journal" sayfasında iki sekme: **Rutin Bakım** (yeni, Bevel-tarzı toggle) + **Hasat Kayıtları** (mevcut `harvest_entries` formu).
 
@@ -368,8 +375,9 @@ Berkin kararı (1. cevap): `harvest_entries`'ten (hasat olayı) ayrı bir tablo.
 | P22-A | Care Journal şeması | 4 yeni tablo: `journal_entry_types`, `journal_themes`, `crop_journal_glossary`, `care_journal_entries` (`listing_id` FK ile batch bağlantısı — P21 sayesinde artık hangi batch'e bağlanacağı net) | Yok | ✅ **TAMAMLANDI (2026-07-24)** |
 | P22-B | Customize Journal ekranı (Bevel referansı) | Preset+custom entry type CRUD, kategori sekmeleri, frequency/threshold modalı | P22-A | ✅ **TAMAMLANDI (2026-07-24)** |
 | P22-C | Crop Glossary üretimi | AI ile tek seferlik paragraf-tooltip üretimi | P22-A | ✅ **TAMAMLANDI (2026-07-24)** |
-| P22-D | Journal sayfası UI | İki sekme, list/calendar view, filtreler, overdue highlight | P22-B, P22-C | ✅ **TAMAMLANDI (2026-07-24, Claude Code doğrudan — Lovable kredisi bittiği için)** |
-| P22-E | Yeni crop type ekleme wizard'ı | `crop_config` + `crop_market_sources` + `journal_themes` + otomatik-draft-batch'i tek akışta birleştir | P22-A | ⬜ Planlandı |
+| P22-D | Journal sayfası UI | İki sekme, parsel-bazlı liste, tarih filtresi | P22-B, P22-C | ✅ **TAMAMLANDI (2026-07-24, Claude Code doğrudan — Lovable kredisi bittiği için)** |
+| P22-E | Yeni ürün türü talep sistemi | Çiftçi kataloğunda olmayan ürünü talep eder, buyer'ın katalog-dışı RFQ'su da aynı kanalı tetikler → Berkin'e SMS | P22-A | ✅ **TAMAMLANDI (2026-07-24)** |
+| P22-F | Rutin Bakım'ı günlükle birleştir | Rutin bakım "yapıldı" → gerçek günlük (harvest_entries) kaydı, ayrı `care_journal_entries` tablosu kaldırıldı | P22-D | ✅ **TAMAMLANDI (2026-07-24, Berkin'in mimari kararı)** |
 
 ### ✅ P22-A — Care Journal Şeması — TAMAMLANDI *(2026-07-24, Claude Code + Supabase MCP ile doğrudan)*
 
@@ -426,47 +434,72 @@ Berkin kararı (1. cevap): `harvest_entries`'ten (hasat olayı) ayrı bir tablo.
 
 **Not (içerik doğruluğu):** Sayısal eşikler (sıcaklık, süre, derinlik, mesafe) genel agronomik pratiklere dayanıyor — Türkiye'nin farklı bölgeleri (iklim/toprak) için küçük sapmalar olabilir. Kritik olmayan yerlerde "genellikle/yaklaşık" gibi yumuşatıcı ifadeler kullanıldı. Bu içerik bir AI tarafından (bölgesel doğrulama olmadan) üretildi — canlıya çıkmadan önce en azından öncelikli crop'larda (safran + platformda en çok işlem gören birkaç crop) bir insan gözden geçirmesi faydalı olur, ama P22-D'nin geliştirilmesini bloklamaz.
 
-### ✅ P22-D — Journal Sayfası UI — TAMAMLANDI *(2026-07-24, Claude Code doğrudan)*
+### ✅ P22-D — Journal Sayfası UI — TAMAMLANDI *(2026-07-24, Claude Code doğrudan; sonradan iki kez düzeltildi — bkz. altta)*
 
-**Neden Lovable değil, Claude Code:** Lovable workspace kredisi bugün için tükendi (Berkin'in isteğiyle). P22-B'de kurulan "main branch Lovable'ın GitHub-sync'ine bağlı" kısıtı hâlâ geçerli — bu yüzden bu değişiklik **`main`'e değil, `claude/hasat-environment-inventory-ft0ehg` feature branch'ine** commit edildi (Lovable'ın P22-B commit'i `6810a4e0` önce merge edilip üzerine inşa edildi). **⚠️ Bu kod henüz canlı önizlemede (`hasat.lovable.app`) görünmüyor** — Berkin'in bunu `main`'e merge etmesi (PR ile veya Lovable'ın bir sonraki turunda GitHub'dan çekmesi) gerekiyor.
+**Neden Lovable değil, Claude Code:** Lovable workspace kredisi bugün için tükendi (Berkin'in isteğiyle). P22-B'de kurulan "main branch Lovable'ın GitHub-sync'ine bağlı" kısıtı hâlâ geçerli — bu yüzden bu değişiklik **`main`'e değil, `claude/hasat-environment-inventory-ft0ehg` feature branch'ine** commit edildi.
 
-**Yapılanlar:**
-- `/farmer/journal` iki sekmeli: **Hasat Kayıtları** (mevcut içerik, davranışı hiç değişmedi) + **Rutin Bakım** (yeni). Varsayılan aktif sekme Hasat Kayıtları (mevcut kullanıcı deneyimi bozulmasın diye).
-- Rutin Bakım sekmesi: her aktif tercih (`farmer_journal_prefs`) çiftçinin ilgili crop'a sahip **her parseli için ayrı bir satır** olarak genişletiliyor (Berkin'in "parsel bazında ayrı takip" kararı — şema değişikliği gerekmedi, sadece okuma mantığında `care_journal_entries`'i parsel bazında gruplayarak çözüldü). Her satır: son yapılma tarihi, sıradaki tarih, gecikmiş (kırmızı) / yaklaşıyor (sarı) / normal (yeşil) / hiç yapılmamış (nötr) durumu.
-- **"✓ Yaptım"** butonu gerçek bir `care_journal_entries` kaydı oluşturuyor (parsel birden fazla crop'luysa hangi crop olduğunu soran küçük bir sheet açılıyor).
-- Liste/Takvim görünüm geçişi (takvim = ay-gruplu geçmiş kayıt listesi, tam takvim-grid değil — spec'te bilinçli olarak sadeleştirildi).
-- "Sadece gecikmiş" filtre toggle'ı.
-- **"ℹ️ [Crop] Hakkında"** açılır panel(ler) — çiftçinin her crop'u için `crop_journal_glossary` içeriğini `crop_config.lifecycle_steps` sırasına göre gösterir (Berkin'in kararı: glossary tek tek eylem satırlarına değil, crop başına ayrı bir bilgi paneline bağlanacak).
-- "⚙️ Rutin Bakımı Özelleştir" linki eski yerinden (Hasat Kayıtları istatistik barı) Rutin Bakım sekmesine taşındı.
-- 5 yeni hook (`src/lib/hasat/queries.ts`): `useActiveJournalPrefsDetailed` (nested PostgREST select ile tema+eylem bilgisini tek sorguda getirir), `useCareEntriesLastPerformed`, `useLogCareEntry`, `useCareJournalEntries`, `useCropGlossary`.
+**Yapılanlar (ilk sürüm):**
+- `/farmer/journal` iki sekmeli: **Hasat Kayıtları** (mevcut içerik, davranışı hiç değişmedi) + **Rutin Bakım** (yeni). Varsayılan aktif sekme Hasat Kayıtları.
+- **"ℹ️ [Crop] Hakkında"** açılır panel(ler) — çiftçinin her crop'u için glossary içeriğini bakım adımı sırasına göre gösterir.
+- "⚙️ Rutin Bakımı Özelleştir" linki Rutin Bakım sekmesine taşındı.
 
-**Doğrulama:**
-- Gerçek `tsc --noEmit` hatasız geçti (Lovable'ın `bunx tsgo`'suna eşdeğer, bu ortamda private registry engeli olduğu için standart `tsc` kullanıldı).
-- `useActiveJournalPrefsDetailed`'ın kullandığı nested-select (`journal_entry_types(*, journal_themes(*))`) PostgREST embedding'inin SQL karşılığı (gerçek JOIN) Ahmet'in verisiyle test edildi, doğru sonuç döndü.
-- Gecikmiş/yaklaşan/hiç-yapılmamış durum hesaplaması gerçek bir `care_journal_entries` insert'iyle (5 gün önce yapılmış, 7 günlük sıklık → "yaklaşıyor" durumu) test edildi, doğru hesaplandı; test verisi silindi.
-- Crop bilgi paneli sıralaması safran'ın `lifecycle_steps`'i (Korm/Dikim → Bakım → Hasat → Kurutma) ile karşılaştırılıp doğru sırayı ürettiği doğrulandı.
-- Dev server'da route gerçekten serve edildi (200), build/import hatası yok. **Tam tarayıcı/dokunma testi bu oturumun ağ kısıtlaması (Supabase'e 403) yüzünden yapılamadı** — aşağıdaki test case ile Berkin'in doğrulaması gerekiyor.
-- Ahmet'in hesabında Lovable'ın P22-B testinden kalma 2 aktif tercih (Sulama Yap, Gübre Ver) temizlenmeden bırakıldı — Berkin'in manuel testinde hazır veri olarak faydalı olabilir.
+**Sonradan iki düzeltme (Berkin'in geri bildirimiyle, PR #3'te):**
+1. **Parsel bazlı gruplama** — ilk sürümde satırlar bakım eylemine göre gruplanıyordu, Berkin bir parselde birden fazla ürün olabileceğini belirtti ("hangi crop type için olduğu explicit olsun"). Artık satırlar **parsel başlığı altında**, her satırda crop adı rozet olarak görünüyor.
+2. **Rutin Bakım = Günlüğe kolay giriş** (P22-F, bkz. altta) — Berkin'in kararıyla mimari değişti: "Yaptım" artık ayrı bir tabloya değil, doğrudan çiftçinin günlüğüne (Hasat Kayıtları sekmesinde de görünen gerçek bir kayıt) yazıyor. Bunun yan etkisi olarak takvim görünümü kaldırıldı (artık gereksiz — kayıt zaten Hasat Kayıtları'nda görünüyor) ve "Sadece gecikmiş" filtresi yerine 3 seçenekli bir **tarih filtresi** (Bugün / Bu Hafta / Tümü, varsayılan Bu Hafta) geldi: gecikmiş ve hiç yapılmamış işler filtreden bağımsız her zaman görünür, sıklığı olmayan (olay bazlı) işler her zaman görünür, sıklığa bağlı işler seçili pencereye göre süzülür.
 
-### ✅ PR merge edildi (2026-07-24)
-[PR #1](https://github.com/berkinsavciozen/hasat-d2c-marketplace/pull/1) Berkin tarafından `main`'e merge edildi (CI check yok, review yorumu yok, temiz geçti). P22-A/B/C/D artık `main`'de, bir sonraki Lovable senkronunda/canlı önizlemede görünecek.
+**Doğrulama:** Gerçek `tsc --noEmit` her iki düzeltmede de hatasız geçti. Parsel gruplaması ve tarih filtresi mantığı, aynı parselde iki farklı crop'un bağımsız takip edildiği gerçek insert'lerle test edildi. **Tam tarayıcı/dokunma testi bu oturumun ağ kısıtlaması (Supabase'e 403) yüzünden yapılamadı** — aşağıdaki test case ile Berkin'in doğrulaması gerekiyor.
 
-### ⚠️ Kalan iş: P22-B+D birleşik tarayıcı QA (test hesabı: çiftçi `05001234567`, OTP `123456`)
+### ✅ P22-E — Yeni Ürün Türü Talep Sistemi — TAMAMLANDI *(2026-07-24, Claude Code doğrudan, PR #3)*
 
-1. Giriş yap, `/farmer/journal`'a git — iki sekme görmelisin: **Hasat Kayıtları** (varsayılan aktif, eskisi gibi) + **Rutin Bakım** (yeni).
-2. Hasat Kayıtları sekmesinde hiçbir şeyin bozulmadığını doğrula (istatistik barı, "+ Parsel", kayıt listesi, "+ Yeni Kayıt").
-3. **Rutin Bakım** sekmesine tıkla — Ahmet'in hesabında zaten aktif olan "Sulama Yap" (Güney Bahçe parseli) ve "Gübre Ver" görünmeli.
-4. Üstteki **"⚙️ Rutin Bakımı Özelleştir"** linkine tıkla (P22-D'de buraya taşındı — artık istatistik barında değil).
-5. Bir kategori sekmesi seç, yeni bir eylemin anahtarını aç, bir sıklık seç, Kaydet'e bas.
-6. "Rutin Bakım" ekranına geri dön (sekme değiştirip geri gel) — yeni açtığın eylemin listede, doğru durumla (yaklaşıyor/hiç yapılmamış) göründüğünü doğrula.
-7. Bir satırda **"✓ Yaptım"**a bas — durum anında güncellenmeli (yeşil "X gün sonra" gibi).
-8. **"Takvim"** görünümüne geç — az önce eklediğin kayıt ay-gruplu listede görünmeli.
-9. **"Sadece gecikmiş"** filtresini aç/kapat, listenin buna göre değiştiğini doğrula.
-10. Sayfanın altındaki **crop bilgi panellerini** (Safran, Kekik, Lavanta vb.) aç — glossary metinlerinin doğru sırada (Korm/Dikim → Bakım → Hasat → Kurutma gibi) geldiğini doğrula.
-11. "+ Kendi Bakım Eylemini Ekle" ile özel bir eylem ekle — listede görünmeli, otomatik aktif olmalı.
+**Neden:** Berkin, giriş yapmadan görülen ana sayfanın en altındaki "Yetiştirdiğiniz bir ürün kataloğumuzda yok mu?" benzeri bir talep formunun gerçekten kendisine (SMS ile) ulaşıp ulaşmadığını sordu. Araştırma sonucu: böyle bir form vardı ama sadece buyer tarafı için ("Ürün Talep Et", mevcut RFQ akışı) ve bildirim kanalı hâlâ e-posta idi, SMS değildi. Çiftçi tarafında ise kendi yetiştirdiği ama platform kataloğunda olmayan bir ürünü bildirecek hiçbir yol yoktu.
+
+**Kullanıcı akışı — Çiftçi tarafı (yeni):**
+- Parsel oluştururken ürün listesinde aradığını bulamayan bir çiftçi, "Yetiştirdiğiniz ürün yok mu? Talep edin" seçeneğine tıklar.
+- Açılan formda ürün adı, birim (kg/g/L/adet), kategori, hasat ayı/ayları ve yetiştirme notları girer, gönderir.
+- Gönderim anında Berkin'in gerçek telefonuna (kendi onayladığı numara) anında bir SMS gider — talebi hemen görür.
+
+**Kullanıcı akışı — Buyer tarafı (mevcut akış korunup genişletildi):**
+- Buyer "Ürün Talep Et" formunu (Keşfet sayfası / onboarding) doldurup gönderdiğinde, istediği ürün platform kataloğunda **hiç yoksa**, bu da aynı SMS'i tetikler (gerçek bir "katalog boşluğu" sinyali). Ürün kataloğunda zaten varsa (sadece o an stokta yoksa) SMS gitmez, sadece talep kaydedilir — gereksiz SMS trafiği olmasın diye.
+- Form metinleri buyer'a daha uygun bir dille güncellendi.
+
+**BE'de ne değişti:** Çiftçi tarafı için yeni bir talep tablosu (her çiftçi sadece kendi talebini görebiliyor); yeni bir bildirim fonksiyonu (mevcut, daha önce kanıtlanmış SMS altyapısını kullanıyor); buyer'ın mevcut talep akışına "kataloğa hiç yok mu?" kontrolü eklendi.
+
+**Doğrulama:** Gerçek bir test talebi (çiftçi + buyer, ikisi de) gönderildi, Berkin'in numarasına gerçek SMS ulaştığı (Twilio "kabul edildi" durumu) doğrulandı, test verisi silindi. Başka bir çiftçinin bir çiftçinin talebini göremediği doğrulandı.
+
+### ✅ P22-F — Rutin Bakım'ı Günlükle Birleştirme — TAMAMLANDI *(2026-07-24, Claude Code doğrudan, PR #3, Berkin'in mimari kararı)*
+
+**Berkin'in isteği (özetle):** "Rutin bakım'daki işler, günlükteki işlerle aynı olmalı; rutin bakım menüsü aslında kolay günlük eklemek için gibi düşünülmeli." Yani Rutin Bakım sekmesi ayrı bir defter değil, günlüğe (Hasat Kayıtları) hızlı giriş yapmanın bir yolu olmalı.
+
+**Kullanıcı akışı — ne değişti:**
+- Bir çiftçi Rutin Bakım sekmesinde bir işi "Yaptım" dediğinde, artık bu işlem **doğrudan Hasat Kayıtları sekmesinde de görünen gerçek bir günlük kaydı** oluşturuyor (aynı parsel, aynı ürün, varsa ilgili batch'e bağlı). Eskiden bu ayrı, görünmez bir tabloya yazılıyordu — çiftçi bunu Hasat Kayıtları'nda hiç göremiyordu.
+- Bir kez "Yaptım" dendikten sonra, o iş seçili tarih filtresine göre (Bugün/Bu Hafta/Tümü) sıradaki zamanı gelene kadar bekleyen listeden düşüyor — yani liste gerçekten "bugün ne yapmam lazım" sorusuna cevap veriyor, geçmiş işlerle dolup taşmıyor.
+- Özelleştir ekranında bir bakım işi zaten açıksa (toggle ON), yanına eklenen **⚙️ ayarlar butonu** ile sıklık/not tekrar açılabiliyor — önceden bunu değiştirmek için toggle'ı kapatıp tekrar açmak gerekiyordu, artık gerekmiyor.
+
+**BE'de ne değişti:** Ayrı "rutin bakım kaydı" tablosu tamamen kaldırıldı (hiç gerçek/canlı veri yoktu, sadece test amaçlı birkaç satır — silinmeden önce doğrulanıp temizlendi). Bunun yerine mevcut günlük tablosuna, hangi rutin bakım işinden oluştuğunu işaretleyen bir referans kolonu eklendi. Böylece P21'de kurulan "günlük kaydı → doğru batch'e otomatik bağlanma" mekanizması rutin bakım kayıtları için de aynen çalışıyor, ayrı bir kod yolu gerekmedi.
+
+**Doğrulama:** Gerçek kayıt oluşturma testinde bir hata bulundu ve düzeltildi — sistem başta işin birimini ürünün varsayılan birimine göre yazıyordu, ama bağlı olduğu batch farklı bir birimdeyse (örn. batch kg, varsayılan g) kayıt reddediliyordu (P21'de kurulan "birim uyuşmazlığı" koruması tam da bunu yakalamak için vardı). Düzeltme: birim artık her zaman bağlanılan batch'in kendi biriminden alınıyor. kg birimli gerçek bir batch ile yeniden test edilip doğru çalıştığı doğrulandı, `tsc --noEmit` temiz.
+
+### PR durumu
+[PR #1](https://github.com/berkinsavciozen/hasat-d2c-marketplace/pull/1) `main`'e merge edildi (2026-07-24) — P22-A/B/C/D `main`'de.
+[PR #3](https://github.com/berkinsavciozen/hasat-d2c-marketplace/pull/3) `main`'e merge edildi (2026-07-24) — P22-D'nin parsel-gruplama düzeltmesi + P22-E + P22-F artık `main`'de.
+
+### ⚠️ Kalan iş: P22-D+E+F birleşik tarayıcı QA (test hesabı: çiftçi `05001234567`, OTP `123456`)
+
+1. Giriş yap, **Günlük** sayfasına git (`/farmer/journal`) — iki sekme görmelisin: **Hasat Kayıtları** (varsayılan aktif) + **Rutin Bakım**.
+2. Hasat Kayıtları sekmesinde hiçbir şeyin bozulmadığını doğrula (istatistik barı, kayıt listesi, "+ Yeni Kayıt").
+3. **Rutin Bakım** sekmesine geç — satırların artık **parsel adı başlığı altında** gruplandığını, her satırda hangi ürün için olduğunun bir rozetle (örn. "Safran") göründüğünü doğrula (eğer bir parselde birden fazla ürün varsa, o parselin altında her ürün için ayrı satırlar görmelisin).
+4. Üstte bir **tarih filtresi** görmelisin: Bugün / Bu Hafta / Tümü. Varsayılan "Bu Hafta" seçili olmalı.
+5. Bir satırda **"✓ Yaptım"**a bas, açılan formda gerekirse notu doldurup gönder.
+6. Ekrana geri döndüğünde: az önce yaptığın iş, sıradaki zamanı bu hafta içine düşmüyorsa listeden **kaybolmalı** (tarih filtresine göre artık "bekleyen" değil). Filtreyi "Tümü" yaparsan tekrar görünmeli.
+7. Aynı sekmede **Hasat Kayıtları**'na geç — az önce "Yaptım" dediğin işin, burada da **gerçek bir günlük kaydı olarak** göründüğünü doğrula (bu P22-F'nin asıl testi: rutin bakım artık günlükten ayrı değil).
+8. **"⚙️ Rutin Bakımı Özelleştir"** ekranına git. Zaten açık (toggle ON) olan bir işin yanında artık küçük bir **⚙️ ayarlar ikonu** görmelisin — tıklayınca sıklık/not sheet'i açılmalı (toggle'ı kapatıp açmadan).
+9. Sıklığı değiştirip kaydet, Rutin Bakım'a geri dön — yeni sıklığın uygulandığını doğrula.
+10. Parsel oluşturma ekranında (Tarla Günlüğü veya Onboarding) **"Yetiştirdiğiniz ürün yok mu? Talep edin"** seçeneğini bul, bir talep gönder — Berkin'in telefonuna SMS geldiğini doğrula.
+11. Buyer tarafında (Keşfet / onboarding) katalogda **olmayan** bir ürün adıyla "Ürün Talep Et" formunu doldur, gönder — yine SMS gelmeli. Katalogda **var olan** bir ürünle aynı formu doldurursan SMS gelmemeli (sadece talep kaydedilmeli).
+12. Sayfanın altındaki **crop bilgi panellerini** (Safran, Kekik, Lavanta vb.) aç — glossary metinlerinin doğru sırada geldiğini doğrula.
 
 ### Sıradaki adım
-P22-A + P22-B + P22-C + P22-D tamamlandı ve `main`'e merge edildi (2026-07-24). Kalan tek şey: yukarıdaki tarayıcı QA test case'i (Berkin'in kendi testinde yapacağı). Sonrasında P22 serisi tamamen kapanmış olacak (P22-E — yeni crop type ekleme wizard'ı — hariç, o ayrı bir iş, kapsamı aşağıda).
+P22 serisi (A/B/C/D/E/F) tamamen bitti, hepsi `main`'de (PR #1 ve PR #3 ikisi de merge edildi, 2026-07-24). Kalan tek şey: yukarıdaki tarayıcı QA test case'i (Berkin'in kendi testinde yapacağı). QA tamamlandığında P22 serisi tamamen kapanmış olacak.
 
 ### P23 — Buyer Mobile & Recipe App (P2, ayrı faz — soft launch'u bloklamıyor) — ⬜ Planlandı, henüz başlanmadı
 
