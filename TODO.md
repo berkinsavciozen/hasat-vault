@@ -35,7 +35,7 @@ tags:
 - [x] **P22-E — Yeni Ürün Türü Talep Sistemi (çiftçi) + Katalog-Boşluğu SMS Bildirimi (buyer) TAMAMLANDI (2026-07-24)**
 - [x] **P22-F — Rutin Bakım mimarisi günlükle (harvest_entries) birleştirildi, ayrı tablo kaldırıldı TAMAMLANDI (2026-07-24)**
 - [x] **P22-A/B/C/D PR'ı (#1) `main`'e merge edildi (2026-07-24)**
-- [x] **P22-D düzeltmesi + P22-E + P22-F, PR #3'te (`main`'e henüz merge edilmedi) — bkz. "Kalan iş"**
+- [x] **P22-D düzeltmesi + P22-E + P22-F PR'ı (#3) `main`'e merge edildi (2026-07-24) — tarayıcı QA bekliyor, bkz. "Kalan iş"**
 
 ### P16 — TÜM SERİ TAMAMLANDI ✅
 (Detaylar önceki sürümlerde)
@@ -60,7 +60,7 @@ tags:
 
 ## 🏗️ Lovable/Supabase Build Sırası
 
-> **P19 + P17 serisi (B/C/F/E/G) + P20 + P21 (A, B+C) + P24 tamamen bitti, hepsi canlı doğrulandı.** **P17-A ve P17-D şirket kuruluşuna bağlı, bloke.** BENCHMARK Gap listesindeki bağımsız yapılabilecek her şey bitti (bkz. Gap durum tablosu altta). **P22 serisi (A/B/C/D/E/F) kod tarafında tamamen bitti — A/B/C/D `main`'de, D'nin düzeltmesi + E + F PR #3'te (henüz merge edilmedi) — tek kalan iş tarayıcı QA.** Detaylar dosyanın sonundaki "Onaylanan Yol Haritası — P21/P22/P23" bölümünde. **Not:** Bir sonraki Lovable turuna geçmeden önce workspace kredisi kontrol edilmeli (P24 sonunda bitmişti).
+> **P19 + P17 serisi (B/C/F/E/G) + P20 + P21 (A, B+C) + P24 tamamen bitti, hepsi canlı doğrulandı.** **P17-A ve P17-D şirket kuruluşuna bağlı, bloke.** BENCHMARK Gap listesindeki bağımsız yapılabilecek her şey bitti (bkz. Gap durum tablosu altta). **P22 serisi (A/B/C/D/E/F) tamamen bitti, hepsi `main`'de (PR #1 ve PR #3 ikisi de merge edildi) — tek kalan iş tarayıcı QA.** Detaylar dosyanın sonundaki "Onaylanan Yol Haritası — P21/P22/P23" bölümünde. **Not:** Bir sonraki Lovable turuna geçmeden önce workspace kredisi kontrol edilmeli (P24 sonunda bitmişti).
 
 ### BENCHMARK Gap Durum Tablosu (2026-07-21 itibarıyla)
 | # | Gap | Şiddet | Durum |
@@ -366,7 +366,7 @@ New PLAN FROM BERKİN NOTES
 | P21-G | Vitrin/Keşfet stok gösterim tutarlılığı (birim dönüşümü dahil) | ✅ TAMAMLANDI |
 | P21-H | Çoklu-batch akışının teslimat/tarih/ödeme-parity + MCP create-offer + farmer breakdown eksikleri | ✅ TAMAMLANDI |
 
-### P22 — Care Journal (Rutin Bakım) (P1, saffron sezonuna kadar esnek) — ✅ Kod tarafında tamamlandı (2026-07-24), tarayıcı QA bekliyor
+### P22 — Care Journal (Rutin Bakım) (P1, saffron sezonuna kadar esnek) — ✅ Tamamlandı, `main`'de (2026-07-24), tarayıcı QA bekliyor
 
 Berkin kararı (1. cevap): `harvest_entries`'ten (hasat olayı) ayrı bir tablo. Tek "Journal" sayfasında iki sekme: **Rutin Bakım** (yeni, Bevel-tarzı toggle) + **Hasat Kayıtları** (mevcut `harvest_entries` formu).
 
@@ -480,8 +480,8 @@ Berkin kararı (1. cevap): `harvest_entries`'ten (hasat olayı) ayrı bir tablo.
 **Doğrulama:** Gerçek kayıt oluşturma testinde bir hata bulundu ve düzeltildi — sistem başta işin birimini ürünün varsayılan birimine göre yazıyordu, ama bağlı olduğu batch farklı bir birimdeyse (örn. batch kg, varsayılan g) kayıt reddediliyordu (P21'de kurulan "birim uyuşmazlığı" koruması tam da bunu yakalamak için vardı). Düzeltme: birim artık her zaman bağlanılan batch'in kendi biriminden alınıyor. kg birimli gerçek bir batch ile yeniden test edilip doğru çalıştığı doğrulandı, `tsc --noEmit` temiz.
 
 ### PR durumu
-[PR #1](https://github.com/berkinsavciozen/hasat-d2c-marketplace/pull/1) Berkin tarafından `main`'e merge edildi (2026-07-24) — P22-A/B/C/D `main`'de.
-[PR #3](https://github.com/berkinsavciozen/hasat-d2c-marketplace/pull/3) hâlâ açık, `main`'e merge edilmedi — P22-D'nin parsel-gruplama düzeltmesi + P22-E + P22-F bu PR'da.
+[PR #1](https://github.com/berkinsavciozen/hasat-d2c-marketplace/pull/1) `main`'e merge edildi (2026-07-24) — P22-A/B/C/D `main`'de.
+[PR #3](https://github.com/berkinsavciozen/hasat-d2c-marketplace/pull/3) `main`'e merge edildi (2026-07-24) — P22-D'nin parsel-gruplama düzeltmesi + P22-E + P22-F artık `main`'de.
 
 ### ⚠️ Kalan iş: P22-D+E+F birleşik tarayıcı QA (test hesabı: çiftçi `05001234567`, OTP `123456`)
 
@@ -499,7 +499,7 @@ Berkin kararı (1. cevap): `harvest_entries`'ten (hasat olayı) ayrı bir tablo.
 12. Sayfanın altındaki **crop bilgi panellerini** (Safran, Kekik, Lavanta vb.) aç — glossary metinlerinin doğru sırada geldiğini doğrula.
 
 ### Sıradaki adım
-P22 serisi (A/B/C/D/E/F) kod tarafında tamamen bitti. P22-A/B/C/D `main`'de; P22-D'nin düzeltmesi + P22-E + P22-F PR #3'te, henüz merge edilmedi. Kalan tek şey: yukarıdaki tarayıcı QA test case'i (Berkin'in kendi testinde yapacağı). PR #3 merge edildikten sonra P22 serisi tamamen kapanmış olacak.
+P22 serisi (A/B/C/D/E/F) tamamen bitti, hepsi `main`'de (PR #1 ve PR #3 ikisi de merge edildi, 2026-07-24). Kalan tek şey: yukarıdaki tarayıcı QA test case'i (Berkin'in kendi testinde yapacağı). QA tamamlandığında P22 serisi tamamen kapanmış olacak.
 
 ### P23 — Buyer Mobile & Recipe App (P2, ayrı faz — soft launch'u bloklamıyor) — ⬜ Planlandı, henüz başlanmadı
 
