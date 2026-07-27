@@ -259,7 +259,10 @@ Son değişikliğin (`buyer.producer.$id` guest-erişimi) routing-guard seviyesi
 ## 🟡 AĞUSTOS 2026 — Soft Launch
 (Değişmedi)
 
-## 🔵 SAFRAN SEZONU / ⬜ SONRAKI FAZLAR
+## 🔵 SEZONLUK ÜRÜN YÖNETİMİ / ⬜ SONRAKI FAZLAR
+
+> **Not (2026-07-25):** Bu bölüm eskiden "SAFRAN SEZONU" olarak adlandırılıyordu — ama sezonluk hasat mekanizması (fiyat bandı, "Hasat Dönemi" chip'i, komisyon vb.) safran'a özel değil, `crop_config.harvest_window_start_month/end_month` ile tanımlı HER crop için aynı şekilde çalışıyor (fındık-Ağustos, kayısı-Haziran, elma-Eylül/Kasım vb.). Safran sadece Ekim-Kasım'da hasat eden bir crop, platformun "sezon" kavramının kendisi değil. Başlık bu netliği yansıtacak şekilde güncellendi; içerik (aşağıdaki maddeler) değişmedi.
+
 (Değişmedi)
 
 ---

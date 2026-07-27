@@ -14,7 +14,9 @@ tags: [hasat, ai-context]
 
 **Kurucu:** Dataroid'de Senior PM. M1–M22 yarı zamanlı, M23'ten itibaren tam zamanlı.
 
-## Doğrulanmış Sayılar (Nisan 2026)
+## Çiftlik (Safran + Lavanta) Doğrulanmış Sayıları (Nisan 2026)
+> **Not (2026-07-25):** Bu tablo Berkin'in KENDİ FİZİKSEL ÇİFTLİĞİNE (indoor+outdoor safran+lavanta üretimi, "Çiftlik" iş kolu) aittir — Hasat DİJİTAL PLATFORMUNUN genel/ortalama sayıları değildir. Platform 70+ crop'u eşit şekilde destekler (bkz. `crop_config`); safran bunlardan sadece biridir, platformun "amiral gemisi" ürünü değildir. Bu tablo sık geçiyor çünkü Çiftlik iş kolunun ürünü safran+lavanta — platform stratejisiyle karıştırılmamalı.
+
 | Parametre | Değer | Güven |
 |---|---|---|
 | Korm toptan | ₺300/kg (100 kg/dönüm) | Yüksek |
@@ -34,7 +36,7 @@ tags: [hasat, ai-context]
 | M2 (Haziran 2026) | MVP teknik olarak hazır (Lovable AI sayesinde) |
 | M3 (Temmuz 2026) | GTM hazırlığı: ödeme, foto upload, public URL |
 | M4 (Ağustos 2026) | 🚀 Soft launch — ilk gerçek işlem |
-| M6 (Ekim 2026) | Saffron sezonu — %5 take rate açılışı |
+| M6 (Ekim 2026) | **Tüm crop'larda** %5 komisyon açılışı (safran hasat sezonuyla aynı aya denk geliyor, ama karar crop-bağımsız — o tarihte platformdaki her ürün için komisyon başlıyor) |
 | M7 (Kasım 2026) | ₺99/mo sub açılışı |
 | M16 | TKDK proje yazımı |
 | M18 | TKDK başvurusu (Ağustos penceresi) |
