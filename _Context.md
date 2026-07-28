@@ -89,6 +89,25 @@ tags: [hasat, ai-context]
 | SMS | Twilio Edge Function `send-sms` |
 | Deploy | hasat.lovable.app |
 
+### Repolar (2026-07-28 itibarıyla)
+
+| Repo | İçerik | Kim yazıyor |
+|---|---|---|
+| `hasat-d2c-marketplace` | Web uygulaması (React 19 + TanStack Start, SSR) | Lovable (`main`, sync bot) + Claude Code (feature branch → PR) |
+| `hasat-mobile` | Mobil uygulama (Expo + Expo Router + Nativewind) — **M5'te açılacak** | %100 Claude Code (Lovable RN üretemiyor) |
+| `hasat-core` | Paylaşılan TS: tipler, saf mantık, sorgu hook'ları, zod, design token — **M1'de açılacak** | Claude Code; iki repoya git subtree ile iner |
+| `hasat-vault` | İş notları, roadmap, dokümanlar (public, kod/sır yok) | Claude Code PR + Berkin merge |
+
+### Mobil stack (M5+)
+- **Expo + EAS Build** — şirket Mac'i olduğu için local Xcode/imzalama yönetilemiyor; EAS bulutta derliyor ve submit ediyor
+- **Expo Router** (dosya tabanlı, TanStack Router'a benzer) · **Nativewind** (Tailwind sözdizimi)
+- **TanStack Query** web ile ortak (React Native'de çalışıyor)
+- Oturum: `expo-secure-store` (web'de `localStorage`) — adapter sınırı
+- Push: `device_tokens` + APNs (iOS) / FCM (Android); `notif_channel` enum'unda `push` zaten mevcut
+
+### Mimari ilke
+İki client'ın da ihtiyaç duyduğu mantık **veritabanında** (RPC/view) yaşar; monorepo kurulmaz (Lovable sync'ini kırma riski). Detay: `Build/Shared-Architecture.md`.
+
 ## DB Kritik Notlar
 - Journal tablosu = `harvest_entries` (journal_entries değil)
 - Parsel konum = `location_label`
