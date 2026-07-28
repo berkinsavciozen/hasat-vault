@@ -48,7 +48,25 @@ tags:
 ---
 
 ## 🔴 ŞİMDİ — Temmuz 2026
-(Değişmedi — bkz. önceki sürüm, "Şahıs şirketi kur" hâlâ işaretsiz)
+
+> **[2026-07-28 güncelleme] Şirket kuruluşunun kritik yol ağırlığı arttı ve şirket TİPİ kararı açıldı.**
+>
+> Şirket artık üç şeyi birden blokluyor: (1) P17-A escrow/iyzico, (2) P17-D fatura/e-müstahsil, (3) ileride store organizasyon hesapları.
+>
+> **Yeni bulgu:** Apple'ın resmî kuralı, organizasyon hesabı için **tüzel kişilik** şartı koyuyor — **şahıs şirketi bireysel kaydolmak zorunda** (App Store satıcı adı = kişisel ad, "Hasat" değil). Bu, mevcut "şahıs şirketi kur" planıyla "App Store'da Hasat markası" hedefinin çeliştiği anlamına geliyor.
+>
+> **Alınan önlem:** Apple bireysel hesabı şirketten bağımsız olarak şimdi açılıyor → Apple kritik yoldan çıktı. Şirket tipi kararı (şahıs vs Ltd. Şti.) mali müşavir görüşüyle ayrıca verilecek. Detay: `Build/Store-Compliance.md`.
+>
+> **Şirket tescili için hedef: ~7 Ağustos 2026** (iyzico zinciri: tescil → iyzico onboarding 1-3 hafta → 25 Ağustos soft launch'ta gerçek ödeme).
+
+- [ ] **Şirket tipi kararı** — mali müşavire iki soru: (1) Ltd. Şti. kuruluş süresi + yıllık maliyet farkı? (2) Şahıs şirketi ile escrow/aracılık faaliyetinin sorumluluk riski?
+- [ ] Şirket tescili (hedef ~7 Ağustos)
+- [ ] iyzico başvurusu (tescil sonrası hemen)
+- [ ] **[Yeni] Apple Developer bireysel hesap** ($99, D-U-N-S gerekmiyor, iPhone üzerinden) — hedef 7-10 gün, güvenli son tarih 15 Eylül
+- [ ] **[Yeni] App Store Connect'te "Hasat" adının müsaitliğini kontrol et** (hesap açılır açılmaz)
+- [ ] Rekabet hukuku danışmanlığı
+
+(Diğer maddeler değişmedi — bkz. önceki sürüm)
 
 ### Düşük öncelikli cila
 (Değişmedi — bkz. önceki sürüm)
@@ -73,7 +91,7 @@ tags:
 | 6 | Yapılandırılmış RFQ | P1 | ✅ Kapandı (P17-E) |
 | 7 | Hal fiyatı referans bandı | P1 | ✅ Kapandı (P19, sadece İzmir pilotu) |
 | 8 | Lojistik adımı (taşıma+takip) | P1/P0 | ✅ **Kapandı (P17-B alanları + P20 bildirimi)** |
-| 9 | Parselden tabağa QR görünümü | P2 | ⬜ Yapılmadı — landing v2 ile senkron |
+| 9 | Parselden tabağa QR görünümü | P2 | 🔵 **P23-M4'e bağlandı** (2026-07-28) — tarif→malzeme→parsel zinciri tam olarak bu özellik; ayrı iş olarak beklemiyor |
 | 10 | SMS/WhatsApp bildirim genişletmesi | P2 | ✅ **Kapandı (P20, P24'te regresyonu düzeltildi)** |
 | 11 | Onaylı alıcıya vade/cari | P1→P2 | ⬜ Yapılmadı |
 | 12 | Hasat öncesi finansman | P2 | ⬜ Yapılmadı — partner gerektirir, uzun vade |
@@ -279,6 +297,9 @@ Son değişikliğin (`buyer.producer.$id` guest-erişimi) routing-guard seviyesi
 101. **[Bu turda eklendi] Bir önceki turda "gerçek Twilio testiyle doğrulanmış" bir düzeltme, sonraki bir turda (aynı dosyaya dokunan farklı bir çalışma sırasında) sessizce geri alınabilir/kaybolabilir — "bir kere doğrulandı" kalıcı bir garanti değil.** P20'de `send-sms` COL map'i 10 event'e çıkarılıp gerçek SMS'le doğrulanmıştı; P24'te aynı dosya 3 event'e dönmüş halde bulundu (muhtemelen Berkin'in ayrı bir Lovable oturumunda dosyanın üzerine yazılması). Ders: kritik bir entegrasyon noktasına (özellikle bir agent'ın serbestçe düzenleyebildiği paylaşılan bir dosyaya) tekrar dönüldüğünde, "zaten doğrulanmıştı" diye atlanmamalı, hızlı bir `grep`/durum kontrolüyle hâlâ doğru olduğu teyit edilmeli.
 102. **[Bu turda eklendi] Bir sayfaya "CTA ekle" demek yeterli değildir — o CTA'nın sahibi olduğu sayfaya kullanıcının gerçekten *ulaşabildiği* doğrulanmalı.** Abonelik CTA'sı zaten `/buyer/producer/$id`'de vardı ama sayfaya giden hiçbir link yoktu (ölü bir uç), ayrıca sayfa giriş yapmamış kullanıcıya üst layout guard'ı tarafından hiç render ettirilmiyordu. Bir özelliğin "var" olması, kullanıcının ona *ulaşabilmesiyle* aynı şey değil — yeni bir CTA/özellik eklerken navigasyon zincirinin baştan sona (nereden geliniyor, hangi guard'lardan geçiliyor) izlenmesi gerekir.
 103. **[Bu turda eklendi] Bir agent platformunun (Lovable) kredisi/kotası tükenebilir — bu durumda son yapılan değişikliğin "kod seviyesinde doğru" (diff temiz, tsgo geçti) olması, "çalışma zamanında hatasız" olduğu anlamına gelmez.** Kredi bittiğinde bir sonraki doğrulama adımı (bu turda: guest kullanıcıda component render testi) yapılamadan bırakılabilir — bu açıkça "doğrulanamadı, manuel QA gerekiyor" olarak işaretlenmeli, sessizce "tamamlandı" sayılmamalı.
+104. *(mevcut — kullanıcı-akışı dilinde test case kuralı, aşağıda ayrı başlıkta)*
+105. **[2026-07-28'de eklendi] `src/lib/core/` altındaki dosyalar `hasat-core` reposundan gelir — Lovable dahil hiç kimse orada düzenleme yapmaz.** Değişiklik `hasat-core`'da yapılır, iki repoya (web + mobil) PR ile iner. Her core dosyasının başında `// hasat-core — BU DOSYAYI BURADA DÜZENLEME` işareti ve her iki repoda hash manifest bulunur. Gerekçe: Lovable daha önce paylaşılan bir dosyanın üzerine yazdı (P24'te bulunan P20 regresyonu) — görünür işaret + drift kontrolü tam bu senaryoya karşıdır.
+106. **[2026-07-28'de eklendi] İki client (web + mobil) varken, ikisinin de ihtiyaç duyduğu mantık client'a değil veritabanına (RPC/view) yazılır.** Gerekçe: `dispatch_sms` (SQL) ile `send-sms` (TS) arasındaki event eşlemesi iki kez saptı ve SMS'ler sessizce gitmedi (P20'de bulundu, P24'te tekrar bulundu). Tek doğruluk kaynağı iki runtime'a bölündüğünde sapma kaçınılmaz, sessiz ve tekrarlayandır. İkinci bir client bu riski ikiye katlar.
 
 ---
 
@@ -527,19 +548,55 @@ Berkin kararı (1. cevap): `harvest_entries`'ten (hasat olayı) ayrı bir tablo.
 ### Sıradaki adım
 P22 serisi (A/B/C/D/E/F) ve P22-F'nin yan etki düzeltmeleri tamamen bitti, hepsi `main`'de (PR #1, #3, #4 — üçü de merge edildi, 2026-07-24). Kalan tek şey: yukarıdaki tarayıcı QA test case'i (Berkin'in kendi testinde yapacağı). QA tamamlandığında P22 serisi tamamen kapanmış olacak.
 
-### P23 — Buyer Mobile & Recipe App (P2, ayrı faz — soft launch'u bloklamıyor) — ⬜ Planlandı, henüz başlanmadı
+### P23 — Buyer Mobile & Recipe App — 🟢 PLAN ONAYLANDI (2026-07-28), M0 başlıyor
 
-Berkin kararı (7. cevap): Recipe App şimdilik tüm `buyer_type` segmentlerine açık.
+> **Tam plan artık ayrı dokümanlarda:**
+> - `Build/Roadmap.md` — görsel Gantt + kilometre taşları + şirket geri sayımı
+> - `Build/P23-Mobile.md` — kapsam, Expo gerekçesi, şema, AI import matrisi, M0–M9
+> - `Build/Shared-Architecture.md` — web+mobil paylaşım mimarisi
+> - `Build/Store-Compliance.md` — Apple 4.2, hesap tipleri, IAP, submit checklist
 
-**Referans araştırması (Berkin'in 2 App Store linki):**
-- **Eatr:** süre/beceri/diyet filtreleri, besin değeri bilgisi. Abonelik iptal/refund şikayetleri var — Hasat bu hatayı tekrarlamamalı.
-- **ReciMe:** "Order Groceries" özelliği Berkin'in cross-sell fikriyle örtüşüyor, Hasat kendi envanterine sahip olduğu için yapısal avantajlı.
+**Hedef:** Store'da canlı ≈ 31 Ekim 2026. **Kural: kapsam kesilmez, tarih ötelenir.**
 
-| Kod | Konu | Kapsam | Bağımlılık | Durum |
-|---|---|---|---|---|
-| P23-A | Buyer mobile + Recipe App keşif/tasarım | React Native, shopping+recipe birlikte mobile-first | P21 tamamlandı ✅ (artık başlanabilir) | ⬜ Planlandı |
-| P23-B | Recipe↔Crop eşleştirme + RFQ otomasyonu | Malzeme Hasat'ta yoksa otomatik `crop_requests` önerisi | P23-A | ⬜ Planlandı |
-| P23-C | Mobile compliance | App Store/Play Store in-app purchase, KVKK, OTP/biometric | P23-A | ⬜ Planlandı |
+#### Onaylanan temel kararlar (2026-07-28)
+
+| # | Karar | Gerekçe |
+|---|---|---|
+| 1 | **Expo/React Native** (Capacitor değil) | Şirket Mac'i — local'de Xcode/imzalama yönetilemiyor. EAS bulutta derliyor. Bedeli: mobil %100 Claude Code, Lovable mobilde çalışmıyor. |
+| 2 | **Mobil v1'de checkout YOK** | Ödeme blokajını uygulamadan izole eder + Guideline 2.1 riski kalkar + IAP tartışması biter. Akış "Talep Et"te biter, ödeme web'de. |
+| 3 | **Apple bireysel hesap, şimdi** | D-U-N-S gerekmiyor, şirketten bağımsız → Apple kritik yoldan çıkar. Şahıs şirketi zaten organizasyon hesabına uygun değil. |
+| 4 | **Tarif katmanı = huni** | Başarı ölçüsü tarif geliri değil, tarif→kayıt→talep→sipariş dönüşümü. `v_kpi_recipe_funnel` çekirdek. |
+| 5 | **Eşleşmeyen malzeme → "Talep Et"** | 70 crop'un 9'unda ilan var. Talep verisi = çiftçi kazanım öncelik listesi. |
+| 6 | **Fotoğraf: `crop_config.default_photo_url`** | 39 ilanın 0'ında foto var. Temsili görsel + "temsili görsel" etiketi zorunlu. Fotoğraf kritik yoldan çıktı. |
+| 7 | **Kullanıcı importları private** | AI ile çıkarılan tarifler asla otomatik public korpusa girmez. Telif + kalite. |
+| 8 | **Mantık DB'ye** (kural #106) | İki client → çift kaynak sapması riski (P20/P24 kanıtı). Eşleştirme/dönüşüm/liste RPC'de. |
+
+#### Kilometre taşları
+
+| # | Taş | Hedef | Durum |
+|---|---|---|---|
+| M0 | Açık işler + hesaplar | 28 Tem – 3 Ağu | 🔵 Başlıyor |
+| M1 | Paylaşılan çekirdek (`hasat-core`) | 4 – 10 Ağu | ⬜ |
+| M2 | Tarif backend'i (ekleyici) | 11 – 22 Ağu | ⬜ |
+| M3 | İçerik (15–20 tarif) | 18 Ağu – 1 Eyl | ⬜ |
+| M4 | Web tarif yüzeyi + Gap #9 | 1 – 13 Eyl | ⬜ |
+| M5 | Mobil iskelet + offline | 14 – 27 Eyl | ⬜ |
+| M6 | Native yetenekler + push | 28 Eyl – 11 Eki | ⬜ |
+| M7 | Köprü + store varlıkları | 12 – 18 Eki | ⬜ |
+| M8 | Store submit | 19 – 31 Eki | ⬜ |
+| M9 | Sıraya alındı (silinmedi) | Kasım+ | ⬜ |
+
+#### Eski P23 kodlarının eşlemesi
+
+| Eski | Yeni | Not |
+|---|---|---|
+| P23-A "React Native, mobile-first" | M1 + M5 | Expo'ya revize edildi (Mac kısıtı) |
+| P23-B Recipe↔Crop + RFQ | M2 + M4 | Eşleştirme RPC'ye taşındı |
+| P23-C Mobile compliance | M7 + M8 | `Build/Store-Compliance.md` |
+
+#### Referans araştırması (korunuyor)
+- **Eatr:** süre/beceri/diyet filtreleri, besin değeri. Abonelik iptal/refund şikayetleri var — Hasat bu hatayı tekrarlamamalı.
+- **ReciMe:** "Order Groceries" özelliği; Hasat kendi envanterine sahip olduğu için yapısal avantajlı. Kullanıcı importlarını private tutma deseni de buradan.
 
 ### Kural #104 (2026-07-24'te eklendi)
 Berkin'in kararı: bundan sonra Claude Code planları, arayüzde test edilmesi gereken adımlar için **kullanıcı-akışı dilinde adım adım bir test case** olarak sunulmalı (hangi sayfa açılacak, hangi butona tıklanacak, ne görülmesi bekleniyor) — trigger/kolon/event isimleri gibi DB-jargonuyla değil. Genel plan anlatımı da (yeni tablo/akış gibi kapsamlı işlerde) bir PM'in anlatacağı gibi olmalı: kullanıcı ne yapıyor, FE'de ne değişiyor, BE'de ne değişiyor — teknik isimler (trigger/policy adı gibi) sadece gerekince, ayrıntı seviyesinde geçmeli.
