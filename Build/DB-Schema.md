@@ -1,6 +1,6 @@
 ---
 title: Hasat — DB Schema Referansı
-updated: 2026-06-30
+updated: 2026-07-28
 tags: [hasat, supabase, schema]
 ---
 
@@ -23,8 +23,14 @@ tags: [hasat, supabase, schema]
 ⚠️ Phone format: `905XXXXXXXXX` (+ prefix'siz) · UNIQUE constraint on phone (P15 sonrası eklendi)
 
 ### `buyer_profiles`
-`id` uuid · `user_id` uuid (FK→auth.users) · `company_name` · `company_type` enum · `monthly_volume` numeric  
+`id` uuid · `user_id` uuid (FK→auth.users) · `company_name` (nullable, P23-M1-a) · `company_type` enum · `monthly_volume` numeric  
 ⚠️ user_id'de UNIQUE constraint yok — ON CONFLICT çalışmaz, DELETE+INSERT yap
+⚠️ `company_name` **P23-M1-a'dan itibaren nullable** — bireysel (ev kullanıcısı) segment şirket adı girmeden onboarding'i tamamlayabilir. Mevcut satırlara dokunulmadı.
+
+### `buyer_addresses` (P23-M1-a'da dokümante edildi)
+`id` uuid · `buyer_id` uuid (FK→auth.users) · `label` text · `address` text · `city` text · `is_default` bool DEFAULT false · `created_at` / `updated_at`  
+RLS: `buyer_addresses_owner_all` — tek `ALL` policy, `auth.uid() = buyer_id` (SELECT/INSERT/UPDATE/DELETE hepsi kapsıyor, orders'taki UPDATE eksikliği burada yok)  
+⚠️ **`trg_enforce_single_default_address`** (BEFORE INSERT OR UPDATE, P23-M1-a): bir satır `is_default=true` yapıldığında aynı `buyer_id`'nin diğer adresleri otomatik `false`'a çekilir — hem web hem mobil aynı DB mantığını kullanır (Kural #106).
 
 ### `farms` / `parcels`
 `parcels.farm_id` NOT NULL → önce `farms` insert et  
@@ -41,6 +47,7 @@ tags: [hasat, supabase, schema]
 ### `listings`
 `farmer_id` · `harvest_entry_id` · `crop` text · `quantity` numeric · `unit` text · `price_per_unit` numeric · `min_order` numeric · `quality` text · `description` text · `photo_urls` text[] · `status` text  
 ⚠️ `crop` (crop_type değil) · `title`, `harvest_date`, `parcel_id` yok
+⚠️ **`trg_enforce_min_order_le_quantity`** (BEFORE INSERT, P23-M1-a): `min_order > quantity` olan yeni ilan insert'i reddedilir. **CHECK constraint DEĞİL, bilinçli karar** — CHECK her UPDATE'te de enforce olur ve `enforce_offer_stock()`'un stok tükettikçe `quantity`'yi `min_order` altına düşürmesini (legal durum) kırardı. Trigger sadece INSERT'te çalışır, mevcut ilanların güncellenmesini engellemez. Hâlâ tabloda başka hiç CHECK constraint yok.
 
 ### `offers` (P15 sonrası güncel)
 Ana alanlar + P15 eklentileri:
@@ -124,6 +131,7 @@ UUID'leri hardcode et — phone lookup ambiguous column hatası verir.
 ### Yeni Tablo: `crop_config`
 `crop` text PK · `display_name` text · `default_unit` unit_type · `harvest_window_start_month` int · `harvest_window_end_month` int · `lifecycle_steps` jsonb · `price_benchmark_source` text · `category_group` text
 Seed: `safran`, `lavanta`. Amaç: B4 (Hasat Dönemi chip), B19 (kategori sayacı), P16-E (fiyat tablosu) ve P16-H (lifecycle şablonları) tek buradan okusun — yeni ürün eklemek kod değişikliği değil, tek satır INSERT olsun.
+⚠️ **`safran_soğanı.default_unit`** P23-M1-a'da `'adet'`'ten `'kg'`'ye düzeltildi — `unit_type` enum'u yalnızca `g`/`kg`/`L` içeriyor, `adet` yok; eski değer ilan oluşturmada gizli insert hatası riskiydi. Enum'a `adet` **eklenmedi** (P21 birim-uyuşmazlığı trigger'ını ve stok toplamalarını kirletir).
 
 ### `parcels` — yeni kolon
 `production_method` production_method enum, mevcut satırlara default `outdoor`.
@@ -178,3 +186,14 @@ available_quantity(listing) =
 - `price_feed` — yeni kolon: `source_type` text CHECK (`manual`, `api`) DEFAULT `manual`
 - `crop_config` — yeni kolon: `auto_price_source` jsonb (nullable) — endpoint + ürün-kodu eşlemesi tutar; safran/lavanta seed'inde `null`
 - Not: canlı çekim job'u (pg_cron/Edge Function) **build edilmiyor** — sadece şema hazır bekliyor. Detay/kaynak taraması: `Research/Market.md` → "Otomatik Fiyat Toplama Araştırması"
+
+## P23-M1-a — Şema Borçları Kapatıldı (2026-07-28)
+
+`Build/P23-Mobile.md` M1'de listelenen "küçük şema borçları"nın veritabanı tarafı. `hasat-core`/subtree işi kapsam dışı (P23-M1-b).
+
+1. **`crop_config.safran_soğanı.default_unit`**: `'adet'` → `'kg'`. `unit_type` enumuna `adet` eklenmedi (bkz. yukarı, `crop_config` bölümü).
+2. **`listings` — `min_order > quantity`**: CHECK constraint yerine `trg_enforce_min_order_le_quantity` (BEFORE INSERT). Gerekçe yukarıda `listings` bölümünde. Mevcut ihlal eden tek satır (ilan `63b0cf1b-8554-4d6e-9e12-0fdd6ebb1a85`, Ahmet Yılmaz, kekik, `min_order=10kg`/`quantity=5kg`) `min_order=5`'e düşürülerek düzeltildi, `quantity`'ye dokunulmadı.
+3. **`buyer_profiles.company_name`**: NOT NULL → nullable (bkz. yukarı).
+4. **`buyer_addresses`**: `trg_enforce_single_default_address` (BEFORE INSERT OR UPDATE) eklendi (bkz. yukarı). UPDATE RLS'in zaten var olduğu (`buyer_addresses_owner_all`, cmd=ALL) doğrulandı — orders'taki UPDATE-policy eksikliği burada tekrarlanmadı.
+
+**Doğrulama:** Her madde gerçek SQL sorgusuyla ve gerçek insert/update denemesiyle test edildi (Kural #96) — ayrıntılar PR açıklamasında. Advisor taraması (`get_advisors`) yeni trigger fonksiyonlarında `search_path` uyarısı verdi, ikisi de mevcut trigger konvansiyonuyla (`SET search_path = public`) düzeltildi.
