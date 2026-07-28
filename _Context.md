@@ -1,11 +1,12 @@
 ---
 title: Hasat — AI Context
-updated: 2026-06-30
+updated: 2026-07-28
 tags: [hasat, ai-context]
 ---
 
 # Hasat AI Context
-> Yeni bir Claude oturumuna bu notu yapıştır — anında tam bağlam sağlar.
+> Yeni bir Claude / Claude Code oturumuna bu notu ver — anında tam bağlam sağlar.
+> **Bu dosya tek bağlam kaynağıdır.** Güncel değilse oturum yanlış varsayımla çalışır — her faz sonunda güncellenmeli.
 
 ## Ne?
 İki paralel iş kolu:
@@ -14,8 +15,13 @@ tags: [hasat, ai-context]
 
 **Kurucu:** Dataroid'de Senior PM. M1–M22 yarı zamanlı, M23'ten itibaren tam zamanlı.
 
+**North Star:** İhtilafsız tamamlanmış sipariş GMV'si (ham hacim değil).
+
+### ⚠️ Crop-agnostic ilkesi
+Platform hiçbir crop'a özel muamele göstermez — domates/elma/safran/lavanta hepsi `crop_config`'te eşit statüde (70 crop). Safran iş planında sık geçer çünkü **Çiftlik** iş kolunun ürünü; bu platform stratejisinin safran merkezli olduğu anlamına gelmez. Yeni özellik eklerken: varsayılanlar nötr olmalı, demo/örnek içerik çeşitli olmalı, her feature en az 2–3 crop tipiyle (mainstream + niş + yenilemez) doğrulanmalı. (P25 denetimi, 2026-07-25)
+
 ## Çiftlik (Safran + Lavanta) Doğrulanmış Sayıları (Nisan 2026)
-> **Not (2026-07-25):** Bu tablo Berkin'in KENDİ FİZİKSEL ÇİFTLİĞİNE (indoor+outdoor safran+lavanta üretimi, "Çiftlik" iş kolu) aittir — Hasat DİJİTAL PLATFORMUNUN genel/ortalama sayıları değildir. Platform 70+ crop'u eşit şekilde destekler (bkz. `crop_config`); safran bunlardan sadece biridir, platformun "amiral gemisi" ürünü değildir. Bu tablo sık geçiyor çünkü Çiftlik iş kolunun ürünü safran+lavanta — platform stratejisiyle karıştırılmamalı.
+> **Not:** Bu tablo Berkin'in KENDİ FİZİKSEL ÇİFTLİĞİNE aittir — Hasat DİJİTAL PLATFORMUNUN genel sayıları değildir. Platform 70 crop'u eşit destekler; safran bunlardan biridir, "amiral gemisi" değildir.
 
 | Parametre | Değer | Güven |
 |---|---|---|
@@ -33,10 +39,10 @@ tags: [hasat, ai-context]
 | Ay | Olay |
 |---|---|
 | M1 (Mayıs 2026) | Build başlangıcı (yarı zamanlı) |
-| M2 (Haziran 2026) | MVP teknik olarak hazır (Lovable AI sayesinde) |
+| M2 (Haziran 2026) | MVP teknik olarak hazır |
 | M3 (Temmuz 2026) | GTM hazırlığı: ödeme, foto upload, public URL |
-| M4 (Ağustos 2026) | 🚀 Soft launch — ilk gerçek işlem |
-| M6 (Ekim 2026) | **Tüm crop'larda** %5 komisyon açılışı (safran hasat sezonuyla aynı aya denk geliyor, ama karar crop-bağımsız — o tarihte platformdaki her ürün için komisyon başlıyor) |
+| M4 (Ağustos 2026) | 🚀 Soft launch — ilk gerçek işlem (25 Ağustos) |
+| M6 (Ekim 2026) | **Tüm crop'larda** %5 komisyon açılışı (safran hasat sezonuyla aynı aya denk geliyor, ama karar crop-bağımsız) |
 | M7 (Kasım 2026) | ₺99/mo sub açılışı |
 | M16 | TKDK proje yazımı |
 | M18 | TKDK başvurusu (Ağustos penceresi) |
@@ -44,6 +50,8 @@ tags: [hasat, ai-context]
 | M24 | Indoor çiftlik (50m²) |
 | M28 | Outdoor safran ekimi (Ağustos) |
 | M31 | Outdoor Y1 hasat: ~1,925g · ₺770K |
+
+> P23 (mobil + tarif uygulaması) takvimi ayrı: `Build/Roadmap.md`
 
 ## Gelir Modeli
 | Akış | Fiyat | Başlangıç |
@@ -55,105 +63,170 @@ tags: [hasat, ai-context]
 
 **İlk 3 ay (Ağustos–Ekim 2026): tamamen ücretsiz — GMV yarat, sonra para al.**
 
-## Ürün Durumu (Haziran 2026)
-**Live:** https://hasat.lovable.app  
-**Builder:** Lovable AI · **Backend:** Supabase `efuqpiaavrzimvstpdpm`  
-**Repo:** github.com/berkinsavciozen/hasat-d2c-marketplace
+---
 
-| Tamamlanan | Durum |
-|---|---|
-| Auth (Phone OTP, Twilio) | ✅ |
-| Farmer akışı (tüm ekranlar) | ✅ |
-| Buyer akışı (tüm ekranlar) | ✅ |
-| Marketplace / Listings / Offers | ✅ |
-| P15: Teklif state machine (ball_side, ping-pong) | ✅ |
-| AI özellikleri (P9-P14) | ✅ |
-| Bildirimler (in-app + Twilio SMS) | ✅ |
-| Auth/profiles fix (UNIQUE, orphan cleanup) | ✅ |
+## Ürün Durumu (28 Temmuz 2026)
 
-| Yapılacak | Öncelik |
+**Live:** https://hasat.lovable.app
+**Builder:** Lovable AI · **Backend:** Supabase `efuqpiaavrzimvstpdpm`
+
+### Tamamlanan fazlar
+| Faz | Konu |
 |---|---|
-| P15 completion (A1-A4) | 🔴 |
-| Ürün fotoğrafı upload | 🔴 |
-| Public vitrin URL | 🔴 |
-| IBAN ödeme köprüsü → iyzico | 🔴 |
+| P9–P14 | AI özellikleri |
+| P15 | Teklif state machine (`ball_side`, ping-pong) — tamamlandı |
+| P16 | Tüm seri (foto upload altyapısı, public vitrin `/s/$slug` dahil) |
+| P17-B/C/E/F/G | Sipariş sonrası akış · karşılıklı değerlendirme · yapılandırılmış RFQ · tekrar sipariş + şube adresleri · 20 KPI view + `/admin/kpi` |
+| P18 | Arayüz yenileme |
+| P19 + P19-C | Borsa/fiyat deneyimi · İzmir Hal API pilotu + günlük cron |
+| P20 | SMS/bildirim genişletmesi + lojistik bildirimleri |
+| P21-A/B/C | Çoklu-batch mimarisi (`offer_items`, batch açma, çoklu-batch teklif) |
+| P22-A…F | Care Journal → günlükle birleştirildi; crop glossary (70 crop × 204 satır) |
+| P24 | Abonelik sistemi denetimi + regresyon düzeltmesi + discoverability |
+| P25 | Crop-agnostic denetimi (frontend varsayılanları + vault dokümanları) |
+
+### Açık işler
+| İş | Durum |
+|---|---|
+| **P22-D+E+F tarayıcı QA (15 adım)** | 🔴 Bekliyor — `TODO.md`'de test case var. P23-M1'e geçilmeden kapanmalı |
+| **Şirket tescili** | 🔴 Yapılmadı — hedef ~7 Ağustos. Üç şeyi blokluyor: P17-A, P17-D, ileride store organizasyon hesapları |
+| **iyzico başvurusu** | 🔴 Tescil sonrası |
+| P17-A — gerçek bloke ödeme (escrow) | 🔴 Şirkete bağlı |
+| P17-D — fatura / e-müstahsil | 🔴 Şirkete bağlı |
+| Rekabet hukuku danışmanlığı | 🔴 Yapılmadı |
+| Glossary insan gözden geçirmesi | 🟡 P22-C içeriği AI üretimi, bölgesel doğrulama yapılmadı |
+| `useSetDefaultAddress` diğer adresleri `false`'a çekmiyor | 🟡 Düşük öncelik (P23-M1'de kapanacak) |
+| **P23 — Buyer Mobile & Recipe App** | 🔵 Plan onaylandı (2026-07-28), M0 başlıyor → `Build/Roadmap.md` |
+
+### BENCHMARK Gap durumu
+Kapandı: #2 teslim/ihtilaf · #3 değerlendirme · #5 tekrar sipariş · #6 RFQ · #7 hal fiyat bandı · #8 lojistik · #10 bildirimler
+Bloke: #1 escrow (P17-A) · #4 fatura (P17-D)
+P23'e bağlandı: #9 parselden tabağa QR → M4
+Yapılmadı: #11 vade/cari · #12 hasat öncesi finansman
+
+---
+
+## ⚠️ Arz gerçeği (canlı veri, 2026-07-28)
+
+Bu sayılar ürün kararlarını doğrudan etkiliyor — özellikle tarif/tüketici tarafında:
+
+| Ölçüm | Değer |
+|---|---|
+| `crop_config` toplam crop | 70 |
+| Aktif ilanı olan crop | **9** |
+| Toplam aktif ilan | 17 (+22 draft) |
+| **Fotoğraflı ilan** | **0 / 39** — foto altyapısı var (P16-A), hiç kullanılmamış |
+| `min_order` ölçeği | B2B — örn. safran 10 g × ₺900 = ₺9.000 minimum sepet |
+| `bireysel` segment alıcı | 1 |
+
+**Sonuçlar:** (a) tarif malzemeleri çoğunlukla eşleşmeyecek → "Talep Et" ana akış, kenar durum değil; (b) tüketici yüzeyinde ilan fotoğrafı yerine `crop_config.default_photo_url` (temsili görsel + etiket) kullanılıyor; (c) talep verisi crop bazında toplandığında **çiftçi kazanım öncelik listesi** oluyor.
+
+**Test verisi uyarısı:** Mevcut ilanlarda tutarsız fiyatlar var (safran hem ₺900/g hem ₺350/kg) ve 1 ilanda `min_order > quantity`. `listings`'te hiç CHECK constraint yok. Tüketiciye açılan yüzeyler öncesi temizlenmeli.
+
+---
 
 ## Tech Stack
 | Katman | Araç |
 |---|---|
-| Frontend | React + TanStack Start |
+| Frontend (web) | React 19 + TanStack Start (**SSR var** → tarif sayfaları SEO'lanabilir) |
+| Styling | Tailwind 4 |
 | Builder | Lovable AI |
-| Backend | Supabase (Auth, DB, Storage, Realtime, Edge Functions) |
+| Backend | Supabase (Auth, DB, Storage, Realtime, Edge Functions, `pg_cron`) |
 | Auth | Phone OTP — Twilio WhatsApp/SMS |
 | State | TanStack Query |
 | SMS | Twilio Edge Function `send-sms` |
 | Deploy | hasat.lovable.app |
 
-### Repolar (2026-07-28 itibarıyla)
-
+### Repolar (2026-07-28)
 | Repo | İçerik | Kim yazıyor |
 |---|---|---|
-| `hasat-d2c-marketplace` | Web uygulaması (React 19 + TanStack Start, SSR) | Lovable (`main`, sync bot) + Claude Code (feature branch → PR) |
-| `hasat-mobile` | Mobil uygulama (Expo + Expo Router + Nativewind) — **M5'te açılacak** | %100 Claude Code (Lovable RN üretemiyor) |
+| `hasat-d2c-marketplace` | Web uygulaması | Lovable (`main`, sync bot `gpt-engineer-app[bot]`) + Claude Code (feature branch → PR) |
+| `hasat-mobile` | Mobil (Expo + Expo Router + Nativewind) — **M5'te açılacak** | %100 Claude Code (Lovable RN üretemiyor) |
 | `hasat-core` | Paylaşılan TS: tipler, saf mantık, sorgu hook'ları, zod, design token — **M1'de açılacak** | Claude Code; iki repoya git subtree ile iner |
-| `hasat-vault` | İş notları, roadmap, dokümanlar (public, kod/sır yok) | Claude Code PR + Berkin merge |
+| `hasat-vault` | İş notları, roadmap, dokümanlar (**public** — kod/sır yok) | Claude Code PR + Berkin merge |
 
 ### Mobil stack (M5+)
 - **Expo + EAS Build** — şirket Mac'i olduğu için local Xcode/imzalama yönetilemiyor; EAS bulutta derliyor ve submit ediyor
-- **Expo Router** (dosya tabanlı, TanStack Router'a benzer) · **Nativewind** (Tailwind sözdizimi)
+- **Expo Router** (dosya tabanlı) · **Nativewind** (Tailwind sözdizimi)
 - **TanStack Query** web ile ortak (React Native'de çalışıyor)
 - Oturum: `expo-secure-store` (web'de `localStorage`) — adapter sınırı
-- Push: `device_tokens` + APNs (iOS) / FCM (Android); `notif_channel` enum'unda `push` zaten mevcut
+- Push: `device_tokens` + APNs (iOS) / FCM (Android); `notif_channel` enum'unda `push` **zaten mevcut**
+- **Mobil v1'de checkout YOK** — akış "Talep Et"te biter, ödeme web'de
 
 ### Mimari ilke
 İki client'ın da ihtiyaç duyduğu mantık **veritabanında** (RPC/view) yaşar; monorepo kurulmaz (Lovable sync'ini kırma riski). Detay: `Build/Shared-Architecture.md`.
 
+---
+
 ## DB Kritik Notlar
-- Journal tablosu = `harvest_entries` (journal_entries değil)
+- Journal tablosu = `harvest_entries` (`journal_entries` değil)
+- **`harvest_entries` iki işi birden yapıyor:** gerçek hasat + rutin bakım kaydı (P22-F). Rutin bakım satırları `quantity=0`. Bu tabloyu okuyan her yer bu ayrımı filtrelemek zorunda — P22-F sonrası 4 gerçek regresyon bu yüzden çıktı.
+- **Crop adı kanonik formu = `crop_config.crop` (lowercase slug)**, `display_name` değil. Karışık case P21-A'da backfill ile temizlendi; yeni eşleştirme mantığı slug'a normalize etmeli.
+- **`unit_type` enum yalnızca `g`, `kg`, `L`** — `adet` YOK. Ama `crop_config.default_unit` (text) Safran Soğanı için `'adet'` tutuyor → gizli insert hatası riski (P23-M1'de kapanacak).
+- Culinary birimler (`adet`, `demet`, `kaşık`) `unit_type`'a **eklenmeyecek** — P21'in birim-uyuşmazlığı trigger'ını kirletir.
 - Parsel konum = `location_label`
 - Community yazar = `author_id`
 - Phone format = `905XXXXXXXXX` (+ prefix'siz)
-- Offers: `ball_side`, `current_price`, `current_quantity`, `payment_status` eklendi (P15)
-- `offer_messages` tablosu eklendi (P15)
+- Offers: `ball_side`, `current_price`, `current_quantity`, `payment_status` (P15); `offer_messages` (P15); `offer_items` (P21-C, her offer'ın ≥1 item'ı var)
+- `listing_harvest_entries` — batch ↔ hasat kaydı bağlantısı; `tg_enforce_link_unit_match` birim uyuşmazlığını engelliyor
+- `buyer_profiles.company_name` **NOT NULL** — `bireysel` segment için onboarding sürtünmesi (P23-M1'de nullable olacak)
+- `listings`'te **hiç CHECK constraint yok**
+- `pg_cron`: jobid=1 İzmir Hal fiyat sync (06:00 UTC), jobid=2 abonelik hasat hatırlatması (07:00 UTC)
 - → Detay: `Build/DB-Schema.md`
 
 ## Test Kullanıcıları
 | Rol | Telefon | UUID |
 |---|---|---|
-| Farmer | 905001234567 | 0868e4fe-86d2-4c5d-8ba5-f15fd4fac146 |
-| Buyer | 905009876543 | 032eb467-661d-4df4-adf5-3d277d9b6549 |
+| Farmer (Ahmet Yılmaz) | 905001234567 | 0868e4fe-86d2-4c5d-8ba5-f15fd4fac146 |
+| Buyer (Zeynep Kaya) | 905009876543 | 032eb467-661d-4df4-adf5-3d277d9b6549 |
+
 OTP test: `123456`
+
+> ⚠️ Bu repo **public**. Test hesabı bilgileri burada duruyor — canlıya çıkmadan önce test OTP bypass'ının production'da geçerli OLMADIĞI doğrulanmalı. Berkin'in gerçek bildirim telefonu bu dosyaya **yazılmamalı**.
 
 ## Lovable Prompt Kuralları
 1. Her prompt'a schema doğrulaması ekle (Lovable yanlış kolon adı tahmin eder)
 2. `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` — migration yok
-3. RLS politikaları: her yeni insert için policy gerekebilir
+3. RLS politikaları: her yeni insert için policy gerekebilir; **UPDATE için ayrı policy şart** (SELECT/INSERT kapsamıyor)
 4. UUID'leri hardcode et — phone lookup ambiguous column hatası verir
+5. **Lovable'ın metnine güvenilmez** — `get_diff` / gerçek SQL / canlı aksiyon ile doğrula. `plan_mode=true` güvenilir şekilde durmuyor.
+6. **`src/lib/core/` altına dokunulmaz** — `hasat-core`'dan gelir (M1'den sonra geçerli)
+> Tam liste (#1–#106): `TODO.md` → "Lovable/Supabase Prompt Yazma Kuralları"
 
-## Kararlar (Haziran 2026)
-- Şirket: Şahıs (tescil ediliyor)
-- Ödeme: iyzico (2 hafta onay bekliyor, bu sürede IBAN köprüsü)
-- İlk 3 ay: ücretsiz
-- Sosyal medya: Berkin yapıyor + Claude haftalık içerik desteği
-- Çiftçi ağı: MVP hazır olunca ağ geliştirme çalışmaları paralel
+---
+
+## Kararlar
+
+| Konu | Karar |
+|---|---|
+| **Şirket tipi** | 🔴 **AÇIK.** "Şahıs şirketi" varsayımı sorgulandı: Apple, organizasyon hesabı için **tüzel kişilik** şartı koyuyor — şahıs şirketi bireysel kaydolmak zorunda (App Store satıcı adı = kişisel ad, "Hasat" değil). Mali müşavir görüşü bekleniyor. Detay: `Build/Store-Compliance.md` |
+| Ödeme | iyzico; onay süresince IBAN köprüsü |
+| Apple Developer hesabı | **Bireysel, şimdi** ($99, D-U-N-S gerekmiyor, şirketten bağımsız) — Apple'ı kritik yoldan çıkarıyor |
+| Play hesap tipi | M5'te karar (personal $25 → 12 tester×14 gün · organization → muaf ama D-U-N-S) |
+| İlk 3 ay | Ücretsiz |
+| Mobil platform | **Expo** (Capacitor değil — şirket Mac'i, local imzalama yok) |
+| Mobil v1 kapsamı | **Checkout yok** — ödeme blokajını uygulamadan izole eder, Guideline 2.1 riskini kaldırır |
+| Fiyat kilidi (`price_lock`) | Şimdilik sadece UI önerisi, enforcement yok (gerçek para akmıyor) |
+| İzlenebilirlik rozeti | Rutin bakım kayıtları da rozeti yükseltiyor — bilinçli (daha kolay günlük = daha fazla belgeleme) |
+| Sosyal medya | Berkin + Claude haftalık içerik desteği |
+
+---
 
 ## Dosya Haritası
 ```
-Berkin/Hasat/
-├── _Context.md        ← bu dosya
-├── TODO.md            ← master todo + roadmap (el ile güncelle)
-├── Build/
-│   ├── Prompt-Queue.md   ← Lovable prompt geçmişi + sıradakiler
-│   ├── App-Audit.md      ← bug + improvement takibi
-│   └── DB-Schema.md      ← tablo + enum referansı
-├── Research/
-│   ├── Saffron.md
-│   ├── Lavender.md
-│   ├── Market.md
-│   ├── Tech-Indoor-Farming.md
-│   ├── Incentives-TKDK.md
-│   └── Competitive.md
-├── Finance/
-│   └── Model.md          ← konsolide finansal model
-└── _Archive/             ← eski PARA yapısı
+hasat-vault/
+├── _Context.md              ← bu dosya (tek bağlam kaynağı)
+├── TODO.md                  ← master roadmap + build log + kural #1-106
+├── Build/                   ← (doğrulandı 2026-07-28)
+│   ├── Roadmap.md              ← P23 görsel Gantt + kilometre taşları
+│   ├── P23-Mobile.md           ← P23 kapsam, şema, M0-M9
+│   ├── Shared-Architecture.md  ← web+mobil paylaşım mimarisi
+│   ├── Store-Compliance.md     ← Apple 4.2, hesap tipleri, IAP, submit checklist
+│   ├── DB-Schema.md            ← tablo + enum referansı
+│   ├── App-Audit.md            ← bug + improvement takibi
+│   ├── MCP-Referans.md
+│   └── E2E-QA.md
+├── Research/                ← Market.md doğrulandı; diğerleri kontrol edilmedi
+└── Finance/
+    └── Model.md                ← konsolide finansal model (v0.6)
 ```
