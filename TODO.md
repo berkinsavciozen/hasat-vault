@@ -545,8 +545,25 @@ Berkin kararı (1. cevap): `harvest_entries`'ten (hasat olayı) ayrı bir tablo.
 14. **(Yeni)** Rutin bakımını "Yaptım" dediğin ürünün bağlı olduğu **partiyi** (parti/batch detay sayfası, "Hasat Kayıtları" bölümü — çiftçi kendi görünümünde) aç, listede o kaydın **"0 kg" gibi anlamsız bir miktar göstermediğini** doğrula.
 15. **(Yeni, bilgi amaçlı — karar zaten verildi)** Aynı partinin buyer'a görünen sayfasındaki **"İzlenebilirlik" rozetini ve "Ürün Geçmişi" zaman çizelgesini** rutin bakım kaydından önce ve sonra karşılaştır. Rozetin tek bir "Yaptım" tıklamasıyla (fotoğrafsız, miktarsız) yükselmesi bilinçli bir karar (Berkin onayladı) — bu adım sadece davranışın beklediğin gibi çalıştığını gözünle teyit etmen için.
 
+### ✅ P22-G — Rutin Bakım Tarih/Filtre Düzeltmesi + Trigger Temizliği — TAMAMLANDI *(2026-07-28, Claude Code doğrudan)*
+
+**Neden:** Yukarıdaki tarayıcı QA'yı yaparken Berkin 4 gerçek semptom buldu: Rutin Bakım satırlarında tarih bilgisi yok, Bugün/Bu Hafta/Tümü filtresi süzmüyor, "Yaptım" dedikten sonra iş listeden kaybolmuyor, "Yaptım" formunda hangi gün yapıldığı girilemiyor. Ayrıca `buyer_addresses` üzerinde (P23-M1-a'nın kendi eklediği trigger'la) aynı işi yapan iki trigger bulundu, ve P22-E'nin SMS'lerinin formun topladığı alanların çoğunu içermediği fark edildi.
+
+**Kök neden (kodu okuyarak doğrulandı, hipotez çürütüldü):** "P22-F verileri taşıdı ama hesap eski kaynağa bakıyor" hipotezi **yanlış** çıktı — `harvest_entries.journal_entry_type_id` okuma zaten doğruydu. Asıl bug: `useCreateEntry`'nin `onSuccess`'i bu sorgunun React Query cache key'ini invalidate etmiyordu, yani "Yaptım" dendiğinde kayıt gerçekten günlüğe düşüyordu ama ekran (aynı oturumda, sayfa yenilenmeden) bunu görmüyordu. Ayrıca hesabın kendisi (son yapılma/sıklık/sıradaki/gecikmiş) tamamen client'ta yaşıyordu — kural #106'yı ihlal ediyordu.
+
+**Yapılanlar:**
+1. **DB temizliği:** `buyer_addresses`'teki gereksiz `trg_enforce_single_default_address` trigger'ı + fonksiyonu düşürüldü, `updated_at`'i de yöneten `trg_buyer_addresses_clear_default` kaldı. Gerçek insert/update ile doğrulandı.
+2. **Yeni view `v_routine_maintenance_status`:** Hesap (son yapılma/sıklık/sıradaki tarih/gecikmiş mi) DB'ye taşındı — web ve mobil (P23) aynı view'ı okuyacak.
+3. **Cache invalidation düzeltildi:** `useCreateEntry` artık `routineMaintenanceStatus` sorgusunu da invalidate ediyor.
+4. **UI:** Her satırda son yapılma + sıradaki tarih görünüyor; "Yaptım" formuna tarih seçici eklendi (varsayılan bugün, geçmiş tarih girilebilir); tarih filtresi artık view'ın alanlarına göre gerçekten süzüyor; yapılan iş sıradaki zamanı gelene kadar bekleyen listeden düşüyor, "Tümü"de görünmeye devam ediyor.
+5. **P22-E SMS düzeltmesi (Berkin kararı: kritik alanları ekle + notu kısalt):** Çiftçinin "Yeni Ürün Türü Talebi" SMS'ine birim, kategori, hasat ayı aralığı ve kısaltılmış not eklendi (öncesinde sadece ürün adı gidiyordu, form 7 alan topluyordu). Buyer'ın katalog-boşluğu SMS'ine de kısaltılmış not eklendi.
+
+**Doğrulama:** Her madde gerçek veriyle test edildi (Kural #96) — aynı parselde 2 farklı crop, sıklığı olan/olmayan iş, gecikmiş iş senaryoları ayrı ayrı; iki SMS gerçek Twilio testiyle (`net._http_response`, "accepted"). `tsc --noEmit` temiz. Tarayıcı/dokunma testi bu oturumun ağ kısıtlaması yüzünden yapılamadı — bkz. `Build/E2E-QA.md` → S19 için Berkin'in QA adımları.
+
+PR: [hasat-d2c-marketplace #5](https://github.com/berkinsavciozen/hasat-d2c-marketplace/pull/5).
+
 ### Sıradaki adım
-P22 serisi (A/B/C/D/E/F) ve P22-F'nin yan etki düzeltmeleri tamamen bitti, hepsi `main`'de (PR #1, #3, #4 — üçü de merge edildi, 2026-07-24). Kalan tek şey: yukarıdaki tarayıcı QA test case'i (Berkin'in kendi testinde yapacağı). QA tamamlandığında P22 serisi tamamen kapanmış olacak.
+P22 serisi (A/B/C/D/E/F) + P22-F'nin yan etki düzeltmeleri + P22-G (tarih/filtre düzeltmesi + trigger temizliği) tamamen bitti. Kalan tek şey: `Build/E2E-QA.md` → S19'daki tarayıcı QA adımları (Berkin'in kendi testinde yapacağı). QA tamamlandığında P22 serisi tamamen kapanmış olacak.
 
 ### P23 — Buyer Mobile & Recipe App — 🟢 PLAN ONAYLANDI (2026-07-28), M0 başlıyor
 
