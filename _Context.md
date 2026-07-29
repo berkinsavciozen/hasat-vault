@@ -96,7 +96,7 @@ Platform hiçbir crop'a özel muamele göstermez — domates/elma/safran/lavanta
 | Rekabet hukuku danışmanlığı | 🔴 Yapılmadı |
 | Glossary insan gözden geçirmesi | 🟡 P22-C içeriği AI üretimi, bölgesel doğrulama yapılmadı |
 | `useSetDefaultAddress` diğer adresleri `false`'a çekmiyor | 🟡 Düşük öncelik (P23-M1'de kapanacak) |
-| **P23 — Buyer Mobile & Recipe App** | 🔵 M0 + M1 kapandı (2026-07-29), M2 başlıyor → `Build/Roadmap.md` |
+| **P23 — Buyer Mobile & Recipe App** | 🟡 M0 + M1 kapandı; **M2 uygulandı (2026-07-29), tarayıcı QA (S20-B) bekliyor** → `Build/Roadmap.md` |
 
 ### BENCHMARK Gap durumu
 Kapandı: #2 teslim/ihtilaf · #3 değerlendirme · #5 tekrar sipariş · #6 RFQ · #7 hal fiyat bandı · #8 lojistik · #10 bildirimler
@@ -163,7 +163,11 @@ Bu sayılar ürün kararlarını doğrudan etkiliyor — özellikle tarif/tüket
 - **`harvest_entries` iki işi birden yapıyor:** gerçek hasat + rutin bakım kaydı (P22-F). Rutin bakım satırları `quantity=0`. Bu tabloyu okuyan her yer bu ayrımı filtrelemek zorunda — P22-F sonrası 4 gerçek regresyon bu yüzden çıktı.
 - **Crop adı kanonik formu = `crop_config.crop` (lowercase slug)**, `display_name` değil. Karışık case P21-A'da backfill ile temizlendi; yeni eşleştirme mantığı slug'a normalize etmeli.
 - **`unit_type` enum yalnızca `g`, `kg`, `L`** — `adet` YOK. Ama `crop_config.default_unit` (text) Safran Soğanı için `'adet'` tutuyor → gizli insert hatası riski (P23-M1'de kapanacak).
-- Culinary birimler (`adet`, `demet`, `kaşık`) `unit_type`'a **eklenmeyecek** — P21'in birim-uyuşmazlığı trigger'ını kirletir.
+- Culinary birimler (`adet`, `demet`, `kaşık`) `unit_type`'a **eklenmeyecek** — P21'in birim-uyuşmazlığı trigger'ını kirletir. P23-M2'de bu kural şemaya gömüldü: culinary birim `recipe_ingredients.unit`'te düz text, dönüşüm yalnızca `crop_culinary_meta.conversion_hints` ile alışveriş listesi sınırında.
+- **Tarif katmanı (P23-M2, 2026-07-29):** `recipes`, `recipe_steps`, `recipe_ingredients`, `crop_culinary_meta`, `recipe_saves`, `recipe_rfq_links`, `device_tokens` + `crop_config.default_photo_url` + `crop-photos` public bucket. Mantık DB'de: `fn_culinary_to_canonical`, `rpc_recipe_availability`, `rpc_recipe_shopping_list`, `v_recipe_coverage`, `v_kpi_recipe_funnel`.
+- **Malzeme→crop eşleştirmesi runtime'da fuzzy text matching ile YAPILMAZ** — `recipe_ingredients.crop` editoryal olarak bir kez doldurulur; `extract-recipe` bu alanı daima `null` bırakır.
+- **"Admin" diye bir DB rolü yok.** `profiles.role` yalnızca `farmer`/`buyer`; `is_admin()` fonksiyonu yok. Admin erişimi = service-role anahtarlı edge function (`admin-kpi` + `x-admin-key`). "Yazma sadece admin" pratikte "hiç politika yazma" demek — service_role RLS'i baypas eder.
+- **`v_kpi_recipe_funnel`'ın "görüntüleme" basamağı şu an NULL** — görüntüleme olayını üretecek yüzey M4'te doğuyor. Ayrıca `crop_requests` ile `offers`/`orders` arasında **hiç FK yok**; teklif/sipariş atfı sezgisel (aynı alıcı + crop + talepten sonra).
 - Parsel konum = `location_label`
 - Community yazar = `author_id`
 - Phone format = `905XXXXXXXXX` (+ prefix'siz)

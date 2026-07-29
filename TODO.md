@@ -598,7 +598,7 @@ P22 serisi (A/B/C/D/E/F) + P22-F'nin yan etki düzeltmeleri + P22-G (tarih/filtr
 |---|---|---|---|
 | M0 | Açık işler + hesaplar | 28 Tem – 3 Ağu | ✅ TAMAMLANDI (2026-07-29) |
 | M1 | Paylaşılan çekirdek (`hasat-core`) | 4 – 10 Ağu | ✅ TAMAMLANDI (2026-07-29) |
-| M2 | Tarif backend'i (ekleyici) | 11 – 22 Ağu | 🔵 Başlıyor |
+| M2 | Tarif backend'i (ekleyici) | 11 – 22 Ağu | 🟡 Uygulandı (2026-07-29), tarayıcı QA (S20-B) bekliyor |
 | M3 | İçerik (15–20 tarif) | 18 Ağu – 1 Eyl | ⬜ |
 | M4 | Web tarif yüzeyi + Gap #9 | 1 – 13 Eyl | ⬜ |
 | M5 | Mobil iskelet + offline | 14 – 27 Eyl | ⬜ |
@@ -730,3 +730,88 @@ silinip iki commit revert edilince eski hale dönülüyor.
 - ⚠️ **Bulunan gerçek risk:** Lovable aynı turda `src/integrations/supabase/types.ts`'i **yeniden üretti** (M1-b'nin sildiği bayat dosya). Drift Action bunu yakalamıyor çünkü dosya `src/lib/core/` dışında — bekçinin kör noktası. Çözüm: dosya Lovable'a bırakıldı, koruma **import yasağına** çevrildi (ESLint + drift Action adımı). Bkz. `Build/Shared-Architecture.md`.
 ### Kural #104 (2026-07-24'te eklendi)
 Berkin'in kararı: bundan sonra Claude Code planları, arayüzde test edilmesi gereken adımlar için **kullanıcı-akışı dilinde adım adım bir test case** olarak sunulmalı (hangi sayfa açılacak, hangi butona tıklanacak, ne görülmesi bekleniyor) — trigger/kolon/event isimleri gibi DB-jargonuyla değil. Genel plan anlatımı da (yeni tablo/akış gibi kapsamlı işlerde) bir PM'in anlatacağı gibi olmalı: kullanıcı ne yapıyor, FE'de ne değişiyor, BE'de ne değişiyor — teknik isimler (trigger/policy adı gibi) sadece gerekince, ayrıntı seviyesinde geçmeli.
+
+---
+
+### 🟡 P23-M2 — Tarif Backend'i — **UYGULANDI, TARAYICI QA BEKLİYOR** *(2026-07-29, Claude Code + Supabase MCP ile doğrudan)*
+
+**Bir cümlede:** Tarif katmanının veritabanı iskeleti kuruldu — tarifler, malzemeler, adımlar, kaydetmeler, tarif→talep atfı ve push token'ları için 7 yeni tablo; "bu tarifin malzemesi Hasat'ta var mı, kaça, ne kadar almam gerekir" sorusunu **veritabanının kendisinin** cevapladığı fonksiyonlar; ve bir tarifi yazıdan ya da fotoğraftan okuyup kullanıcının **özel** defterine yazan bir AI fonksiyonu. **Ekranda görünen hiçbir şey değişmedi** — arayüz M4'te.
+
+**Kapsam kuralı tutuldu:** canlı akışlara (`offers`/`orders`/`listings`/`harvest_entries`) dokunulmadı · `unit_type` enum'una dokunulmadı · `src/lib/core/` altında elle düzenleme yok (kural #105) · frontend işi yok.
+
+#### Ne yapıldı
+
+**1. Şema — 7 tablo + 1 kolon + 1 bucket**
+`recipes`, `recipe_steps`, `recipe_ingredients`, `crop_culinary_meta`, `recipe_saves`, `recipe_rfq_links`, `device_tokens`; `crop_config.default_photo_url`; `crop-photos` public storage bucket'ı. Tam alan listesi: `Build/DB-Schema.md` → "P23-M2 — Tarif Backend'i".
+
+**2. İki kritik kural şemaya gömüldü**
+- **Culinary birimler `unit_type` enum'una GİRMEDİ.** Enum `g`/`kg`/`L` olarak duruyor. `adet`/`demet`/`kaşık` `recipe_ingredients.unit`'te düz text; dönüşüm yalnızca alışveriş listesi sınırında, `crop_culinary_meta.conversion_hints` ile yapılıyor. (P21'in birim-uyuşmazlığı trigger'ı ve stok toplamaları kirlenmedi.)
+- **Malzeme→crop bağlantısı runtime'da fuzzy text matching ile kurulmuyor.** `recipe_ingredients.crop` editoryal olarak bir kez doldurulur; `extract-recipe` bile bu alanı **daima `null`** bırakıyor.
+
+**3. Mantık DB'de (kural #106) — 1 fonksiyon + 2 RPC + 2 view**
+`fn_culinary_to_canonical` (ipucu yoksa **NULL** döner, uydurmaz) · `rpc_recipe_availability` (yenilemez crop'lar sonuçta hiç görünmez) · `rpc_recipe_shopping_list` (porsiyon ölçekleme + kanonik birim + **min_order yuvarlaması** + "bu miktar kaç tarif yapar") · `v_recipe_coverage` · `v_kpi_recipe_funnel`.
+İki view da `security_invoker=true`; iki RPC de **SECURITY INVOKER** — private bir tarif RPC üzerinden sızmıyor.
+
+**4. RLS — her tablo için açıkça, UPDATE dahil**
+Mutasyon akışı olan **beş** tablonun hepsinde SELECT/INSERT'ten **ayrı** bir UPDATE politikası var ve gerçek UPDATE ile 1 satır etkilediği kanıtlandı — `orders`'ta eksik olup tüm P17-B mutasyonlarını sessizce sıfır satıra düşüren hata tekrarlanmadı. `recipe_rfq_links` bilinçli olarak append-only (UPDATE yok).
+
+**5. Seed** — `is_edible` 70 crop'un tamamı için `category_group`'tan mekanik türetildi (yenilemez: pamuk, şeker_pancarı, tütün, safran_soğanı → 4). `culinary_aliases`+`conversion_hints` yalnızca 3 test crop'u: domates (mainstream) · kekik (niş) · pamuk (yenilemez). Kalan 67 → M3.
+
+**6. Edge function `extract-recipe`** — metin + yazılı tarif fotoğrafı. `verify_jwt` **açık**. `visibility='private'`, `status='draft'` ve `owner_id` **sunucuda** zorlanıyor; client'ın gönderdiği değerler yok sayılıyor. Kota mevcut `ai_usage_tracking` ile (`can_send_ai_message`/`increment_ai_usage`) — yeni kota altyapısı kurulmadı. YouTube/link ve yemek fotoğrafından tahmin **yok** → M9.
+
+**7. `hasat-core` tip senkronizasyonu** — `core/db/types.ts` canlı şemadan yeniden üretildi, manifest güncellendi. Diff **tamamen ekleyici** (440 satır eklendi; silinen tek satır başlıktaki üretim tarihi) → web'de hiçbir tip daralmıyor. PR: [hasat-core #2](https://github.com/berkinsavciozen/hasat-core/pull/2).
+
+#### Doğrulama (kural #96 — hepsi gerçek çalıştırma)
+
+| Kontrol | Sonuç |
+|---|---|
+| `fn_culinary_to_canonical` 12 vaka (8 dönüşüm + 4 "uydurmama" NULL) | ✅ 12/12 |
+| 3 crop testi — **pamuk RPC sonucunda hiç görünmedi** | ✅ |
+| Fiyat normalizasyonu (₺25,50/g → ₺25.500/kg) | ✅ |
+| min_order yuvarlaması — görevdeki birebir örnek (2 g gerekli / 10 g min → 10 g alınır, **5 tarif yapar**) | ✅ |
+| Porsiyon ölçekleme (4→8 kişilik, scale=2) | ✅ |
+| **anon private tarifi göremiyor** (tablo + 2 RPC + view, dördü de) | ✅ 0 satır |
+| Başka kullanıcı başkasının private tarifini göremiyor | ✅ 0 satır |
+| Kullanıcı public tarif yazamıyor / private'ı public'e çeviremiyor | ✅ RLS reddi (42501) |
+| **UPDATE gerçekten 1 satır etkiliyor** (sessiz-sıfır yok) | ✅ |
+| `extract-recipe` **metin** girdisiyle gerçek çağrı | ✅ HTTP 200, 5 malzeme / 4 adım |
+| `extract-recipe` **görsel** girdisiyle gerçek çağrı (Türkçe yazılı tarif fotoğrafı) | ✅ HTTP 200, OCR doğru okudu |
+| Client `visibility:'public'` + başkasının `owner_id`'si gönderdi | ✅ Sunucu yok saydı → private/draft/gerçek sahip |
+| Kota mevcut altyapıyla sayıldı | ✅ `ai_usage_tracking = 3` (tam 3 çağrı) |
+| `crop-photos` bucket `public=true` (SQL ile, **iki kez** doğrulandı) | ✅ |
+| İki view da `security_invoker=true` (`pg_class.reloptions`) | ✅ |
+| Advisor taraması — yeni 12 objede uyarı | ✅ **Sıfır** |
+| Test verisi temizliği | ✅ 0 tarif/malzeme/adım/kayıt/bağ/token kaldı |
+
+Tarayıcı QA adımları: `Build/E2E-QA.md` → **S20-B** (bu tur backend olduğu için adımlar **regresyon kontrolü**; yeni ekran yok — bu doküman içinde açıkça belirtildi).
+
+#### 🔶 Otonom alınan üç karar (kural #107 — Berkin onayı YOK)
+
+Bu turda üç noktada belirsizlik çıktı; sorular soruldu ama oturum etkileşimsiz olduğu için cevap alınamadı. Üçü de **kapsamı/mimariyi değiştirmeyen, geri alınabilir** varsayılana bağlandı:
+
+1. **`v_kpi_recipe_funnel`'ın "görüntüleme" basamağı boş.** Onaylı 7 tabloda görüntüleme/olay tablosu yok ve DB'de hiç analytics tablosu yok. 8. tablo eklemek kapsam değişikliği olurdu → **eklenmedi**; `recipe_views` kolonu NULL dönüyor, M4'te (görüntüleme olayını üretecek yüzeyle birlikte) doldurulacak. Ayrıca `crop_requests` ↔ `offers`/`orders` arasında **hiç FK yok**, bu yüzden teklif/sipariş atfı **sezgisel** (aynı alıcı + crop + talepten sonra) ve view yorumunda böyle belgelendi.
+2. **`gül` yenilebilir kaldı.** Görevin 4. maddesindeki örnek yenilemez listesi "gül yağlık" içeriyordu, ama 5. maddedeki operatif seed kuralı (`category_group`'tan mekanik türet) `gül`'ü `tibbi_bitki` grubunda bırakıyor. Mekanik kural uygulandı. Değiştirmek tek satır UPDATE.
+3. **`device_tokens` katı RLS aldı** (`user_id = auth.uid()`, dört komutta da). Bedeli: aynı cihazda ikinci bir kullanıcı giriş yaparsa `UNIQUE(token)` yüzünden token kaydı başarısız olur ve o kullanıcı push alamaz. Bu, **push M6'da devreye girene kadar** kimseyi etkilemiyor; çözüm (token sahiplenme politikası veya service-role'lü bir edge function) M6'ya açık madde olarak bırakıldı.
+
+Ayrıca **"admin" = service_role** olarak yorumlandı: `profiles.role` yalnızca `farmer`/`buyer` içeriyor, `is_admin()` yok; mevcut admin erişimi service-role anahtarlı edge function (`admin-kpi` + `x-admin-key`). "Yazma sadece admin" = hiç politika yazılmadı. Yeni bir admin rolü/deseni **icat edilmedi** ("yeni desen icat etme" talimatı gereği).
+
+#### 🔍 sync-to-web Action'ının durumu
+
+Action `main`'e push'ta tetikleniyor (`paths: core/**`) — **feature branch'ten tetiklenmiyor.** Bu yüzden PR açan gerçek çalışma, [hasat-core #2](https://github.com/berkinsavciozen/hasat-core/pull/2) merge edildiğinde olacak.
+
+Bu turda mekanizma `workflow_dispatch` ile `main` üzerinde ayrıca koşturuldu (**run #5, 2026-07-29, tüm 6 adım yeşil**): `SYNC_TOKEN`, `subtree split`, `core-dist` push, web reposu checkout'u ve `subtree pull` adımlarının hepsi çalışıyor. PR açılmadı çünkü `main`'deki `core/` içeriği o anda değişmemişti — workflow'un `if git diff --quiet origin/main -- "$PREFIX"` koruması devreye girip "Değişiklik yok — PR açılmıyor" diyerek çıktı. Web reposunda açık PR olmadığı ayrıca doğrulandı (0 açık PR).
+
+**Yani: boru hattı çalışıyor, tek eksik onun gerçek bir içerik değişikliğiyle koşması — o da merge anında olacak.** Merge sonrası web reposunda otomatik bir `hasat-core sync → src/lib/core` PR'ı beklenir.
+
+#### Açık kalan maddeler (M3/M4/M6'ya taşındı)
+
+| Madde | Nereye |
+|---|---|
+| `crop_culinary_meta` kalan 67 crop'un alias + conversion_hints'i | M3 |
+| ~20 crop temsili görselinin `crop-photos`'a yüklenmesi + `default_photo_url` doldurulması | M3 |
+| `recipe_views` olay tablosu + `v_kpi_recipe_funnel`'ın ilk basamağı | M4 |
+| `v_kpi_recipe_funnel`'ın `admin-kpi` edge function'ına + `/admin/kpi` ekranına bağlanması | M4 |
+| `supabase/config.toml`'a `[functions.extract-recipe] verify_jwt = true` girdisi | M4 |
+| `author_type`'ın kullanıcı importları için bir değere ihtiyacı var mı (şema kararı) | Berkin |
+| `device_tokens` token devri (aynı cihaz, ikinci kullanıcı) | M6 |
+| `recipe_saves` KVKK — gizlilik metnine eklenmesi | M7 |

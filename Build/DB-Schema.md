@@ -1,6 +1,6 @@
 ---
 title: Hasat — DB Schema Referansı
-updated: 2026-07-28
+updated: 2026-07-29
 tags: [hasat, supabase, schema]
 ---
 
@@ -207,3 +207,119 @@ available_quantity(listing) =
 **E — `notify_new_crop_type_request()` SMS'i genişletildi:** Önceden sadece ürün adı + çiftçi adı gönderiyordu, form 7 alan topluyordu (birim, kategori, hasat ayı başlangıç/bitiş, "nasıl yetiştiriliyor" notu, ek not — hiçbiri SMS'e yansımıyordu). Berkin kararıyla ("kritik alanları ekle + notu kısalt"): birim, kategori, hasat ayı aralığı ve kısaltılmış (≤80 karakter, "ek not" > "nasıl yetiştiriliyor" önceliğiyle) bir not eklendi. Buyer'ın katalog-boşluğu SMS'ine de kısaltılmış not eklendi (JS tarafında, `useCreateCropRequest`). `notify-admin` edge function'ının 300 karakter limiti var, önceki mesajlar ~40-60 karakterdi — teknik sınır sorunu değildi. Gerçek Twilio testiyle doğrulandı.
 
 **Kök neden notu (B):** "P22-F verileri taşıdı ama hesap eski kaynağa bakıyor" hipotezi çürütüldü — `harvest_entries.journal_entry_type_id` okuma zaten doğruydu. Asıl bug: `useCreateEntry`'nin `onSuccess`'i bu sorgunun React Query cache key'ini invalidate etmiyordu, "Yaptım" sonrası satır SPA içinde güncellenmiyordu. Ayrıntılar: [PR #5](https://github.com/berkinsavciozen/hasat-d2c-marketplace/pull/5).
+
+## P23-M2 — Tarif Backend'i (2026-07-29)
+
+`Build/P23-Mobile.md` M2. **Tamamen ekleyici** — `offers`/`orders`/`listings`/`harvest_entries` akışlarına hiç dokunulmadı, `unit_type` enum'una dokunulmadı.
+
+### Yeni tablolar (7)
+
+#### `recipes`
+`id` uuid PK · `slug` text **UNIQUE** (SEO) · `title` · `description` · `cover_photo_url` · `servings` int · `prep_minutes` int · `cook_minutes` int · `difficulty` text CHECK(`kolay`/`orta`/`zor`) · `cuisine` · `diet_tags` text[] · `status` text CHECK(`draft`/`published`) · `visibility` text CHECK(`public`/`private`) · `source_type` text CHECK(`manual`/`text`/`photo`/`url`) · `source_url` · `owner_id` uuid→profiles **nullable** · `author_type` text CHECK(`hasat`/`ciftci`/`sef`) · `extraction_confidence` numeric CHECK(0..1) · `created_at`/`updated_at`
+- `owner_id IS NULL` = **editoryal public korpus**. `owner_id` dolu = kullanıcı defteri.
+- `trg_recipes_updated_at` → mevcut `set_updated_at()`
+- Index: `recipes_slug_key` (unique), `recipes_public_published_idx` (partial: public+published), `recipes_owner_idx` (partial)
+
+#### `recipe_steps`
+`recipe_id` uuid→recipes **ON DELETE CASCADE** · `step_no` int CHECK(>0) · `instruction` · `photo_url` · `timer_seconds` int CHECK(>0) — M6 pişirme modunun temeli
+UNIQUE(`recipe_id`, `step_no`)
+
+#### `recipe_ingredients`
+`recipe_id` uuid→recipes CASCADE · `sort_order` int · `crop` text→`crop_config(crop)` **nullable**, ON UPDATE CASCADE / ON DELETE SET NULL · `free_text_name` (tuz/un gibi platform-dışı) · `quantity` numeric · `unit` text (**culinary birim**) · `note` · `is_key_ingredient` bool
+- CHECK `recipe_ingredients_name_present`: `crop` veya `free_text_name`'den en az biri dolu olmalı
+- ⚠️ **`crop` editoryal olarak bir kez doldurulur.** Malzeme→crop bağlantısı runtime'da fuzzy text matching ile **YAPILMAZ** — `extract-recipe` bile `crop`'u daima `null` bırakır.
+
+#### `crop_culinary_meta`
+`crop` text PK→`crop_config(crop)` CASCADE · `is_edible` bool · `culinary_aliases` text[] · `conversion_hints` jsonb · `created_at`/`updated_at`
+- `is_edible=false` → tarif akışına **hiç girmez**.
+- **`conversion_hints` birim sözleşmesi:** değerler **temel metrik birimdedir** — kütle crop'larında gram, hacim crop'larında (`default_unit='L'`) mililitre. Örn. `{"adet": 120}` = 1 adet 120 g. `fn_culinary_to_canonical` son adımda `crop_config.default_unit`'e çevirir. Böylece bir crop'un `default_unit`'i kg↔g değişse bile katsayılar geçerli kalır.
+
+#### `recipe_saves`
+`user_id` uuid→profiles CASCADE · `recipe_id` uuid→recipes CASCADE · UNIQUE(`user_id`,`recipe_id`)
+KVKK: kişisel veri — gizlilik metni M7'de güncellenmeli.
+
+#### `recipe_rfq_links`
+`recipe_id` uuid→recipes CASCADE · `crop_request_id` uuid→`crop_requests` CASCADE · UNIQUE(`recipe_id`,`crop_request_id`)
+Huni atfının **tek sert bağı** — "bu talep şu tariften doğdu".
+
+#### `device_tokens`
+`user_id` uuid→profiles CASCADE · `token` text **UNIQUE** · `platform` text CHECK(`ios`/`android`) · `created_at`
+`notif_channel` enum'unda `push` zaten var — yeni bildirim sistemi kurulmadı.
+
+### `crop_config` — yeni kolon
+`default_photo_url` text (ADD COLUMN IF NOT EXISTS). Görseller M3'te yüklenecek; bu turda sadece altyapı.
+
+### Storage
+**`crop-photos`** bucket, `public = true`.
+- ⚠️ `storage_update_bucket` MCP aracı kullanılmadı — bucket doğrudan SQL ile açıldı ve `SELECT public FROM storage.buckets WHERE id='crop-photos'` ile **iki kez** (oluşturmada ve tur sonunda) `true` doğrulandı.
+- `storage.objects` üzerinde bu bucket için **SELECT politikası açılmadı** — public bucket'ta obje URL'i zaten RLS'siz servis edilir; geniş SELECT politikası yalnızca "tüm dosyaları listeleme"yi açar (`listing-photos`/`parcel-photos`'ta duran advisor uyarısı bu). Yükleme service_role ile yapılır (yazma = admin).
+
+### RLS — tablo başına
+
+| Tablo | anon SELECT | authenticated SELECT | INSERT | UPDATE | DELETE |
+|---|---|---|---|---|---|
+| `recipes` | `visibility='public' AND status='published'` | public+published **veya** `owner_id=auth.uid()` | `owner_id=auth.uid() AND visibility='private'` | ✅ var — USING `owner_id=auth.uid()`, CHECK `owner_id=auth.uid() AND visibility='private'` | `owner_id=auth.uid()` |
+| `recipe_steps` | üst tarif public+published | üst tarif görünür | üst tarif sahibi | ✅ var | üst tarif sahibi |
+| `recipe_ingredients` | üst tarif public+published | üst tarif görünür | üst tarif sahibi | ✅ var | üst tarif sahibi |
+| `crop_culinary_meta` | `true` (tarif sayfaları için şart) | `true` | — (admin) | — (admin) | — (admin) |
+| `recipe_saves` | — | `user_id=auth.uid()` | `user_id=auth.uid()` | ✅ var | `user_id=auth.uid()` |
+| `device_tokens` | — | `user_id=auth.uid()` | `user_id=auth.uid()` | ✅ var | `user_id=auth.uid()` |
+| `recipe_rfq_links` | — | talebin sahibi | talebin sahibi | ⛔ **bilinçli yok** (append-only) | talebin sahibi |
+
+**"admin" bu projede ne demek:** `profiles.role` yalnızca `farmer`/`buyer` içeriyor, `is_admin()` fonksiyonu **yok**. Mevcut admin erişim yöntemi = service-role anahtarlı edge function (`admin-kpi` + `x-admin-key`). Bu yüzden "yazma sadece admin" = **hiç politika yazılmaz**; service_role RLS'i baypas eder. Yeni bir admin rolü/deseni icat edilmedi.
+
+**UPDATE politikası kuralı:** Mutasyon akışı olan **beş** tablonun (`recipes`, `recipe_steps`, `recipe_ingredients`, `recipe_saves`, `device_tokens`) hepsinde SELECT/INSERT'ten ayrı bir UPDATE politikası var ve **gerçek UPDATE ile 1 satır etkilediği** doğrulandı — `orders`'ta eksik olan ve tüm P17-B mutasyonlarını sessizce sıfır satıra düşüren hata burada tekrarlanmadı. `recipe_rfq_links` bilinçli olarak append-only.
+
+### Mantık katmanı (kural #106) — 1 fonksiyon + 2 RPC + 2 view
+
+#### `fn_culinary_to_canonical(p_crop text, p_quantity numeric, p_unit text) → numeric`
+`STABLE`, `SET search_path = public`, SECURITY INVOKER.
+1. Metrik birimler (`g`/`gr`/`gram`/`kg`/`ml`/`l`/`lt`/`litre`) ipucu gerektirmez.
+2. Culinary birim **yalnızca** `conversion_hints`'ten çözülür; ipucu yoksa **NULL döner — uydurmaz**.
+3. Temel metrik birimden `crop_config.default_unit`'e çevirir.
+Birim metni `lower(btrim(...))` ile normalize edilir.
+
+#### `rpc_recipe_availability(p_recipe_id uuid)`
+Malzeme başına: `is_platform_crop`, `is_matched`, `active_listing_count`, `canonical_unit`, `best_price_per_canonical`, `crop_photo_url`.
+- `is_edible=false` crop'lar **sonuçtan tamamen düşer**.
+- Fiyat normalizasyonu: `price_per_unit × temel(kanonik) ÷ temel(ilan)` — ör. ₺25,50/g domates, kanonik kg → ₺25.500/kg.
+- **SECURITY INVOKER** — private bir tarif için anon/başka kullanıcı çağırdığında 0 satır döner.
+
+#### `rpc_recipe_shopping_list(p_recipe_id uuid, p_servings int)`
+Porsiyona ölçekler (`p_servings / recipes.servings`), kanonik birime çevirir, **min_order'a yuvarlar**, `recipes_covered` ("bu miktar kaç tarif yapar") ve `estimated_cost` hesaplar.
+- `purchase_canonical = GREATEST(needed, min_order)`; `rounded_up_to_min_order` bayrağı ayrıca döner.
+- En iyi fiyatlı aktif ilanın `min_order`'ı kullanılır (fiilen alışverişin yapılacağı ilan).
+- Dönüşüm ipucu yoksa `needed_canonical` NULL + `conversion_available=false` — UI "miktar hesaplanamadı" diyebilir.
+- Platform-dışı malzemeler (tuz/un) listede **nötr satır** olarak kalır.
+- **SECURITY INVOKER.**
+
+#### `v_recipe_coverage` — `security_invoker=true`
+Tarif başına `ingredient_count`, `crop_linked_count`, `off_platform_count`, `available_count`, `key_ingredient_count`, `key_available_count`, `coverage_pct`. Liste sayfalarında filtreleme/sıralama için. Yenilemez crop'lar sayıma girmez.
+
+#### `v_kpi_recipe_funnel` — `security_invoker=true`
+Aylık: `recipe_views`, `recipe_saves`, `recipe_attributed_requests`, `recipe_attributed_offers`, `recipe_attributed_orders`, `request_to_order_pct`.
+- Mevcut 20 KPI view'ının deseni: `anon`/`authenticated`'a **GRANT yok**; erişim service-role anahtarlı admin edge function ile (`admin-kpi` deseni).
+- ⚠️ **`recipe_views` şu an NULL.** Görüntüleme olayını üretecek yüzey (web `/tarifler`) M4'te doğuyor; olay tablosu onunla birlikte eklenecek. Onaylı 7 tablo kapsamı **değiştirilmedi** (8. tablo eklenmedi).
+- ⚠️ **Atıf zinciri:** `recipe_rfq_links` **tek sert bağdır** (tarif→talep). Talepten sonrası (teklif/sipariş) **sezgisel atıftır**: aynı alıcı + tarifin malzeme crop'u + talep tarihinden sonra. Gerekçe: `crop_requests` ile `offers`/`orders` arasında **hiç FK yok** (2026-07-29 canlı DB'de doğrulandı).
+
+⚠️ **İki view da `security_invoker=true`** — `SELECT reloptions FROM pg_class` ile doğrulandı. Atlanırsa view RLS'i baypas eder (`v_routine_maintenance_status`'ta doğru yapılmıştı, aynı disiplin).
+⚠️ Üç yeni fonksiyonun hepsinde `SET search_path = public` baştan var — advisor taramasında **hiçbiri uyarı üretmedi**.
+
+### Seed
+- `crop_culinary_meta.is_edible`: **70 crop'un tamamı** `category_group`'tan mekanik türetildi. Yenilemez = `endustri_bitkisi` (pamuk, şeker_pancarı, tütün) + `safran_soğanı` → **4 crop**, 66 yenilebilir.
+- `culinary_aliases` + `conversion_hints`: yalnızca **3 test crop'u** — `domates` (mainstream), `kekik` (niş), `pamuk` (yenilemez, ikisi de bilinçli boş). Kalan 67 → M3.
+
+⚠️ **`gül` yenilebilir kaldı.** Görev metninin 4. maddesinde örnek yenilemez listesinde "gül yağlık" geçiyordu, ama 5. maddedeki operatif seed kuralı (`category_group`'tan mekanik türet) `gül`'ü `tibbi_bitki` grubunda bırakıyor. Mekanik kural uygulandı (gül reçeli/gül suyu gerçek culinary kullanım, `crop_config`'teki `gül` jenerik — yağlık/çayır ayrımı yok). **Bu karar otonom alındı, Berkin onayı yok.** Değiştirmek tek satır: `UPDATE crop_culinary_meta SET is_edible=false WHERE crop='gül';`
+
+### Edge function: `extract-recipe`
+`verify_jwt = true` (kullanıcı tetiklemeli — `sync-izmir-hal-prices`'taki cron istisnası burada geçerli değil).
+- Modaliteler: `mode='text'` (yapıştırma) ve `mode='photo'` (yazılı tarif fotoğrafı, vision+OCR). YouTube/link ve yemek fotoğrafından tahmin **yok** → M9.
+- **Sunucuda zorlananlar:** `visibility='private'`, `status='draft'`, `owner_id` = JWT `sub` claim'i. Client'ın gönderdiği `visibility`/`status`/`owner_id` **yok sayılır**.
+- `extraction_confidence` modelden gelir, 0..1'e clamp'lenir.
+- Kota: mevcut `can_send_ai_message` / `increment_ai_usage` (`ai_usage_tracking`). **Yeni kota altyapısı kurulmadı.**
+- `recipe_ingredients.crop` daima `null` — runtime fuzzy eşleştirme yasağı.
+- Sağlayıcı: Lovable AI gateway, `google/gemini-3-flash-preview` (mevcut `ai-box-insights` deseni), `response_format: json_object`.
+
+⚠️ **`supabase/config.toml`'a `[functions.extract-recipe]` girdisi eklenmedi** — web reposu Lovable'ın yönettiği alan ve bu tur "frontend işi yok" kapsamındaydı. Deploy edilmiş halde `verify_jwt=true` (API yanıtıyla doğrulandı). Lovable ileride config.toml'dan toplu deploy yaparsa bu girdinin eklenmesi gerekir — **M4'te kapatılacak açık madde.**
+
+⚠️ **`author_type` kullanıcı importlarında `hasat` (default) kalıyor.** Onaylı değer kümesi (`hasat`/`ciftci`/`sef`) kullanıcı importu için bir karşılık içermiyor. Kullanıcı importu zaten `owner_id` + `visibility='private'` + `source_type≠'manual'` üçlüsüyle kesin ayırt ediliyor; `author_type` yalnızca public korpus satırlarında anlamlı. Değer kümesini genişletmek şema kararı olduğu için **yapılmadı** — Berkin'in kararına bırakıldı.
