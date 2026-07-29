@@ -1,6 +1,6 @@
 ---
 title: Hasat — AI Context
-updated: 2026-07-28
+updated: 2026-07-29
 tags: [hasat, ai-context]
 ---
 
@@ -88,7 +88,7 @@ Platform hiçbir crop'a özel muamele göstermez — domates/elma/safran/lavanta
 ### Açık işler
 | İş | Durum |
 |---|---|
-| **P22-D+E+F tarayıcı QA (15 adım)** | 🔴 Bekliyor — `TODO.md`'de test case var. P23-M1'e geçilmeden kapanmalı |
+| **P22-D+E+F tarayıcı QA (15 adım)** | ✅ Tamamlandı (2026-07-29, tüm adımlar geçti) |
 | **Şirket tescili** | 🔴 Yapılmadı — hedef ~7 Ağustos. Üç şeyi blokluyor: P17-A, P17-D, ileride store organizasyon hesapları |
 | **iyzico başvurusu** | 🔴 Tescil sonrası |
 | P17-A — gerçek bloke ödeme (escrow) | 🔴 Şirkete bağlı |
@@ -96,7 +96,7 @@ Platform hiçbir crop'a özel muamele göstermez — domates/elma/safran/lavanta
 | Rekabet hukuku danışmanlığı | 🔴 Yapılmadı |
 | Glossary insan gözden geçirmesi | 🟡 P22-C içeriği AI üretimi, bölgesel doğrulama yapılmadı |
 | `useSetDefaultAddress` diğer adresleri `false`'a çekmiyor | 🟡 Düşük öncelik (P23-M1'de kapanacak) |
-| **P23 — Buyer Mobile & Recipe App** | 🔵 Plan onaylandı (2026-07-28), M0 başlıyor → `Build/Roadmap.md` |
+| **P23 — Buyer Mobile & Recipe App** | 🔵 M0 + M1 kapandı (2026-07-29), M2 başlıyor → `Build/Roadmap.md` |
 
 ### BENCHMARK Gap durumu
 Kapandı: #2 teslim/ihtilaf · #3 değerlendirme · #5 tekrar sipariş · #6 RFQ · #7 hal fiyat bandı · #8 lojistik · #10 bildirimler
