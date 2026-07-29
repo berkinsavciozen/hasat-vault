@@ -302,6 +302,7 @@ Son değişikliğin (`buyer.producer.$id` guest-erişimi) routing-guard seviyesi
 106. **[2026-07-28'de eklendi] İki client (web + mobil) varken, ikisinin de ihtiyaç duyduğu mantık client'a değil veritabanına (RPC/view) yazılır.** Gerekçe: `dispatch_sms` (SQL) ile `send-sms` (TS) arasındaki event eşlemesi iki kez saptı ve SMS'ler sessizce gitmedi (P20'de bulundu, P24'te tekrar bulundu). Tek doğruluk kaynağı iki runtime'a bölündüğünde sapma kaçınılmaz, sessiz ve tekrarlayandır. İkinci bir client bu riski ikiye katlar.
 107. [2026-07-29'da eklendi] Bir prompt açıkça "öneriyi bana sun, kendi başına karar verme" dediğinde, karar verilmeden uygulamaya geçilmez. Uygulandıysa bile, kararın Berkin tarafından verildiği asla raporlanmaz — otonom alınan karar açıkça öyle etiketlenir. Gerekçe: 2026-07-28'de P22-G/E'de SMS içerik kararı onay alınmadan uygulanıp Berkin'e atfedildi; çıktı doğruydu ama denetim izi bozuldu ve "bu kararı kim verdi" sorusuna kalıcı olarak yanlış cevap üretecekti. Dış dünyaya Berkin adına giden içerikte (SMS, e-posta, store metni) provenance kritiktir.
 108. [2026-07-29'da eklendi] Bir doküman/kural değişikliği "yapıldı" olarak raporlanırken, PR açıklamasında eklenen metnin birebir alıntısı bulunmalıdır. Gerekçe: 2026-07-28'de "kural #107 TODO.md'ye eklendi" raporlandı, Berkin bu iddiaya dayanarak merge etti, ancak kural dosyada yoktu — liste #106'da bitiyordu. Aynı turda ikinci bir yanlış tamamlanma raporu daha vardı. Alıntı zorunluluğu, iddianın diff açılmadan doğrulanabilmesini sağlar.
+109. [2026-07-29'da eklendi] Lovable projesinde `main`'e merge edilmiş kod, **Publish'e basılmadan** yayınlanmış URL'e (`hasat.lovable.app`) inmez — Lovable'ın kendi düzenlemeleri de dahil. Bu yüzden tarayıcı QA'sından ÖNCE Publish yapılmalı, yoksa test edilen build merge edilmiş koddan günler geride olabilir. Gerekçe: 2026-07-29'da P22-G'nin QA'sında üç "defect" bulundu (satırlarda tarih görünmüyor, Bugün/Bu Hafta/Tümü filtresi süzmüyor, "Yaptım" formunda tarih seçici yok); üçü de kodda mevcuttu ve 18 saat önce merge edilmişti — test edilen yayınlanmış build o kadar geriydi. Yanlış teşhis konuldu ve P22-G'nin UI'ının gereksiz yere baştan yazılması riski doğdu. Ayırt edici ipucu: UI'da görülen hesap ile DB view'ının döndürdüğü değer çelişiyorsa (örn. view `is_overdue=false` derken ekran "1 gün gecikti" diyorsa), iki farklı kod sürümü çalışıyor demektir — önce Publish, sonra teşhis.
 ---
 
 ## 📌 Kararlar
@@ -563,6 +564,8 @@ Berkin kararı (1. cevap): `harvest_entries`'ten (hasat olayı) ayrı bir tablo.
 
 PR: [hasat-d2c-marketplace #5](https://github.com/berkinsavciozen/hasat-d2c-marketplace/pull/5).
 
+**✅ Tarayıcı QA tamamlandı (Berkin, 2026-07-29).** İlk turda üç adım (tarih görünürlüğü, tarih filtresi, tarih seçici) başarısız göründü; teşhis sonucu sebep **yayınlanmamış build** çıktı — üç düzeltme de kodda mevcuttu ve merge edilmişti (bkz. kural #109). Lovable'da Publish sonrası tekrar test edildi, **tüm adımlar geçti.** P22-E'nin SMS düzeltmesi de doğrulandı: talep SMS'i artık birim, kategori, hasat ayı aralığı ve kısaltılmış notu içeriyor. **P22 serisi tamamen kapandı.**
+
 ### Sıradaki adım
 P22 serisi (A/B/C/D/E/F) + P22-F'nin yan etki düzeltmeleri + P22-G (tarih/filtre düzeltmesi + trigger temizliği) tamamen bitti. Kalan tek şey: `Build/E2E-QA.md` → S19'daki tarayıcı QA adımları (Berkin'in kendi testinde yapacağı). QA tamamlandığında P22 serisi tamamen kapanmış olacak.
 
@@ -593,9 +596,9 @@ P22 serisi (A/B/C/D/E/F) + P22-F'nin yan etki düzeltmeleri + P22-G (tarih/filtr
 
 | # | Taş | Hedef | Durum |
 |---|---|---|---|
-| M0 | Açık işler + hesaplar | 28 Tem – 3 Ağu | 🔵 Başlıyor |
-| M1 | Paylaşılan çekirdek (`hasat-core`) | 4 – 10 Ağu | 🟡 **M1-b kod tarafı bitti** (2026-07-29) — tarayıcı QA + şema borçları bekliyor |
-| M2 | Tarif backend'i (ekleyici) | 11 – 22 Ağu | ⬜ |
+| M0 | Açık işler + hesaplar | 28 Tem – 3 Ağu | ✅ TAMAMLANDI (2026-07-29) |
+| M1 | Paylaşılan çekirdek (`hasat-core`) | 4 – 10 Ağu | ✅ TAMAMLANDI (2026-07-29) |
+| M2 | Tarif backend'i (ekleyici) | 11 – 22 Ağu | 🔵 Başlıyor |
 | M3 | İçerik (15–20 tarif) | 18 Ağu – 1 Eyl | ⬜ |
 | M4 | Web tarif yüzeyi + Gap #9 | 1 – 13 Eyl | ⬜ |
 | M5 | Mobil iskelet + offline | 14 – 27 Eyl | ⬜ |
@@ -699,15 +702,12 @@ Lovable'ın hâlâ normal çalıştığını görmek. Bu bir "yeni özellik" tes
 **Bir şey ters giderse:** PR açıklamasındaki rollback planı — `src/lib/core/`
 silinip iki commit revert edilince eski hale dönülüyor.
 
-#### Kalan işler (M1 kapanması için)
+#### ✅ M1 KAPANDI (2026-07-29)
 
-- ✅ **`hasat-core` reposu açıldı ve dolduruldu** (2026-07-29) —
-  `github.com/berkinsavciozen/hasat-core`, `main` + `core-dist` dalları push
-  edildi. Subtree bağlantısı gerçek uzak repoya karşı doğrulandı: temiz bir
-  klonda `git subtree pull` "already at c4d4b31" diyor, drift kontrolü yeşil.
-- 🔴 `hasat-core`'a `SYNC_TOKEN` secret'ı eklenmeli — yoksa iki Action da çalışmaz
-  (Settings → Secrets and variables → Actions → New repository secret)
-- 🔴 Yukarıdaki 10 adımlık tarayıcı QA
-- ✅ **Küçük şema borçları M1-a'da kapandı** (2026-07-29) — safran_soğanı default_unit→kg, min_order<=quantityBEFORE INSERT trigger'ı (CHECK constraint bilinçli olarak kullanılmadı: stok tükendikçe quantity legal olarak min_order'ın altına düşer ve CHECKenforce_offer_stock'u kırardı), buyer_profiles.company_namenullable,buyer_addresses tek-default trigger'ı. Dördü de canlı DB'de bağımsız SQL ile doğrulandı.
+- ✅ `hasat-core` reposu açıldı, dolduruldu, **public** yapıldı (orkestratör oturumunun bağımsız doğrulama yapabilmesi için)
+- ✅ `SYNC_TOKEN` secret'ı eklendi ve **çalıştığı doğrulandı** — `drift check (web)` workflow'u elle tetiklendi, 13 saniyede Success döndü. Bu tek çalıştırma hem token'ı hem de Lovable'ın core dosyalarına dokunmadığını doğruladı.
+- ✅ Şema borçları M1-a'da kapandı (`safran_soğanı` `default_unit`→`kg`, `min_order<=quantity` BEFORE INSERT trigger'ı, `buyer_profiles.company_name` nullable, `buyer_addresses` tek-default trigger'ı) — dördü de canlı DB'de bağımsız SQL ile doğrulandı
+- ✅ **10 adımlık sıfır-regresyon tarayıcı QA'sı geçti (Berkin, 2026-07-29).** Kritik doğrulamalar: `hasat-core`'a taşınan `convertQuantity` canlıda doğru çalışıyor (500 g + 100 kg → **100.500 g**, ham toplama 600 veya hatalı 100,5 değil); Lovable normal çalışıyor, sync bozulmadı; Lovable'ın düzenleme diff'inde `src/lib/core/` altında **hiçbir dosya değişmedi** — kural #105 sınırı ilk canlı testini geçti.
+- ⚠️ **Bulunan gerçek risk:** Lovable aynı turda `src/integrations/supabase/types.ts`'i **yeniden üretti** (M1-b'nin sildiği bayat dosya). Drift Action bunu yakalamıyor çünkü dosya `src/lib/core/` dışında — bekçinin kör noktası. Çözüm: dosya Lovable'a bırakıldı, koruma **import yasağına** çevrildi (ESLint + drift Action adımı). Bkz. `Build/Shared-Architecture.md`.
 ### Kural #104 (2026-07-24'te eklendi)
 Berkin'in kararı: bundan sonra Claude Code planları, arayüzde test edilmesi gereken adımlar için **kullanıcı-akışı dilinde adım adım bir test case** olarak sunulmalı (hangi sayfa açılacak, hangi butona tıklanacak, ne görülmesi bekleniyor) — trigger/kolon/event isimleri gibi DB-jargonuyla değil. Genel plan anlatımı da (yeni tablo/akış gibi kapsamlı işlerde) bir PM'in anlatacağı gibi olmalı: kullanıcı ne yapıyor, FE'de ne değişiyor, BE'de ne değişiyor — teknik isimler (trigger/policy adı gibi) sadece gerekince, ayrıntı seviyesinde geçmeli.

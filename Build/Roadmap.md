@@ -1,6 +1,6 @@
 ---
 title: Hasat — P23 Görsel Yol Haritası
-updated: 2026-07-28
+updated: 2026-07-29
 tags:
   - hasat
   - roadmap
@@ -130,9 +130,9 @@ gantt
 
 | # | Taş | Tarih (hedef) | Çıkış kriteri |
 |---|---|---|---|
-| **M0** | Açık işler + hesaplar | 28 Tem – 3 Ağu | **P22 tarayıcı QA (15 adım) kapandı**; Apple bireysel hesap başvurusu yapıldı; şirket tescili başladı; Expo/EAS hazır; API 36 desteği doğrulandı |
-| **M1** | Paylaşılan çekirdek | 4 – 10 Ağu | `hasat-core` + subtree + drift guard kuruldu; **web'de sıfır regresyon**; küçük şema borçları kapandı |
-| **M2** | Tarif backend'i (ekleyici) | 11 – 22 Ağu | Şema + RLS + RPC'ler gerçek SQL ve RLS simülasyonuyla doğrulandı; **3 crop testi** (mainstream + niş + yenilemez filtresi) |
+| **M0** | Açık işler + hesaplar — ✅ **TAMAMLANDI (2026-07-29)** | 28 Tem – 3 Ağu | **P22 tarayıcı QA (15 adım) kapandı**; Apple bireysel hesap başvurusu yapıldı; şirket tescili başladı; Expo/EAS hazır; API 36 desteği doğrulandı |
+| **M1** | Paylaşılan çekirdek — ✅ **TAMAMLANDI (2026-07-29)** | 4 – 10 Ağu | `hasat-core` + subtree + drift guard kuruldu; **web'de sıfır regresyon**; küçük şema borçları kapandı |
+| **M2** | Tarif backend'i (ekleyici) — 🔵 **Başlıyor** | 11 – 22 Ağu | Şema + RLS + RPC'ler gerçek SQL ve RLS simülasyonuyla doğrulandı; **3 crop testi** (mainstream + niş + yenilemez filtresi) |
 | **M3** | İçerik | 18 Ağu – 1 Eyl | 15–20 özgün tarif; culinary meta seed; ~20 crop görseli; glossary insan gözden geçirmesi |
 | — | **Soft launch** | **25 Ağu** | Lansman haftası **buffer** — yeni özellik yazılmaz |
 | **M4** | Web tarif yüzeyi | 1 – 13 Eyl | `/tarifler` misafire açık ve SEO'lu; Talep Et çalışıyor; huni ölçümü veri üretiyor; **Gap #9 kapandı** |
