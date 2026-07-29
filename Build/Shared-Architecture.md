@@ -136,6 +136,19 @@ yetkisi olan PAT). ✅ Eklendi ve **iki workflow da canlıda yeşil doğrulandı
 
 > Bu kural kozmetik değil: Lovable daha önce paylaşılan bir dosyanın üzerine yazdı (P24 regresyonu). Görünür "dokunma" işareti + drift kontrolü tam bu senaryoya karşıdır.
 
+### ⚠️ Lovable'ın yönettiği dosyalar — kavga etme, import'u yasakla
+
+`src/integrations/supabase/types.ts` Lovable'ın Supabase entegrasyonunun standart scaffold yoludur. M1-b'de silinip import'lar core'a çevrildi, ama Lovable dosyayı 2026-07-29'da yeniden üretti ve tekrar tekrar üretecek.
+
+**İlke: Lovable'ın yönettiği bir dosyanın varlığıyla savaşmıyoruz — asıl tehlike dosyanın var olması değil, kodun ondan import etmesi.** Hiçbir dosya oradan import etmiyorsa bayat kopya sadece ölü ağırlıktır.
+
+Koruma üç katmanlı:
+1. Tüm uygulama kodu tipleri `@/lib/core/db/types`'tan alır
+2. ESLint `no-restricted-imports` — yasaklı yol, anında geri bildirim
+3. `drift-check.yml`'de yasaklı-import taraması — günlük 06:00 UTC, Lovable lint çalıştırmasa da yakalar
+
+Reddedilen alternatifler: (a) dosyayı re-export'a çevirmek — Lovable üzerine yazar, kırılgan; (b) dosyanın varlığını yasaklamak — Lovable'ın scaffold'uyla çatışır, her gün alarm çalar, build kırma riski taşır.
+
 ---
 
 ## Katman 3 — Asla paylaşılmayan (adapter sınırları)
