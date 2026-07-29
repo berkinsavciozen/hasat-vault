@@ -700,10 +700,12 @@ silinip iki commit revert edilince eski hale dönülüyor.
 
 #### Kalan işler (M1 kapanması için)
 
-- 🔴 **`hasat-core` reposu GitHub'da açılmadı** — bu oturumun GitHub yetkisi repo
-  oluşturmaya izin vermiyor (403). Berkin'in açması gerekiyor; hazırlanan içerik
-  ve tam komutlar PR açıklamasında.
+- ✅ **`hasat-core` reposu açıldı ve dolduruldu** (2026-07-29) —
+  `github.com/berkinsavciozen/hasat-core`, `main` + `core-dist` dalları push
+  edildi. Subtree bağlantısı gerçek uzak repoya karşı doğrulandı: temiz bir
+  klonda `git subtree pull` "already at c4d4b31" diyor, drift kontrolü yeşil.
 - 🔴 `hasat-core`'a `SYNC_TOKEN` secret'ı eklenmeli — yoksa iki Action da çalışmaz
+  (Settings → Secrets and variables → Actions → New repository secret)
 - 🔴 Yukarıdaki 10 adımlık tarayıcı QA
 - 🔴 Küçük şema borçları (`P23-Mobile.md` M1 listesi) — bu turda kapsam dışıydı
 

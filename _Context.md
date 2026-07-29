@@ -142,7 +142,7 @@ Bu sayılar ürün kararlarını doğrudan etkiliyor — özellikle tarif/tüket
 |---|---|---|
 | `hasat-d2c-marketplace` | Web uygulaması | Lovable (`main`, sync bot `gpt-engineer-app[bot]`) + Claude Code (feature branch → PR) |
 | `hasat-mobile` | Mobil (Expo + Expo Router + Nativewind) — **M5'te açılacak** | %100 Claude Code (Lovable RN üretemiyor) |
-| `hasat-core` | Paylaşılan TS: tipler, saf mantık, sorgu hook'ları, zod, design token — **M1'de açılacak** | Claude Code; iki repoya git subtree ile iner |
+| `hasat-core` | Paylaşılan TS — **açıldı 2026-07-29 (M1-b).** Şu an içinde: DB tipleri, design token'ları, `convertQuantity`. Sorgu hook'ları + zod + storage adapter M5'e bırakıldı | Claude Code; subtree ile web'e iner (mobil hedefi M5'te) |
 | `hasat-vault` | İş notları, roadmap, dokümanlar (**public** — kod/sır yok) | Claude Code PR + Berkin merge |
 
 ### Mobil stack (M5+)
