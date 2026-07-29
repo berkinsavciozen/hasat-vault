@@ -323,3 +323,77 @@ Aylık: `recipe_views`, `recipe_saves`, `recipe_attributed_requests`, `recipe_at
 ⚠️ **`supabase/config.toml`'a `[functions.extract-recipe]` girdisi eklenmedi** — web reposu Lovable'ın yönettiği alan ve bu tur "frontend işi yok" kapsamındaydı. Deploy edilmiş halde `verify_jwt=true` (API yanıtıyla doğrulandı). Lovable ileride config.toml'dan toplu deploy yaparsa bu girdinin eklenmesi gerekir — **M4'te kapatılacak açık madde.**
 
 ⚠️ **`author_type` kullanıcı importlarında `hasat` (default) kalıyor.** Onaylı değer kümesi (`hasat`/`ciftci`/`sef`) kullanıcı importu için bir karşılık içermiyor. Kullanıcı importu zaten `owner_id` + `visibility='private'` + `source_type≠'manual'` üçlüsüyle kesin ayırt ediliyor; `author_type` yalnızca public korpus satırlarında anlamlı. Değer kümesini genişletmek şema kararı olduğu için **yapılmadı** — Berkin'in kararına bırakıldı.
+
+## P23-M2-ek — Huni Ölçümünün Tamamlanması (2026-07-29)
+
+Berkin onaylı kapsam değişikliği: **7 tablo → 8 tablo + 1 nullable kolon.** Amaç, `v_kpi_recipe_funnel`'ı sezgisel atıftan kurtarıp beş basamağın tamamını sert FK'lerle doldurmak.
+
+### Yeni tablo: `recipe_views`
+
+`id` uuid PK · `recipe_id` uuid→recipes **ON DELETE CASCADE** · `user_id` uuid→profiles **nullable**, ON DELETE SET NULL · `session_id` text · `created_at` timestamptz
+
+- **KVKK:** IP ve user-agent **bilinçli olarak loglanmıyor.** Gizlilik metni M7'de ele alınacak.
+- `user_id` giriş yapmamış ziyaretçide NULL — tekilleştirme `session_id` ile yapılır.
+- Index: `recipe_views_recipe_idx`, `recipe_views_created_idx`.
+
+**RLS:**
+
+| Komut | Politika |
+|---|---|
+| INSERT | `recipe_views public insert` → `to anon, authenticated` · `with check (user_id is null or user_id = auth.uid())` |
+| SELECT | **politika yok** + `anon`/`authenticated`'tan GRANT çekildi → yalnızca service_role |
+| UPDATE | **bilinçli yok** — append-only olay tablosu |
+| DELETE | **bilinçli yok** |
+
+```sql
+revoke all on public.recipe_views from anon, authenticated;
+grant insert on public.recipe_views to anon, authenticated;
+```
+
+Bu, mevcut 20 KPI view'ının kilidinin bir tabloya uygulanmış hali: uygulama rolleri yazabilir, okuyamaz. `WITH CHECK`'teki tek kısıt, başkasının adına görüntüleme yazılamaması — diğer tüm tablolardaki (`requested_by = auth.uid()`, `user_id = auth.uid()`) bütünlük guard'ının aynısı, yeni desen değil. Giriş yapmamış ziyaretçide `auth.uid()` NULL olduğu için anon INSERT'i kısıtlamıyor.
+
+### Yeni kolon: `offers.source_recipe_id`
+
+`uuid` nullable → `recipes(id)` **ON DELETE SET NULL**. Trigger yok, constraint yok, default yok.
+
+**Yeni desen değil:** `offers.subscription_id → harvest_subscriptions` zaten aynı işi yapan mevcut bir "bu teklif nereden doğdu" kolonu; aynı konvansiyon izlendi. Partial index: `offers_source_recipe_idx ... where source_recipe_id is not null`.
+
+Mevcut `offers` politikaları yeni kolonu olduğu gibi kapsıyor — `Buyers insert offers` (INSERT, `auth.uid() = buyer_id`) ve `Both parties update offer` (UPDATE) üzerinden yazılıp okunabildiği gerçek mutasyonla doğrulandı. **Yeni politika gerekmedi.**
+
+### `recipes.author_type` += `kullanici`
+
+```sql
+CHECK (author_type = ANY (ARRAY['hasat','ciftci','sef','kullanici']))
+```
+
+`hasat`/`ciftci`/`sef` = editoryal public korpus. `kullanici` = AI ile içe aktarılmış kullanıcı defteri. `extract-recipe` artık bu değeri yazıyor (öncesinde default `hasat` kalıyordu ve import editoryal içerikmiş gibi görünüyordu — eksik veri). **Mevcut satırlara dokunulmadı**, yalnızca izin verilen değer kümesi genişledi.
+
+### `v_kpi_recipe_funnel` — yeniden yazıldı (v2)
+
+⚠️ **Önceki sürüm reddedildi.** Eski view `crop_requests` üzerinden "aynı alıcı + aynı crop + talepten sonra" tipi bir çıkarım yapıyordu. Bu sessizce **fazla atıf** üretir: düzenli domates alan bir alıcının her domates siparişi tarif katmanına yazılırdı, tarif katmanı işe yaramadığı halde yarıyormuş gibi görünürdü. **North Star metriğinde yanlış sayı, hiç sayı olmamasından kötüdür.**
+
+Yeni sürümde **uçtan uca yalnızca sert join** var — hiçbir yerde çıkarım, zaman penceresi veya crop eşleştirmesi yok:
+
+```
+recipe_views                                    (1. görüntüleme)
+  -> recipe_saves                               (2. kayıt)
+  -> recipe_rfq_links -> crop_requests          (3. talep — MALZEME YOK yolu)
+  -> offers.source_recipe_id                    (4. teklif — MALZEME VAR yolu)
+  -> orders.offer_id -> offers.source_recipe_id (5. sipariş)
+```
+
+**3. ve 4. basamak paralel çıkış yollarıdır, ardışık değil:** malzeme eşleşmediyse kullanıcı talep açar, eşleştiyse doğrudan teklif verir. Bu yüzden "talep → teklif" oranı hesaplanmıyor; yalnızca gerçekten ardışık olan iki oran veriliyor.
+
+| Kolon | Anlam |
+|---|---|
+| `month` | Olay ayı |
+| `recipe_views` / `unique_viewers` | Ham görüntüleme / tekil izleyici (`coalesce(user_id::text, session_id)`) |
+| `recipe_saves` | O ay yapılan kaydetmeler |
+| `recipe_requests` | `recipe_rfq_links` ile tarife bağlı `crop_requests` |
+| `recipe_offers` | `source_recipe_id` dolu teklifler |
+| `recipe_orders` | O tekliflerden doğan siparişler |
+| `recipe_offers_converted` | **O ay açılan** tekliflerin siparişe dönen sayısı (kohort) |
+| `view_to_save_pct` | Ardışık oran |
+| `offer_to_order_pct` | **Kohort** oranı — aylık sipariş/aylık teklif değil; ay sınırını geçen teklifleri yanlış saymaz |
+
+`security_invoker=true` (`pg_class.reloptions` ile doğrulandı) · `anon`/`authenticated`'a **GRANT yok** (20 KPI view deseni).

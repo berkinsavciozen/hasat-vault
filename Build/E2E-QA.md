@@ -239,6 +239,53 @@ Tüm testler canlı DB'de gerçek SQL/insert ile koşuldu, test verisi sonunda *
 
 ---
 
+#### C. P23-M2-ek — Huni ölçümünün tamamlanması (2026-07-29)
+
+> Bu ek turda da **yeni ekran yok** — S20-B'deki regresyon adımları geçerliliğini koruyor. Aşağıdakiler veri katmanı doğrulamasıdır.
+
+**Kapsam:** `recipe_views` tablosu · `offers.source_recipe_id` kolonu · `v_kpi_recipe_funnel` yeniden yazıldı (sezgisel atıf kaldırıldı) · `author_type` += `kullanici`.
+
+1. **Beş basamak da gerçek veriyle doldu — tek transaction, sonunda ROLLBACK**
+
+   > ⚠️ Test bilinçli olarak **transaction içinde** koşturuldu ve geri alındı: `offers`'a INSERT `trg_offer_received` trigger'ını, o da `dispatch_sms`/`pg_net`'i tetikliyor. ROLLBACK sayesinde **hiçbir gerçek SMS gönderilmedi** — `net.http_request_queue` tur sonunda boş doğrulandı.
+
+   Kurulan senaryo: 1 public tarif · 3 görüntüleme (2 anon farklı `session_id` + 1 girişli) · 1 kaydetme · **talep yolu** (`crop_request` + `recipe_rfq_links`) · **doğrudan teklif yolu** (`offers.source_recipe_id` dolu, gerçek aktif domates ilanı üzerinde) · o teklife bağlı 1 sipariş.
+
+   | Kolon | Beklenen | Gerçekleşen |
+   |---|---|---|
+   | `recipe_views` | 3 | ✅ 3 |
+   | `unique_viewers` | 3 | ✅ 3 |
+   | `recipe_saves` | 1 | ✅ 1 |
+   | `recipe_requests` (malzeme yok yolu) | 1 | ✅ 1 |
+   | `recipe_offers` (malzeme var yolu) | 1 | ✅ 1 |
+   | `recipe_orders` | 1 | ✅ 1 |
+   | `recipe_offers_converted` | 1 | ✅ 1 |
+   | `view_to_save_pct` | 33,33 | ✅ 33,33 |
+   | `offer_to_order_pct` | 100,00 | ✅ 100,00 |
+
+2. **Sezgisel atfın gerçekten kalktığının kanıtı** — canlı DB'de **121 teklif** ve **120 sipariş** var, hiçbirinde `source_recipe_id` dolu değil. Yeni view bu durumda **0 satır** döndürüyor. Eski view aynı veride Zeynep'in safran teklifini "tarife atfedilmiş teklif" olarak sayıyordu (bir önceki turun doğrulama tablosunda `recipe_attributed_offers = 1` görünüyor). Fazla atıf ortadan kalktı. ✅
+
+3. **`recipe_views` RLS**
+
+   | Test | Sonuç |
+   |---|---|
+   | **anon INSERT** (giriş yapmamış ziyaretçi, `user_id` NULL) | ✅ Kabul — satır düştü, `session_id` doğru, `user_id` NULL |
+   | **anon SELECT** | ✅ **Reddedildi** — `42501: permission denied for table recipe_views` |
+   | **anon `v_kpi_recipe_funnel` SELECT** | ✅ **Reddedildi** — `42501: permission denied for view v_kpi_recipe_funnel` |
+   | Girişli kullanıcı kendi adına INSERT | ✅ Kabul |
+   | Girişli kullanıcı **başkasının** `user_id`'siyle INSERT | ✅ **Reddedildi** — `42501: row-level security` |
+
+4. **`offers.source_recipe_id` — gerçek mutasyonla UPDATE doğrulaması**
+   Mevcut `Buyers insert offers` politikasıyla teklif `source_recipe_id = NULL` olarak yazıldı, sonra mevcut `Both parties update offer` politikasıyla dolduruldu. INSERT sonrası NULL → UPDATE sonrası dolu, **ayırt edilebilir değerle** kanıtlandı. ✅ **Yeni UPDATE politikası gerekmedi** — mevcut politika yeni kolonu kapsıyor.
+
+5. **`author_type = 'kullanici'`** — `extract-recipe` gerçek çağrıyla (metin girdisi, gerçek kullanıcı JWT'si) test edildi: HTTP 200, dönen kayıtta `"author_type":"kullanici"`, `visibility` private, `status` draft. ✅ Öncesinde default `hasat` kalıyordu.
+
+6. **Advisor taraması** — `recipe_views`, `offers.source_recipe_id` ve yeniden yazılan `v_kpi_recipe_funnel` **hiç uyarı üretmedi.** `security_invoker=true` `pg_class.reloptions` ile yeniden doğrulandı.
+
+7. **Test verisi temizliği** — 0 tarif, 0 malzeme, 0 adım, 0 `recipe_views`, 0 kota satırı; `offers` 121 ve `orders` 120'de kaldı (**dokunulmadı**); SMS kuyruğu boş. Kalıcı olan tek şey 70 satırlık `crop_culinary_meta` seed'i. ✅
+
+---
+
 ## Feature Sonrası Süreç
 
 1. Yeni prompt tamamlanınca yeni S-numarası eklenir

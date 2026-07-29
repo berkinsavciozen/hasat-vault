@@ -602,10 +602,14 @@ P22 serisi (A/B/C/D/E/F) + P22-F'nin yan etki düzeltmeleri + P22-G (tarih/filtr
 | M3 | İçerik (15–20 tarif) | 18 Ağu – 1 Eyl | ⬜ |
 | M4 | Web tarif yüzeyi + Gap #9 | 1 – 13 Eyl | ⬜ |
 | M5 | Mobil iskelet + offline | 14 – 27 Eyl | ⬜ |
-| M6 | Native yetenekler + push | 28 Eyl – 11 Eki | ⬜ |
+| M6 | Native yetenekler + push | 28 Eyl – 11 Eki | ⬜ — ⚠️ **açık madde var, bkz. altta "M6 açık maddeleri"** |
 | M7 | Köprü + store varlıkları | 12 – 18 Eki | ⬜ |
 | M8 | Store submit | 19 – 31 Eki | ⬜ |
 | M9 | Sıraya alındı (silinmedi) | Kasım+ | ⬜ |
+
+#### ⚠️ M6 açık maddeleri — M6 prompt'u yazılırken buraya BAKILACAK
+
+- 🔴 **`device_tokens` UNIQUE(token):** aynı cihazda ikinci kullanıcı giriş yaparsa token kaydı düşer. Push M6'da devreye girene kadar kimseyi etkilemiyor. Çözüm yönü: çakışmada token yeni kullanıcıya devredilir (cihaz kimde açıksa onundur). M2-ek'te bilinçli olarak ertelendi.
 
 #### Eski P23 kodlarının eşlemesi
 
@@ -815,3 +819,109 @@ Bu turda mekanizma `workflow_dispatch` ile `main` üzerinde ayrıca koşturuldu 
 | `author_type`'ın kullanıcı importları için bir değere ihtiyacı var mı (şema kararı) | Berkin |
 | `device_tokens` token devri (aynı cihaz, ikinci kullanıcı) | M6 |
 | `recipe_saves` KVKK — gizlilik metnine eklenmesi | M7 |
+
+---
+
+### 🟡 P23-M2-ek — Huni Ölçümünün Tamamlanması — **UYGULANDI** *(2026-07-29, Claude Code + Supabase MCP ile doğrudan)*
+
+**Bir cümlede:** Tarif katmanının işe yarayıp yaramadığını ölçen huni, artık **tahmin etmiyor** — beş basamağın her biri gerçek bir bağlantı üzerinden sayılıyor; ayrıca önceki turdan kalan üç açık maddenin ikisi kapandı, biri bilinçli olarak M6'ya bırakıldı.
+
+**Kapsam değişikliği Berkin tarafından onaylandı:** 7 tablo → **8 tablo + 1 nullable kolon**.
+
+#### Ne yapıldı
+
+| # | İş | Sonuç |
+|---|---|---|
+| 1 | `recipe_views` tablosu | Huninin ilk basamağı. IP/user-agent **loglanmıyor** (KVKK). INSERT anon dahil serbest, SELECT yalnızca service_role. |
+| 2 | `offers.source_recipe_id` | Nullable FK → `recipes`, `ON DELETE SET NULL`. `offers.subscription_id` ile **aynı konvansiyon**; trigger/constraint/default yok. |
+| 3 | `v_kpi_recipe_funnel` **yeniden yazıldı** | Sezgisel atıf tamamen kaldırıldı; uçtan uca sert join. |
+| 4 | `author_type` += `kullanici` | `extract-recipe` artık bunu yazıyor (v2 deploy edildi). |
+| 5 | `device_tokens` UNIQUE(token) | **Dokunulmadı** — M6 açık maddesi olarak yazıldı (yukarı bkz.). |
+| 6 | sync Action hatası | Kök nedene inildi, raporlandı (aşağı bkz.). |
+| 7 | Drift kör noktası | `Build/Shared-Architecture.md`'ye yazıldı, **düzeltme yapılmadı**, M5 açık maddesi. |
+
+#### 🔴 Sezgisel atıf neden reddedildi
+
+Eski `v_kpi_recipe_funnel`, `crop_requests` üzerinden şuna benzer bir çıkarım yapıyordu: *"bu alıcı bu tarife bağlı bir talep açtıysa, sonrasında aynı crop'ta verdiği her teklif ve sipariş de o tariften doğmuştur."*
+
+Bu **sessizce fazla atıf** üretir. Düzenli domates alan bir alıcı bir kez domatesli bir tarife baksa, sonraki her domates siparişi tarif katmanının hanesine yazılırdı. Tarif katmanı hiç işe yaramasa bile huni "çalışıyor" görünürdü — ve bu sayı **North Star metriğine** (ihtilafsız tamamlanmış sipariş GMV'si) bağlanıyor.
+
+**Yanlış sayı, hiç sayı olmamasından kötüdür:** hiç sayı yoksa "bilmiyoruz" denir ve ölçüm eklenir; yanlış sayı varsa yanlış karar verilir ve kimse sorgulamaz.
+
+Yerine konan zincir tamamen sert FK:
+
+```
+recipe_views -> recipe_saves -> recipe_rfq_links -> crop_requests   (malzeme YOK yolu)
+                             -> offers.source_recipe_id             (malzeme VAR yolu)
+                             -> orders.offer_id                     (sipariş)
+```
+
+3. ve 4. basamak **paralel çıkış yollarıdır**, ardışık değil — malzeme eşleşmediyse talep, eşleştiyse doğrudan teklif. Bu yüzden "talep → teklif" oranı hesaplanmıyor; yalnızca gerçekten ardışık olan `view_to_save_pct` ve (kohort bazlı) `offer_to_order_pct` veriliyor.
+
+**Kanıt:** canlı DB'de 121 teklif ve 120 sipariş var, hiçbirinde `source_recipe_id` dolu değil → yeni view **0 satır** döndürüyor. Eski view aynı veride 1 "atfedilmiş teklif" sayıyordu.
+
+#### Önceki turdaki üç otonom varsayılan nasıl kapandı
+
+| # | Önceki turda otonom alınan varsayılan | Bu turda ne oldu |
+|---|---|---|
+| 1 | **Funnel'ın görüntüleme basamağı NULL bırakıldı**, 8. tablo eklenmedi (kapsam korunsun diye), teklif/sipariş atfı sezgisele bırakıldı | ✅ **Kapandı.** Berkin kapsam değişikliğini onayladı: `recipe_views` eklendi, `offers.source_recipe_id` eklendi, sezgisel atıf tamamen kaldırıldı. Artık NULL kolon veya "M4'te doldurulacak" notu yok — beş basamak da gerçek veriyle doluyor. |
+| 2 | **`gül` yenilebilir bırakıldı** (görev metnindeki örnek liste ile mekanik seed kuralı çelişiyordu) | ⏸️ **Değişmedi.** Bu turun kapsamında değildi, Berkin'den aksi bir talimat gelmedi. Mekanik kural yürürlükte: yenilemez = pamuk, şeker_pancarı, tütün, safran_soğanı (4 crop). Değiştirmek hâlâ tek satır: `UPDATE crop_culinary_meta SET is_edible=false WHERE crop='gül';` |
+| 3 | **`device_tokens` katı RLS aldı**, token devri M6'ya bırakıldı | ✅ **Karar onaylandı ve kalıcılaştırıldı.** Berkin "dokunma ama açık madde olarak yaz" dedi. Şema aynen kaldı; madde yukarıdaki "M6 açık maddeleri" bölümüne, M6 prompt'unda gözden kaçmayacak şekilde yazıldı ve kilometre taşı tablosundaki M6 satırı oraya işaret ediyor. |
+
+Ayrıca önceki turun açık maddelerinden **`author_type`** de kapandı: `kullanici` değeri eklendi ve `extract-recipe` (v2) gerçek çağrıda bu değeri yazdığı doğrulandı.
+
+#### Doğrulama (kural #96)
+
+| Kontrol | Sonuç |
+|---|---|
+| Beş basamağın tamamı gerçek veriyle (talep yolu + doğrudan teklif yolu ayrı ayrı) | ✅ 3 görüntüleme / 3 tekil / 1 kayıt / 1 talep / 1 teklif / 1 sipariş |
+| `offer_to_order_pct` kohort hesabı | ✅ 100,00 · `view_to_save_pct` ✅ 33,33 |
+| **Sezgisel atıf gerçekten kalktı mı** (121 teklif, 120 sipariş, hiçbirinde `source_recipe_id` yok) | ✅ View 0 satır döndürüyor |
+| **anon `recipe_views` INSERT** | ✅ Kabul (satır düştü, `user_id` NULL) |
+| **anon `recipe_views` SELECT** | ✅ Reddedildi — `42501 permission denied for table` |
+| anon `v_kpi_recipe_funnel` SELECT | ✅ Reddedildi — `42501 permission denied for view` |
+| Başkasının adına görüntüleme yazma | ✅ Reddedildi — RLS |
+| `offers.source_recipe_id` **gerçek UPDATE ile 1 satır** (NULL → dolu, ayırt edilebilir değer) | ✅ Mevcut politika kapsıyor, yeni politika gerekmedi |
+| `extract-recipe` gerçek çağrı → `author_type` | ✅ `"author_type":"kullanici"`, private/draft |
+| `security_invoker=true` (`pg_class.reloptions`) | ✅ İki view da |
+| Advisor taraması — yeni objelerde uyarı | ✅ **Sıfır** |
+| Test verisi temizliği | ✅ Sıfır kalıntı; `offers` 121 / `orders` 120 **dokunulmadı**; SMS kuyruğu boş |
+
+> ⚠️ **SMS koruması:** teklif/sipariş testi bilinçli olarak tek transaction içinde koşturulup ROLLBACK edildi — `offers` INSERT'i `trg_offer_received` → `dispatch_sms` → `pg_net` zincirini tetikliyor. ROLLBACK sayesinde kuyruk satırı da geri alındı, **gerçek SMS gönderilmedi** (`net.http_request_queue` boş doğrulandı).
+
+#### 🔍 sync-to-web Action'ının açıklanmamış hatası — kök nedene inildi
+
+Berkin'in sorduğu #3 (başarısız) → #4 (başarılı) geçişi. Koşu loglarından ve commit geçmişinden tam zincir:
+
+| Koşu | Commit | Ne oldu |
+|---|---|---|
+| #1, #2 | `70f9a88`, `6bdc223` | **0 job** — workflow hiç başlamadı. Geçersiz YAML. `gh pr create --body` çok satırlı bir dize olarak yazılmıştı ve gövdedeki `---` satırı sütun 0'da duruyordu; YAML bunu **doküman ayırıcı** olarak okuyup dosyayı geçersiz saydı. |
+| — | `1171982` "sync-to-web workflow: gecersiz YAML duzeltildi" | Gövde `BODY=$(printf '%s\n' ...)` değişkenine taşındı, YAML geçerli hale geldi. |
+| #3 | `1171982` | Job **çalıştı**, `git subtree split` başarılı (üretilen sha `c4d4b31`), ama `git push --force origin core-dist` adımı düştü: `remote: Permission to berkinsavciozen/hasat-core.git denied to github-actions[bot]` → **403**. Kök neden: varsayılan `GITHUB_TOKEN` salt-okunur. |
+| — | `9c15833` "core-dist push'u icin contents:write izni" | Job'a 4 satırlık `permissions: contents: write` bloğu eklendi. |
+| #4 | `9c15833` | ✅ Başarılı. |
+| #5 | `3e0a7d9` | ✅ Yeşil (M2 turunda mekanizma testi — içerik değişmediği için PR açmadı). |
+| #6 | `c9e0263` | ✅ **İlk gerçek koşu** — PR #2'nin merge'iyle tetiklendi, web reposuna sync PR'ı açtı. |
+
+**Değerlendirme: bu sağlam bir çözüm, geçici yama değil.** Üç gerekçe:
+
+1. **Kök nedeni çözüyor, semptomu değil.** Job `core-dist` dalını kendi reposuna geri itiyor; bu gerçekten yazma izni gerektiren bir iş. İzin eksikti, izin verildi.
+2. **En az yetki ilkesine uygun ve GitHub'ın önerdiği desen.** Alternatif, repo genelindeki "Workflow permissions" ayarını read/write'a çevirmekti — o, **tüm** workflow'lara yazma izni verirdi. Buradaki blok yalnızca bu job'a, yalnızca `contents` kapsamında izin veriyor.
+3. **Sürüm kontrolünde ve kalıcı.** Repo ayarı sessizce geri alınabilir; workflow dosyasındaki blok diff'te görünür.
+
+Not: job seviyesindeki `permissions:` bloğu **tüm izin kümesini değiştirir** (yazılmayan kapsamlar `none` olur). Burada bu doğru davranış — `GITHUB_TOKEN` ile yapılan tek yazma `core-dist` push'u; web reposu checkout'u ve `gh pr create` **`SYNC_TOKEN`** (PAT) ile kimlik doğruluyor, `GITHUB_TOKEN` ile değil. Bunun pratikte doğru olduğu koşu #6'nın (gerçek PR açan koşu) yeşil geçmesiyle kanıtlandı.
+
+**Sonuç: boru hattında açıklanmamış hata kalmadı. Düzeltme önerilmiyor.**
+
+#### Açık maddeler
+
+| Madde | Nereye |
+|---|---|
+| `crop_culinary_meta` kalan 67 crop'un alias + conversion_hints'i | M3 |
+| ~20 crop temsili görseli + `default_photo_url` | M3 |
+| `v_kpi_recipe_funnel`'ın `admin-kpi` edge function'ına + `/admin/kpi` ekranına bağlanması | M4 |
+| `/tarifler` sayfasının `recipe_views` yazması ve teklif akışının `source_recipe_id` doldurması | M4 |
+| `supabase/config.toml`'a `[functions.extract-recipe] verify_jwt = true` girdisi | M4 |
+| **Drift script'ine sürüm-gerisi kontrolü** (bkz. `Build/Shared-Architecture.md`) | M5 |
+| **`device_tokens` UNIQUE(token) token devri** (bkz. "M6 açık maddeleri") | M6 |
+| `recipe_saves` + `recipe_views` KVKK — gizlilik metnine eklenmesi | M7 |

@@ -167,7 +167,10 @@ Bu sayılar ürün kararlarını doğrudan etkiliyor — özellikle tarif/tüket
 - **Tarif katmanı (P23-M2, 2026-07-29):** `recipes`, `recipe_steps`, `recipe_ingredients`, `crop_culinary_meta`, `recipe_saves`, `recipe_rfq_links`, `device_tokens` + `crop_config.default_photo_url` + `crop-photos` public bucket. Mantık DB'de: `fn_culinary_to_canonical`, `rpc_recipe_availability`, `rpc_recipe_shopping_list`, `v_recipe_coverage`, `v_kpi_recipe_funnel`.
 - **Malzeme→crop eşleştirmesi runtime'da fuzzy text matching ile YAPILMAZ** — `recipe_ingredients.crop` editoryal olarak bir kez doldurulur; `extract-recipe` bu alanı daima `null` bırakır.
 - **"Admin" diye bir DB rolü yok.** `profiles.role` yalnızca `farmer`/`buyer`; `is_admin()` fonksiyonu yok. Admin erişimi = service-role anahtarlı edge function (`admin-kpi` + `x-admin-key`). "Yazma sadece admin" pratikte "hiç politika yazma" demek — service_role RLS'i baypas eder.
-- **`v_kpi_recipe_funnel`'ın "görüntüleme" basamağı şu an NULL** — görüntüleme olayını üretecek yüzey M4'te doğuyor. Ayrıca `crop_requests` ile `offers`/`orders` arasında **hiç FK yok**; teklif/sipariş atfı sezgisel (aynı alıcı + crop + talepten sonra).
+- **`v_kpi_recipe_funnel` uçtan uca SERT JOIN (P23-M2-ek, 2026-07-29).** Beş basamak: `recipe_views` → `recipe_saves` → (`recipe_rfq_links`→`crop_requests` = malzeme yok yolu | `offers.source_recipe_id` = malzeme var yolu) → `orders.offer_id`. **Sezgisel atıf YOK** — önceki sürümdeki "aynı alıcı + aynı crop + talepten sonra" çıkarımı fazla atıf ürettiği için kaldırıldı. `crop_requests` ile `offers`/`orders` arasında hâlâ FK yok; bu yüzden teklif/sipariş atfı `offers.source_recipe_id` üzerinden yürüyor.
+- **`recipe_views`** (P23-M2-ek): görüntüleme olayı. IP/user-agent loglanmaz (KVKK). INSERT anon dahil serbest, SELECT yalnızca service_role.
+- **`offers.source_recipe_id`** (P23-M2-ek): nullable FK → `recipes`. `offers.subscription_id` ile aynı konvansiyon — "bu teklif nereden doğdu".
+- **`recipes.author_type`** artık `kullanici` değerini de kabul ediyor — AI ile içe aktarılan tarifler editoryal korpustan böyle ayrılıyor.
 - Parsel konum = `location_label`
 - Community yazar = `author_id`
 - Phone format = `905XXXXXXXXX` (+ prefix'siz)
