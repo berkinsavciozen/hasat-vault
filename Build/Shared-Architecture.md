@@ -1,6 +1,6 @@
 ---
 title: Hasat — Paylaşılan Mimari (Web + Mobil)
-updated: 2026-07-28
+updated: 2026-07-29
 tags:
   - hasat
   - architecture
@@ -52,14 +52,44 @@ Zemin zaten hazır: `crop_config` tek kaynak, 20 KPI view'ı, `enforce_offer_sto
 
 DB'ye taşınamayan kısım:
 
-| İçerik | Örnek |
-|---|---|
-| Üretilmiş DB tipleri | `supabase gen types typescript` çıktısı |
-| Saf yardımcılar | `convertQuantity()`, coverage skoru, offer-status etiketleri, para/tarih formatlama |
-| Supabase sorgu fonksiyonları | `fetchListings()`, `fetchRecipe()` … |
-| TanStack Query hook'ları | `useListings()`, `useRecipes()` — **TanStack Query React Native'de de çalışıyor** |
-| Zod şemaları | Form/RPC girdi doğrulama |
-| Design token'ları | Marka renkleri, spacing, tipografi ölçeği |
+| İçerik | Örnek | Ne zaman |
+|---|---|---|
+| Üretilmiş DB tipleri | `supabase gen types typescript` çıktısı | ✅ M1 |
+| Design token'ları | Marka renkleri, spacing, tipografi ölçeği | ✅ M1 |
+| Saf yardımcılar | `convertQuantity()` | ✅ M1 |
+| Saf yardımcılar (kalan) | coverage skoru, offer-status etiketleri, para/tarih formatlama | ⬜ M5 |
+| **Supabase storage adapter** | web `localStorage` ↔ mobil `expo-secure-store` | ⬜ **M5** |
+| **Supabase sorgu fonksiyonları** | `fetchListings()`, `fetchRecipe()` … | ⬜ **M5** |
+| **TanStack Query hook'ları** | `useListings()`, `useRecipes()` — **React Native'de de çalışıyor** | ⬜ **M5** |
+| Zod şemaları | Form/RPC girdi doğrulama | ⬜ M5 |
+
+### ⚠️ Storage adapter + query hook'ları M1'den M5'e taşındı (2026-07-29)
+
+Bu doküman ilk yazıldığında (2026-07-28) storage adapter M1'e yazılmıştı. **Bu
+karar M1 uygulanırken revize edildi:** storage adapter, sorgu fonksiyonları ve
+TanStack Query hook'ları **M5'e bırakıldı**.
+
+**Gerekçe:** üçü de auth ve veri akışı hattına dokunuyor. 25 Ağustos
+lansmanından dört hafta önce, **henüz var olmayan bir client için** o hatta
+dokunmanın getirisi yok — riski var. Adapter'ın tek gerçek tüketicisi mobil
+uygulama; mobil iskelet M5'te doğduğunda gerçek bir kullanıcıyla birlikte
+taşınacak. Bu, lansman öncesi risk kuralıyla (`Roadmap.md`) da tutarlı:
+lansmandan önce yalnızca ekleyici işler.
+
+**M1'de bu yüzden taşınan içerik bilinçli olarak küçük tutuldu:** üretilmiş DB
+tipleri, design token'ları, `convertQuantity`. Boru hattının kendisi (subtree +
+manifest + drift guard + Action) tam kuruldu — sonraki taşımalar artık sadece
+dosya ekleme işi.
+
+**M5'te taşınmayan diğer saf yardımcılar** (aday, ilk turu küçük tutmak için
+ertelendi):
+
+- `src/lib/hasat/format.ts` — saf ve React'e bağımsız, ama web'de **33 dosya**
+  import ediyor; taşınması Lovable'ın dokunduğu 33 dosyada import değişikliği
+  demek.
+- `src/lib/hasat/coverage.ts`, `offer-status.ts` — saf, ama `crop-config`/`types`
+  üzerinden bir tip grafiği sürüklüyorlar. `offer-status.ts` ayrıca CSS
+  değişkenlerine (design token) bağlı; önce token bağlantısı netleşmeli.
 
 ### Dağıtım — kritik kısıt
 
@@ -70,14 +100,28 @@ DB'ye taşınamayan kısım:
 ```
 hasat-core (ayrı repo)
    │
-   ├── git subtree ──► hasat-d2c-marketplace : src/lib/core/
-   └── git subtree ──► hasat-mobile          : src/lib/core/
+   ├── git subtree ──► hasat-d2c-marketplace : src/lib/core/   ✅ M1'de kuruldu
+   └── git subtree ──► hasat-mobile          : src/lib/core/   ⬜ M5 (repo henüz yok)
 ```
 
 - **git subtree** (submodule değil) — Lovable'ın build'i submodule init etmez; subtree düz dosya olarak iner
-- `hasat-core`'da bir **GitHub Action**, değişiklikte iki repoya birden PR açar
+- `hasat-core`'da bir **GitHub Action**, değişiklikte hedef repoya PR açar
+  — **M1'de tek hedefli** (sadece web); ikinci hedef `hasat-mobile` doğduğunda M5'te eklenecek
 - Her core dosyasının başında: `// hasat-core — BU DOSYAYI BURADA DÜZENLEME`
-- Her iki repoda bir **hash manifest** dosyası → sapma saniyeler içinde tespit edilir
+- Hedef repoda bir **hash manifest** dosyası (`src/lib/core/.manifest`) → sapma saniyeler içinde tespit edilir
+
+### Boru hattının kurulu hali (M1, 2026-07-29)
+
+| Parça | Nerede | Ne yapar |
+|---|---|---|
+| Kaynak | `hasat-core/core/` | Tek doğruluk kaynağı. Build step yok, publish yok. |
+| Manifest | `core/.manifest` → `src/lib/core/.manifest` | Her core dosyasının sha256'sı |
+| Sapma scripti | `hasat-core` → `npm run drift -- <yol>` | **DEĞİŞTİRİLMİŞ / EKSİK / FAZLA** üç durumu yakalar, farkta exit 1 |
+| Sync Action | `.github/workflows/sync-to-web.yml` | `core/**` değişince web reposuna PR açar |
+| Drift Action | `.github/workflows/drift-check.yml` | Web'e inmiş kopyayı günlük doğrular |
+
+**Gereken secret:** `hasat-core` reposunda `SYNC_TOKEN` (web reposuna push + PR
+yetkisi olan PAT). Bu eklenene kadar iki workflow da çalışmaz.
 
 ### KURAL (#105)
 
@@ -117,16 +161,63 @@ hasat-core (ayrı repo)
 
 ## Uygulanma sırası
 
-| Ne zaman | İş |
-|---|---|
-| M1 | `hasat-core` repo + subtree + GitHub Action + drift guard + do-not-edit işaretleri + design token'lar + storage adapter |
-| M1 | Küçük şema borçları (bkz. `P23-Mobile.md` M1) |
-| M2 | Katman 1 RPC'leri (tarif eşleştirme, birim dönüşümü, alışveriş listesi, funnel view) |
-| M2 | `device_tokens` tablosu |
-| M9 | Bildirim event map konsolidasyonu (lansman sonrası) |
+| Ne zaman | İş | Durum |
+|---|---|---|
+| M1 | `hasat-core` repo + subtree + GitHub Action + drift guard + do-not-edit işaretleri + design token'lar + DB tipleri + `convertQuantity` | ✅ 2026-07-29 |
+| M1 | Küçük şema borçları (bkz. `P23-Mobile.md` M1) | ⬜ |
+| M2 | Katman 1 RPC'leri (tarif eşleştirme, birim dönüşümü, alışveriş listesi, funnel view) | ⬜ |
+| M2 | `device_tokens` tablosu | ⬜ |
+| **M5** | **Storage adapter + sorgu fonksiyonları + TanStack Query hook'ları + zod şemaları** (M1'den taşındı) | ⬜ |
+| M5 | Sync Action'a ikinci hedef (`hasat-mobile`) | ⬜ |
+| M9 | Bildirim event map konsolidasyonu (lansman sonrası) | ⬜ |
 
 ---
 
 ## Doğrulama kuralı
 
 M1'in çıkış kriteri: **web uygulamasında sıfır regresyon.** Subtree kurulumu mevcut çalışan bir sistemin dosya yapısına dokunuyor — Lovable build'inin ve canlı önizlemenin hâlâ çalıştığı bağımsız olarak doğrulanmadan M2'ye geçilmez.
+
+---
+
+## M1'den çıkan açık riskler (Berkin'in kararına bırakıldı)
+
+### 1. Design token'ları şu an iki yerde yazılı
+
+`src/styles.css` Tailwind'in çalışma zamanı kaynağı olmaya devam ediyor;
+`core/design/tokens.ts` aynı değerlerin JS/TS (ve M5'te Nativewind) temsili.
+Bir renk değişirse **ikisi de** güncellenmeli.
+
+Otomatik bağlanmadı, çünkü tek yol `styles.css`'in core'dan bir CSS dosyası
+`@import` etmesiydi — ve `styles.css` Lovable'ın dokunduğu bir dosya. Lansman
+öncesi o dosyaya dokunmak, kazandığından çok risk getiriyordu.
+
+**Karar gerekiyor (M5):** ya `styles.css` core'dan bir `tokens.css` import
+etsin, ya da drift scriptine "token'lar iki dosyada aynı mı" kontrolü eklensin.
+
+### 2. `src/integrations/supabase/types.ts` silindi — Lovable geri üretebilir
+
+Üretilmiş DB tipleri artık `src/lib/core/db/types.ts`'te; eski yol silindi ve 4
+import core'a çevrildi. Lovable bir şema değişikliğinde tipleri **eski yola**
+yeniden üretirse iki kopya oluşur (derleme kırılmaz, sessiz sapma olur).
+
+Not: silinen dosya zaten **bayattı** — `v_routine_maintenance_status` view'ı
+(P22-G, 2026-07-28) ve `buyer_profiles.company_name` nullable hali içinde yoktu.
+Yani Lovable bu dosyayı her şema değişiminde otomatik üretmiyor. Yine de M2'de
+şema değişikliği yapılırken `src/integrations/supabase/types.ts`'in geri gelip
+gelmediğine bakılmalı.
+
+### 3. Şema borcu bulgusu — `buyer_profiles.company_name` zaten nullable
+
+`P23-Mobile.md` M1 listesinde "NOT NULL → nullable" işi duruyor. Canlı DB'de
+kontrol edildi (2026-07-29): **zaten nullable.**
+
+```sql
+select is_nullable from information_schema.columns
+where table_schema='public' and table_name='buyer_profiles'
+  and column_name='company_name';
+-- YES
+```
+
+Kalan üç şema borcu (`Safran Soğanı` `default_unit='adet'`, `listings` CHECK
+`min_order <= quantity`, `useSetDefaultAddress`) doğrulanmadı — bu tur kapsamı
+dışındaydı.
