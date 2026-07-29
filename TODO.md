@@ -1,6 +1,6 @@
 ---
 title: Hasat — Master Roadmap & Build Log
-updated: 2026-07-24
+updated: 2026-07-29
 tags:
   - hasat
   - todo
@@ -593,7 +593,7 @@ P22 serisi (A/B/C/D/E/F) + P22-F'nin yan etki düzeltmeleri + P22-G (tarih/filtr
 | # | Taş | Hedef | Durum |
 |---|---|---|---|
 | M0 | Açık işler + hesaplar | 28 Tem – 3 Ağu | 🔵 Başlıyor |
-| M1 | Paylaşılan çekirdek (`hasat-core`) | 4 – 10 Ağu | ⬜ |
+| M1 | Paylaşılan çekirdek (`hasat-core`) | 4 – 10 Ağu | 🟡 **M1-b kod tarafı bitti** (2026-07-29) — tarayıcı QA + şema borçları bekliyor |
 | M2 | Tarif backend'i (ekleyici) | 11 – 22 Ağu | ⬜ |
 | M3 | İçerik (15–20 tarif) | 18 Ağu – 1 Eyl | ⬜ |
 | M4 | Web tarif yüzeyi + Gap #9 | 1 – 13 Eyl | ⬜ |
@@ -614,6 +614,100 @@ P22 serisi (A/B/C/D/E/F) + P22-F'nin yan etki düzeltmeleri + P22-G (tarih/filtr
 #### Referans araştırması (korunuyor)
 - **Eatr:** süre/beceri/diyet filtreleri, besin değeri. Abonelik iptal/refund şikayetleri var — Hasat bu hatayı tekrarlamamalı.
 - **ReciMe:** "Order Groceries" özelliği; Hasat kendi envanterine sahip olduğu için yapısal avantajlı. Kullanıcı importlarını private tutma deseni de buradan.
+
+---
+
+### 🟡 P23-M1-b — Paylaşılan çekirdek boru hattı — KOD TARAFI TAMAMLANDI *(2026-07-29, Claude Code)*
+
+**Bir cümlede:** İki uygulamanın (web + gelecek mobil) ortak kullanacağı kod
+artık ayrı bir repoda yaşıyor ve web'e otomatik iniyor; kimsenin — Lovable
+dahil — onu web tarafında sessizce değiştirememesi için bir bekçi kuruldu.
+
+#### Ne yapıldı
+
+**Yeni repo `hasat-core`** — build step yok, publish yok, sadece TypeScript
+kaynak dosyaları. İçeriği bilinçli olarak küçük tutuldu:
+
+| Ne | Nereden geldi |
+|---|---|
+| Üretilmiş DB tipleri | `supabase gen types typescript` (canlı şemadan yeniden üretildi) |
+| Design token'ları | `src/styles.css` (marka renkleri, semantik renkler, radius, tipografi, spacing) |
+| `convertQuantity` | `src/lib/hasat/units.ts` (P21-A) |
+
+**Web'e iniş:** `git subtree` ile `src/lib/core/` altına. Monorepo/pnpm
+workspace **yapılmadı** — Lovable'ın sync'ini ve build'ini kırma riski var.
+Repoya yalnızca düz dosya eklendi.
+
+**Drift koruması (kural #105'i uygulanabilir hale getiriyor):**
+1. Her core dosyasının ilk satırı: `// hasat-core — BU DOSYAYI BURADA DÜZENLEME.`
+2. `src/lib/core/.manifest` — her core dosyasının sha256'sı
+3. `hasat-core` → `npm run drift -- <yol>` — tek komut, üç durumu yakalar:
+   **DEĞİŞTİRİLMİŞ / EKSİK / FAZLA**, farkta exit 1
+4. İki GitHub Action (şimdilik **tek hedefli**, sadece web): `core/**` değişince
+   web'e sync PR'ı; ayrıca günlük drift kontrolü
+
+**Bilinçli olarak taşınmayanlar → M5:** Supabase storage adapter, TanStack Query
+hook'ları, sorgu fonksiyonları. Gerekçe: üçü de auth ve veri akışına dokunuyor;
+lansmandan 4 hafta önce, **henüz var olmayan bir client için** o hatta
+dokunmuyoruz. (`Build/Shared-Architecture.md` güncellendi.)
+
+#### Doğrulama (kural #96 — bağımsız, gerçek çalıştırma)
+
+| Kontrol | Sonuç |
+|---|---|
+| `tsc --noEmit` (gerçek, node_modules kurulu) | ✅ 0 hata |
+| `npm run build` (Vite + Nitro, prod) | ✅ Başarılı — Lovable'ın build'i ile aynı komut |
+| `convertQuantity` taşıma öncesi/sonrası | ✅ 10 vakada birebir aynı; **500 g + 100 kg → 100.500 g** (P21-A vakası) |
+| Drift scripti (temiz durum) | ✅ Yeşil — 4 dosya manifest ile aynı |
+| Drift scripti (kasten bozuldu) | ✅ Üç senaryoda da exit 1: dosya değiştirildi / silindi / fazladan dosya eklendi — sonra geri alındı, tekrar yeşil |
+| `prettier --check` (yeni core dosyaları) | ✅ Temiz |
+
+#### 🔴 Bulunan gerçek şey: silinen tip dosyası bayattı
+
+`src/integrations/supabase/types.ts` canlı şemadan geriye düşmüştü — içinde
+`v_routine_maintenance_status` view'ı (P22-G, 2026-07-28) yoktu ve
+`buyer_profiles.company_name` hâlâ NOT NULL görünüyordu. Core'a **canlı
+şemadan yeniden üretilmiş** tipler kondu; `tsc` bu tiplerle de temiz geçti.
+
+**Yan bulgu — şema borcu listesi güncel değil:** `buyer_profiles.company_name`
+canlı DB'de **zaten nullable**. `P23-Mobile.md`'nin M1 listesinde duran bu madde
+kapanmış görünüyor (SQL kanıtı `Build/Shared-Architecture.md`'de). Kalan üç
+şema borcu bu turda kontrol edilmedi.
+
+#### QA test case (kural #104) — Berkin uygular
+
+PR merge edildikten **sonra**, Lovable önizlemesi yeniden yayına alındığında:
+
+**Amaç:** Taşıma sonrası uygulamanın hiçbir yerinde davranış değişmediğini ve
+Lovable'ın hâlâ normal çalıştığını görmek. Bu bir "yeni özellik" testi değil,
+**sıfır regresyon** testi.
+
+| # | Adım | Beklenen |
+|---|---|---|
+| 1 | Lovable editöründe projeyi aç, önizlemenin yüklenmesini bekle | Önizleme hatasız açılıyor, kırmızı build hatası yok |
+| 2 | `hasat.lovable.app`'e gir, alıcı olarak giriş yap (`905009876543`, OTP `123456`) | Giriş çalışıyor — oturum saklama bozulmadı |
+| 3 | **Keşfet** sayfasını aç | Ürün kartları listeleniyor, sayfa boş değil |
+| 4 | Aynı üründen **birden fazla partisi olan** bir üretici kartına bak (kartta "Partileri Gör" yazan) | Karttaki **toplam miktar** eskisiyle aynı — örn. 500 g + 100 kg olan bir ürün **100.500 g** (100,5 kg değil, hatalı 600 değil) görünüyor |
+| 5 | O karta tıklayıp ürün detay sayfasına gir | Partiler listeleniyor; üstteki toplam miktar Keşfet'teki ile **aynı sayı** |
+| 6 | Bir partiye teklif ver ekranını aç (teklifi göndermene gerek yok) | Ekran normal açılıyor, miktar/birim alanları doğru |
+| 7 | Çıkış yap, çiftçi olarak gir (`905001234567`, OTP `123456`) | Giriş çalışıyor |
+| 8 | **Günlük** ve **Rutin Bakım** sekmelerini aç | P22-G'de düzeltilen tarih/filtre davranışı aynen duruyor, liste doluyor |
+| 9 | Lovable'da küçük bir görsel değişiklik iste (örn. bir başlık metnini değiştir) ve uygulat | Lovable normal çalışıyor, sync bozulmadı |
+| 10 | Lovable'ın açtığı diff'te `src/lib/core/` altında **hiçbir dosya** değişmemiş olmalı | Değişmişse kural #105 ihlali — drift Action'ı ertesi sabah alarm verir |
+
+**Bir şey ters giderse:** PR açıklamasındaki rollback planı — `src/lib/core/`
+silinip iki commit revert edilince eski hale dönülüyor.
+
+#### Kalan işler (M1 kapanması için)
+
+- ✅ **`hasat-core` reposu açıldı ve dolduruldu** (2026-07-29) —
+  `github.com/berkinsavciozen/hasat-core`, `main` + `core-dist` dalları push
+  edildi. Subtree bağlantısı gerçek uzak repoya karşı doğrulandı: temiz bir
+  klonda `git subtree pull` "already at c4d4b31" diyor, drift kontrolü yeşil.
+- 🔴 `hasat-core`'a `SYNC_TOKEN` secret'ı eklenmeli — yoksa iki Action da çalışmaz
+  (Settings → Secrets and variables → Actions → New repository secret)
+- 🔴 Yukarıdaki 10 adımlık tarayıcı QA
+- 🔴 Küçük şema borçları (`P23-Mobile.md` M1 listesi) — bu turda kapsam dışıydı
 
 ### Kural #104 (2026-07-24'te eklendi)
 Berkin'in kararı: bundan sonra Claude Code planları, arayüzde test edilmesi gereken adımlar için **kullanıcı-akışı dilinde adım adım bir test case** olarak sunulmalı (hangi sayfa açılacak, hangi butona tıklanacak, ne görülmesi bekleniyor) — trigger/kolon/event isimleri gibi DB-jargonuyla değil. Genel plan anlatımı da (yeni tablo/akış gibi kapsamlı işlerde) bir PM'in anlatacağı gibi olmalı: kullanıcı ne yapıyor, FE'de ne değişiyor, BE'de ne değişiyor — teknik isimler (trigger/policy adı gibi) sadece gerekince, ayrıntı seviyesinde geçmeli.
