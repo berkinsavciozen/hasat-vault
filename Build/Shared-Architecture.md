@@ -130,6 +130,49 @@ yetkisi olan PAT). ✅ Eklendi ve **iki workflow da canlıda yeşil doğrulandı
 > değilse Settings → General → Change visibility ile private yapılabilir
 > (subtree ve Action'lar private'da da aynen çalışır).
 
+### ⚠️ Drift kontrolünün kör noktası — "bayat ama tutarlı" hali (P23-M2-ek'te bulundu)
+
+`drift-check.yml`, web reposunun `src/lib/core/` klasörünü **o klasörün kendi
+`.manifest` dosyasıyla** karşılaştırıyor:
+
+```yaml
+- name: Sapma kontrolü
+  run: node scripts/check-drift.mjs target/src/lib/core
+```
+
+Yani cevapladığı soru şu: **"web kopyasını biri elle düzenledi mi?"** Bu, bekçinin
+asıl amacıdır (kural #105 — Lovable P24'te paylaşılan bir dosyanın üzerine yazmıştı)
+ve **doğru çalışıyor.** DEĞİŞTİRİLMİŞ / EKSİK / FAZLA üç durumu da yakalıyor.
+
+**Sormadığı soru:** *"web kopyası `hasat-core` ile aynı sürümde mi?"*
+
+Sebep: `.manifest` dosyası core dosyalarıyla **birlikte** subtree'ye iniyor. Bir sync
+PR'ı açılıp merge edilmeden kalırsa, web'in dosyaları da `.manifest`'i de eski
+sürümde kalır — ikisi birbiriyle **tutarlıdır**, dolayısıyla drift kontrolü **yeşil
+yanar**. Web sessizce bayat tiplerle çalışmaya devam eder ve hiçbir alarm çalmaz.
+
+Bu teorik bir risk değil: P23-M2 ve P23-M2-ek turlarının ikisi de `core/db/types.ts`'i
+değiştirdi ve ikisi de birer sync PR'ı doğurdu. Bu PR'lardan biri merge edilmezse,
+web'in tipleri canlı şemadan geri düşer — tam olarak M1-b'de `src/integrations/supabase/types.ts`
+dosyasında bulunan "bayat kopya" arıza modunun aynısı, ama bu kez bekçinin içinde.
+
+**Önerilen düzeltme (M5):** drift script'i ikinci bir karşılaştırma daha yapsın —
+hedefteki `.manifest` ile **`hasat-core`'un kendi `core/.manifest`'i** birebir aynı mı?
+Action zaten her iki repoyu da checkout ediyor, ek bir altyapı gerekmiyor:
+
+```
+node scripts/check-drift.mjs target/src/lib/core          # elle düzenleme (mevcut)
+diff core/.manifest target/src/lib/core/.manifest         # sürüm gerisi (eksik olan)
+```
+
+Farkta uyarı ver ve bekleyen sync PR'ını işaret et.
+
+**Bu turda bilinçli olarak DÜZELTİLMEDİ.** Gerekçe: lansmandan dört hafta önce
+çalışan bir bekçiye dokunmak, kazandırdığından fazla risk getirir; ayrıca ikinci
+hedef (`hasat-mobile`) M5'te doğduğunda script zaten elden geçecek. **M5 açık
+maddesi.** O zamana kadar koruma insan tarafında: *sync PR'ı açıldığında merge
+edilmeli, açık bırakılmamalı.*
+
 ### KURAL (#105)
 
 `src/lib/core/` altındaki dosyalar `hasat-core`'dan gelir. **Lovable dahil hiç kimse burada düzenleme yapmaz.** Değişiklik `hasat-core`'da yapılır, iki repoya PR ile iner.
@@ -188,6 +231,7 @@ Reddedilen alternatifler: (a) dosyayı re-export'a çevirmek — Lovable üzerin
 | M2 | Katman 1 RPC'leri (tarif eşleştirme, birim dönüşümü, alışveriş listesi, funnel view) | ⬜ |
 | M2 | `device_tokens` tablosu | ⬜ |
 | **M5** | **Storage adapter + sorgu fonksiyonları + TanStack Query hook'ları + zod şemaları** (M1'den taşındı) | ⬜ |
+| **M5** | **Drift script'ine sürüm-gerisi kontrolü** (hedef `.manifest` ↔ `hasat-core` `core/.manifest`) — bkz. "Drift kontrolünün kör noktası" | ⬜ |
 | M5 | Sync Action'a ikinci hedef (`hasat-mobile`) | ⬜ |
 | M9 | Bildirim event map konsolidasyonu (lansman sonrası) | ⬜ |
 

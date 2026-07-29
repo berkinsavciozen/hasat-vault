@@ -1,6 +1,6 @@
 ---
 title: Hasat — E2E QA Test Dokümanı
-updated: 2026-07-16
+updated: 2026-07-29
 tags:
   - hasat
   - qa
@@ -140,6 +140,149 @@ tags:
    - Bir işi "Yaptım" dedikten sonra (sıradaki tarihi bu hafta içine düşmüyorsa) Bugün/Bu Hafta'da kayboluyor, Tümü'nde görünmeye devam ediyor mu?
    - Sıklığı olmayan bir iş (İlaçlama Yap gibi) her filtrede her zaman görünüyor mu?
    - Çiftçinin yeni ürün türü talebi + buyer'ın katalog-dışı talebi SMS'te artık daha fazla alan içeriyor mu?
+
+---
+
+### S20 — P23-M2 Tarif Backend'i (ekleyici)
+
+> ⚠️ **Bu tur bilinçli olarak "az tarayıcı adımı" içeriyor.** P23-M2 tamamen backend: 7 tablo, RLS, 1 fonksiyon + 2 RPC + 2 view, 1 storage bucket ve bir edge function. Tarif arayüzü **M4'te** doğacak — yani bu turda ekranda görünecek yeni bir şey yok. Bu yüzden aşağıdaki test case'in ağırlığı **regresyon kontrolü** (mevcut akışlar bozulmadı mı) üzerinde; yeni özellik doğrulaması **veri katmanında** yapıldı ve sonuçları burada listelendi.
+
+**Arka plan:** `Build/P23-Mobile.md` M2. Kapsam kuralı: canlı akışlara (teklif/sipariş/ilan/günlük) dokunulmadı, `unit_type` enum'una dokunulmadı, hiçbir mevcut davranış değiştirilmedi. Ayrıntılı şema: `Build/DB-Schema.md` → "P23-M2 — Tarif Backend'i".
+
+#### A. Veri katmanı doğrulaması (2026-07-29, Claude Code + Supabase MCP ile tamamlandı — kural #96)
+
+Tüm testler canlı DB'de gerçek SQL/insert ile koşuldu, test verisi sonunda **tamamen silindi** (kalan: 0 tarif, 0 malzeme, 0 adım, 0 kayıt, 0 bağ, 0 token; yalnızca 70 satırlık `crop_culinary_meta` seed'i kaldı — kalıcı referans verisi).
+
+1. **Birim dönüşümü (`fn_culinary_to_canonical`) — 12 vaka**
+   `domates 3 adet → 0,360 kg` · `domates 2 yemek kaşığı → 0,030 kg` · `domates 500 g → 0,500 kg` (metrik, ipucu gerekmedi) · `kekik 1 çay kaşığı → 0,001 kg` · `kekik 1 demet → 0,025 kg` · `zeytinyağı 250 ml → 0,250 L` · `safran 2 g → 2 g` · `" Adet "` (boşluklu, büyük harf) → 0,120 kg (normalize ediliyor).
+   **Uydurmama testi:** `domates 1 demet` (ipucu yok) → **NULL** · `pamuk 1 adet` → **NULL** · `safran 1 tutam` (M3'e bırakılan ipucu) → **NULL** · bilinmeyen crop → **NULL**. ✅ 12/12.
+
+2. **3 crop testi — crop-agnostic ilkesi (mainstream + niş + yenilemez)**
+   Test tarifine `domates` (mainstream), `kekik` (niş), `pamuk` (yenilemez), `tuz` (platform-dışı), `safran` ve `lavanta` malzemeleri kondu.
+   - `rpc_recipe_availability` sonucunda **`pamuk` satırı hiç görünmedi** — `is_edible=false` filtresi kanıtlandı. ✅
+   - `domates`: 5 aktif ilan, en iyi fiyat **₺25.500/kg** (ilan ₺25,50/g → kanonik kg'ye doğru çevrildi). ✅
+   - `kekik`: 1 aktif ilan, ₺100/kg. ✅
+   - `tuz`: `is_platform_crop=false`, nötr satır olarak kaldı. ✅
+
+3. **Alışveriş listesi (`rpc_recipe_shopping_list`)**
+   - **Porsiyon ölçekleme:** tarif 4 kişilik, 8 kişilik istendi → `scale_factor=2`, domates 3 adet → 6 adet → 0,720 kg. ✅
+   - **min_order yuvarlaması (görevdeki birebir örnek):** `lavanta` — tarif **2 g** istiyor, ilanın min_order'ı **10 g** → alınacak **10 g**, `rounded_up_to_min_order=true`, **`recipes_covered = 5,00`**. ✅
+   - Dönüşüm ipucu olmayan `tuz` satırında `needed_canonical=NULL`, `conversion_available=false` — UI "miktar hesaplanamadı" diyebilir, uydurulmuyor. ✅
+
+4. **Kapsama view'ı (`v_recipe_coverage`)** — 6 malzemeli test tarifi için `ingredient_count=5` (pamuk sayıma girmedi), `off_platform_count=1` (tuz), `available_count=4`, `coverage_pct=100`. ✅
+
+5. **Huni view'ı (`v_kpi_recipe_funnel`)** — gerçek veriyle: 1 kayıt, 1 tarif-atıflı talep, **1 teklif** (Zeynep'in 2 kalemli tek safran teklifi `DISTINCT` ile bir kez sayıldı, çift saymadı), 0 sipariş (o teklif siparişe dönmemişti). ✅ `recipe_views` NULL — M4'e bırakıldı (bkz. DB-Schema notu).
+
+6. **RLS — anon ve authenticated rolleri gerçekten simüle edilerek**
+
+   | Test | Sonuç |
+   |---|---|
+   | **anon** public+published tarifi görüyor | ✅ 1 satır |
+   | **anon private tarifi GÖREMİYOR** | ✅ **0 satır** |
+   | anon, private tarifin malzemelerini doğrudan sorguluyor | ✅ 0 satır |
+   | anon, private tarif için `rpc_recipe_availability` çağırıyor | ✅ **0 satır** (SECURITY INVOKER — RPC sızdırmıyor) |
+   | anon, private tarif için `rpc_recipe_shopping_list` çağırıyor | ✅ 0 satır |
+   | anon, `v_recipe_coverage`'da private tarifi arıyor | ✅ 0 satır (`security_invoker=true` çalışıyor) |
+   | anon `crop_culinary_meta` okuyor | ✅ 70 satır (tarif sayfaları için şart) |
+   | **sahibi (Zeynep)** kendi private tarifini görüyor | ✅ 1 satır |
+   | **başkası (Ahmet)** Zeynep'in private tarifini görüyor mu | ✅ **0 satır** |
+
+7. **Mutasyon testleri — gerçek INSERT/UPDATE ile (kural #97)**
+
+   | Test | Sonuç |
+   |---|---|
+   | Kullanıcı `visibility='public'` tarif yazmaya çalışıyor | ✅ **Reddedildi** (`42501 row-level security`) |
+   | Kullanıcı başkasının adına tarif yazmaya çalışıyor | ✅ Reddedildi |
+   | Kullanıcı kendi private tarifini yazıyor | ✅ Kabul |
+   | **Kendi tarifinde UPDATE gerçekten 1 satır etkiliyor** | ✅ **1 satır** (orders'taki sessiz-sıfır hatası yok) |
+   | Kullanıcı kendi private tarifini public'e çevirmeye çalışıyor | ✅ **Reddedildi** — public korpus korumalı |
+   | Editoryal (sahipsiz) tarifi UPDATE etmeye çalışıyor | ✅ 0 satır |
+   | `recipe_saves` / `device_tokens` kendi satırında INSERT + UPDATE | ✅ Çalışıyor, UPDATE 1 satır |
+   | Başkasının `device_tokens` satırını görme | ✅ 0 satır |
+   | `recipe_rfq_links` kendi talebine bağ kurma | ✅ Kabul |
+
+8. **Edge function `extract-recipe` — hem metin hem görsel girdiyle gerçekten çağrıldı**
+   (Bu oturumda dış HTTPS egress politikayla kapalı olduğu için çağrılar veritabanı üzerinden `pg_net` ile, **gerçek kullanıcı JWT'siyle** yapıldı — sabit-OTP ile alınan Zeynep oturumu.)
+
+   | Çağrı | Sonuç |
+   |---|---|
+   | **Metin girdisi** ("Kekikli Fırın Domates" yapıştırma) | ✅ HTTP 200 — 5 malzeme, 4 adım, `servings=4`, `prep=15`, `cook=40` |
+   | **Görsel girdisi** (yazılı tarif fotoğrafı, Türkçe, "Mercimek Çorbası") | ✅ HTTP 200 — OCR+vision doğru okudu: 5 malzeme, 4 adım, `servings=4`, `prep=10`, `cook=30`, `source_type='photo'` |
+   | Client `visibility:'public'`, `status:'published'`, `owner_id:<başka kullanıcı>` gönderiyor | ✅ **Sunucu hepsini yok saydı** — kayıt `private` / `draft` / `owner_id=JWT'nin sahibi` oldu |
+   | `extraction_confidence` dolduruldu mu | ✅ Üç çağrıda da dolu |
+   | Malzemeler bir crop'a bağlandı mı | ✅ **Hayır** — `crop_bagli=0`, runtime fuzzy eşleştirme yasağına uyuluyor |
+   | Kota mevcut altyapıyla mı sayıldı | ✅ `ai_usage_tracking.message_count = 3` (tam 3 başarılı çağrı) — yeni kota sistemi kurulmadı |
+
+9. **Storage** — `crop-photos` bucket'ı doğrudan SQL ile açıldı; `SELECT public FROM storage.buckets WHERE id='crop-photos'` **iki kez** (oluşturmada ve tur sonunda) `true` döndü. ✅
+
+10. **Advisor taraması** (`get_advisors: security`) — yeni 7 tablo, 2 view ve 3 fonksiyonun **hiçbiri** uyarı üretmedi. `security_invoker=true` iki view'da da `pg_class.reloptions` ile doğrulandı. Mevcut (P23-M2 öncesi) uyarılar değişmedi.
+
+#### B. Berkin'in tarayıcı adımları — **regresyon kontrolü** (yeni ekran yok)
+
+> Amaç: "hiçbir mevcut davranış değişmedi" iddiasını uygulamada görmek. Lansmana 4 hafta var; bu turun tek riski, ekleyici olması gereken bir değişikliğin yanlışlıkla mevcut bir akışa dokunmuş olması.
+> ⚠️ Kural #109: teste başlamadan önce Lovable'da **Publish**'e bas.
+
+| # | Adım | Beklenen |
+|---|---|---|
+| 1 | `hasat.lovable.app` → alıcı olarak gir (`905009876543`, OTP `123456`) | Giriş normal çalışıyor |
+| 2 | **Keşfet**'i aç | Ürün kartları eskisi gibi listeleniyor, sayı ve fiyatlar değişmemiş |
+| 3 | Bir ürün detayına gir, partileri gör | Partiler ve toplam miktar eskisiyle **aynı** |
+| 4 | Bir partiye teklif ver ekranını aç (göndermene gerek yok) | Ekran normal açılıyor, miktar/birim alanları doğru |
+| 5 | **Taleplerim / Talep Oluştur** akışını aç | Talep formu normal çalışıyor (bu tur `crop_requests`'e yeni bir bağ tablosu eklendi, form davranışı değişmemeli) |
+| 6 | Çıkış yap, çiftçi olarak gir (`905001234567`, OTP `123456`) | Giriş çalışıyor |
+| 7 | Depo/Vitrin → **"+ Yeni Ürün"** ile bir ilan oluştur | Kayıt hatasız — birim listesi hâlâ yalnızca **kg / g / L** (culinary birimler enum'a **eklenmedi**, buraya sızmamalı) |
+| 8 | **Günlük** ve **Rutin Bakım** sekmelerini aç | P22-G davranışı aynen duruyor, listeler doluyor |
+| 9 | Alıcı olarak bir ürünü sepete/teklife kadar götür (P21 çoklu-batch akışı) | Stok ve birim-uyuşmazlığı kontrolleri eskisi gibi çalışıyor |
+| 10 | Lovable editöründe küçük bir değişiklik iste ve diff'e bak | `src/lib/core/` altında **hiçbir dosya** değişmemiş (kural #105) |
+
+**Beklenen sonuç: 10/10 "değişmedi".** Herhangi bir adımda davranış farkı görülürse bu tur ekleyici olmayı başaramamış demektir — TODO.md'ye bug olarak girilmeli.
+
+---
+
+#### C. P23-M2-ek — Huni ölçümünün tamamlanması (2026-07-29)
+
+> Bu ek turda da **yeni ekran yok** — S20-B'deki regresyon adımları geçerliliğini koruyor. Aşağıdakiler veri katmanı doğrulamasıdır.
+
+**Kapsam:** `recipe_views` tablosu · `offers.source_recipe_id` kolonu · `v_kpi_recipe_funnel` yeniden yazıldı (sezgisel atıf kaldırıldı) · `author_type` += `kullanici`.
+
+1. **Beş basamak da gerçek veriyle doldu — tek transaction, sonunda ROLLBACK**
+
+   > ⚠️ Test bilinçli olarak **transaction içinde** koşturuldu ve geri alındı: `offers`'a INSERT `trg_offer_received` trigger'ını, o da `dispatch_sms`/`pg_net`'i tetikliyor. ROLLBACK sayesinde **hiçbir gerçek SMS gönderilmedi** — `net.http_request_queue` tur sonunda boş doğrulandı.
+
+   Kurulan senaryo: 1 public tarif · 3 görüntüleme (2 anon farklı `session_id` + 1 girişli) · 1 kaydetme · **talep yolu** (`crop_request` + `recipe_rfq_links`) · **doğrudan teklif yolu** (`offers.source_recipe_id` dolu, gerçek aktif domates ilanı üzerinde) · o teklife bağlı 1 sipariş.
+
+   | Kolon | Beklenen | Gerçekleşen |
+   |---|---|---|
+   | `recipe_views` | 3 | ✅ 3 |
+   | `unique_viewers` | 3 | ✅ 3 |
+   | `recipe_saves` | 1 | ✅ 1 |
+   | `recipe_requests` (malzeme yok yolu) | 1 | ✅ 1 |
+   | `recipe_offers` (malzeme var yolu) | 1 | ✅ 1 |
+   | `recipe_orders` | 1 | ✅ 1 |
+   | `recipe_offers_converted` | 1 | ✅ 1 |
+   | `view_to_save_pct` | 33,33 | ✅ 33,33 |
+   | `offer_to_order_pct` | 100,00 | ✅ 100,00 |
+
+2. **Sezgisel atfın gerçekten kalktığının kanıtı** — canlı DB'de **121 teklif** ve **120 sipariş** var, hiçbirinde `source_recipe_id` dolu değil. Yeni view bu durumda **0 satır** döndürüyor. Eski view aynı veride Zeynep'in safran teklifini "tarife atfedilmiş teklif" olarak sayıyordu (bir önceki turun doğrulama tablosunda `recipe_attributed_offers = 1` görünüyor). Fazla atıf ortadan kalktı. ✅
+
+3. **`recipe_views` RLS**
+
+   | Test | Sonuç |
+   |---|---|
+   | **anon INSERT** (giriş yapmamış ziyaretçi, `user_id` NULL) | ✅ Kabul — satır düştü, `session_id` doğru, `user_id` NULL |
+   | **anon SELECT** | ✅ **Reddedildi** — `42501: permission denied for table recipe_views` |
+   | **anon `v_kpi_recipe_funnel` SELECT** | ✅ **Reddedildi** — `42501: permission denied for view v_kpi_recipe_funnel` |
+   | Girişli kullanıcı kendi adına INSERT | ✅ Kabul |
+   | Girişli kullanıcı **başkasının** `user_id`'siyle INSERT | ✅ **Reddedildi** — `42501: row-level security` |
+
+4. **`offers.source_recipe_id` — gerçek mutasyonla UPDATE doğrulaması**
+   Mevcut `Buyers insert offers` politikasıyla teklif `source_recipe_id = NULL` olarak yazıldı, sonra mevcut `Both parties update offer` politikasıyla dolduruldu. INSERT sonrası NULL → UPDATE sonrası dolu, **ayırt edilebilir değerle** kanıtlandı. ✅ **Yeni UPDATE politikası gerekmedi** — mevcut politika yeni kolonu kapsıyor.
+
+5. **`author_type = 'kullanici'`** — `extract-recipe` gerçek çağrıyla (metin girdisi, gerçek kullanıcı JWT'si) test edildi: HTTP 200, dönen kayıtta `"author_type":"kullanici"`, `visibility` private, `status` draft. ✅ Öncesinde default `hasat` kalıyordu.
+
+6. **Advisor taraması** — `recipe_views`, `offers.source_recipe_id` ve yeniden yazılan `v_kpi_recipe_funnel` **hiç uyarı üretmedi.** `security_invoker=true` `pg_class.reloptions` ile yeniden doğrulandı.
+
+7. **Test verisi temizliği** — 0 tarif, 0 malzeme, 0 adım, 0 `recipe_views`, 0 kota satırı; `offers` 121 ve `orders` 120'de kaldı (**dokunulmadı**); SMS kuyruğu boş. Kalıcı olan tek şey 70 satırlık `crop_culinary_meta` seed'i. ✅
 
 ---
 
