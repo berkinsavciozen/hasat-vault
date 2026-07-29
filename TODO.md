@@ -702,6 +702,25 @@ Lovable'ın hâlâ normal çalıştığını görmek. Bu bir "yeni özellik" tes
 **Bir şey ters giderse:** PR açıklamasındaki rollback planı — `src/lib/core/`
 silinip iki commit revert edilince eski hale dönülüyor.
 
+#### Kalan işler (M1 kapanması için)
+
+- ✅ **`hasat-core` reposu açıldı ve dolduruldu** (2026-07-29) —
+  `github.com/berkinsavciozen/hasat-core`, `main` + `core-dist` dalları push
+  edildi. Subtree bağlantısı gerçek uzak repoya karşı doğrulandı: temiz bir
+  klonda `git subtree pull` "already at c4d4b31" diyor, drift kontrolü yeşil.
+- ✅ `SYNC_TOKEN` secret'ı eklendi (Berkin, 2026-07-29) ve **iki Action da canlıda
+  yeşil doğrulandı.** Bu sırada iki gerçek hata çıktı ve düzeltildi:
+  1. `sync-to-web.yml` **geçersiz YAML'dı** — `gh pr create --body` çok satırlı bir
+     dize olarak yazılmıştı, devam satırları 1. kolondan başlayınca block scalar
+     kırılıyordu. Belirti aldatıcı: çalışma "failure" görünüyor ama **hiç job
+     yok** (startup failure). Gövde `printf` ile tek değişkende toplandı.
+  2. `core-dist` dalının push'u **403** veriyordu — varsayılan `GITHUB_TOKEN`
+     salt-okunur. Job'a `permissions: contents: write` eklendi.
+  > Ders: bir workflow'un "failure" olması onun *çalıştığı* anlamına gelmez.
+  > 0 job = dosya parse edilememiş. Kural #96'nın Action tarafındaki karşılığı:
+  > YAML'ı yazmak yeterli değil, en az bir kez gerçekten koşturulmalı.
+- 🔴 Yukarıdaki 10 adımlık tarayıcı QA
+- 🔴 Küçük şema borçları (`P23-Mobile.md` M1 listesi) — bu turda kapsam dışıydı
 #### ✅ M1 KAPANDI (2026-07-29)
 
 - ✅ `hasat-core` reposu açıldı, dolduruldu, **public** yapıldı (orkestratör oturumunun bağımsız doğrulama yapabilmesi için)

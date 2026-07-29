@@ -121,7 +121,14 @@ hasat-core (ayrı repo)
 | Drift Action | `.github/workflows/drift-check.yml` | Web'e inmiş kopyayı günlük doğrular |
 
 **Gereken secret:** `hasat-core` reposunda `SYNC_TOKEN` (web reposuna push + PR
-yetkisi olan PAT). Bu eklenene kadar iki workflow da çalışmaz.
+yetkisi olan PAT). ✅ Eklendi ve **iki workflow da canlıda yeşil doğrulandı**
+(2026-07-29). Ayrıca sync job'ının `permissions: contents: write` izni var —
+`core-dist` dalını kendi reposuna geri itiyor.
+
+> ⚠️ `hasat-core` şu an **public**. İçinde sır yok, ama üretilmiş DB tipleri
+> tüm tablo/kolon/enum/view adlarını açıkça gösteriyor. Bilinçliyse sorun yok;
+> değilse Settings → General → Change visibility ile private yapılabilir
+> (subtree ve Action'lar private'da da aynen çalışır).
 
 ### KURAL (#105)
 
