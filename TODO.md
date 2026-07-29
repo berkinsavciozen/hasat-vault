@@ -708,7 +708,6 @@ silinip iki commit revert edilince eski hale dönülüyor.
 - 🔴 `hasat-core`'a `SYNC_TOKEN` secret'ı eklenmeli — yoksa iki Action da çalışmaz
   (Settings → Secrets and variables → Actions → New repository secret)
 - 🔴 Yukarıdaki 10 adımlık tarayıcı QA
-- 🔴 Küçük şema borçları (`P23-Mobile.md` M1 listesi) — bu turda kapsam dışıydı
-
+- ✅ **Küçük şema borçları M1-a'da kapandı** (2026-07-29) — safran_soğanı default_unit→kg, min_order<=quantityBEFORE INSERT trigger'ı (CHECK constraint bilinçli olarak kullanılmadı: stok tükendikçe quantity legal olarak min_order'ın altına düşer ve CHECKenforce_offer_stock'u kırardı), buyer_profiles.company_namenullable,buyer_addresses tek-default trigger'ı. Dördü de canlı DB'de bağımsız SQL ile doğrulandı.
 ### Kural #104 (2026-07-24'te eklendi)
 Berkin'in kararı: bundan sonra Claude Code planları, arayüzde test edilmesi gereken adımlar için **kullanıcı-akışı dilinde adım adım bir test case** olarak sunulmalı (hangi sayfa açılacak, hangi butona tıklanacak, ne görülmesi bekleniyor) — trigger/kolon/event isimleri gibi DB-jargonuyla değil. Genel plan anlatımı da (yeni tablo/akış gibi kapsamlı işlerde) bir PM'in anlatacağı gibi olmalı: kullanıcı ne yapıyor, FE'de ne değişiyor, BE'de ne değişiyor — teknik isimler (trigger/policy adı gibi) sadece gerekince, ayrıntı seviyesinde geçmeli.
