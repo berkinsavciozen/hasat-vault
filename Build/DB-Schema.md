@@ -1,6 +1,6 @@
 ---
 title: Hasat — DB Schema Referansı
-updated: 2026-07-29
+updated: 2026-07-30
 tags: [hasat, supabase, schema]
 ---
 
@@ -571,3 +571,141 @@ gibi göstermek, Hasat'ın menşe/güven tezini içeriden çürütür (bkz.
 `Build/P23-Mobile.md` → "Fotoğraf stratejisi"). Kural hem crop
 `default_photo_url` fallback'i hem de tarif kapak fotoğrafı fallback'i için
 aynı şekilde geçerli.
+
+---
+
+## P23-M4-a — Public Tarif Yüzeyi + DB Eki + Ölçümleme (2026-07-30)
+
+`Build/P23-Mobile.md` M4-a. Kapsam: `/tarifler` + `/tarifler/$slug` (SSR,
+anon erişim), `recipe_views` yazımı, `v_kpi_recipe_funnel_by_recipe`. Talep
+Et akışı, admin heatmap, Gap #9 → **M4-b** (bkz. `P23-Mobile.md` → M4 bölüm
+başlığı, bu turda ayrıma gidildi).
+
+### A — DB eki
+
+**`crop_requests.quantity` / `.unit` — migration GEREKMEDİ.** Görev metni bu
+iki kolonun ekleneceğini varsayıyordu; canlı DB'de kontrol edildiğinde
+(`information_schema.columns`) ikisinin de **zaten mevcut** olduğu
+görüldü — nullable, trigger/constraint yok, muhtemelen P17-E'nin (Yapılandırılmış
+RFQ) orijinal şemasından kalma. Migration atlandı, sadece doğrulanıp burada
+kayıt altına alındı. M4-b'nin Talep Et akışı bu iki kolonu doğrudan
+kullanabilir.
+
+**Yeni view: `v_kpi_recipe_funnel_by_recipe`** — `v_kpi_recipe_funnel`'ın
+(P23-M2-ek) bilinen sınır #2'sinde ("tarif kırılımı yok") önerilen çözüm.
+Aynı sert-join deseni (`recipe_views` → `recipe_saves` → `recipe_rfq_links`→
+`crop_requests` | `offers.source_recipe_id` → `orders.offer_id`), `recipe_id`
+bazında, hiçbir sezgisel atıf/zaman penceresi eklenmeden. `recipes.visibility='public' AND status='published'`
+ile filtrelenmiş, `title`'a göre sıralı.
+
+```sql
+create view public.v_kpi_recipe_funnel_by_recipe
+with (security_invoker = true) as
+-- recipe_views / recipe_saves / recipe_rfq_links+crop_requests / offers.source_recipe_id / orders
+-- hepsi recipe_id'ye group by, sonra recipes'e left join. Tam SQL: migration
+-- p23_m4a_recipe_funnel_by_recipe (Supabase MCP apply_migration, 2026-07-30).
+```
+
+⚠️ **Gerçek bulgu:** view `CREATE VIEW ... WITH (security_invoker = true)`
+ile oluşturulduktan hemen sonra `information_schema.role_table_grants`
+kontrol edildiğinde, **`anon`/`authenticated`'a otomatik INSERT/SELECT/UPDATE/DELETE
+GRANT'i düştüğü görüldü** — mevcut 20+1 KPI view'ının hiçbirinde bu yoktu
+(hepsi sadece `postgres`/`service_role`). Bu projede yeni relation'lara
+varsayılan olarak grant düşüren bir `ALTER DEFAULT PRIVILEGES` kuralı olduğu
+anlaşılıyor. Ayrı bir `revoke all on ... from anon, authenticated` migration'ı
+ile diğer KPI view'larıyla aynı admin-only desene çekildi ve **iki kez**
+(revoke öncesi ve sonrası) `information_schema.role_table_grants` ile
+doğrulandı. **Ders (gelecekteki her yeni view için):** "CREATE VIEW ... WITH
+(security_invoker=true)" tek başına yeterli değil — grants ayrıca kontrol
+edilmeli, bu projede varsayılan davranış "kapalı" değil.
+
+`security_invoker=true` ayrıca `pg_class.reloptions` ile doğrulandı:
+`{security_invoker=true}`. `get_advisors(security)` bu migration'dan
+kaynaklı yeni uyarı üretmedi.
+
+**Kohortsuz yüzde sınırı düzeltilmedi (bilinçli, belgelenmiş durum,
+`v_kpi_recipe_funnel` → "üç bilinen sınır" #1) — ama M4-a'nın web
+yüzeyinde bu yüzdeler (`view_to_save_pct`, `offer_to_order_pct`) hiçbir
+UI'da gösterilmiyor.** Her iki funnel view de zaten admin-only
+(`anon`/`authenticated` GRANT yok) ve bu turun UI'ı (`/tarifler`,
+`/tarifler/$slug`) service-role'e ulaşmıyor — yani mevcut mimaride bu
+yüzdelerin yanlış okunma riski zaten sıfır; M4-b'nin admin heatmap'i bu
+view'ları tükettiğinde de aynı disiplin (yüzdeyi göstermemek ya da kohort
+uyarısıyla göstermek) korunmalı.
+
+### E — Ölçümleme: `recipe_views` yazımı canlıya alındı
+
+Tablo P23-M2-ek'te zaten vardı (bu turda yeni tablo yok). Web tarafında ilk
+kez gerçek yazma yolu açıldı: `/tarifler/$slug` her mount'ta bir
+`recipe_views` satırı yazıyor (`useLogRecipeView`, `src/lib/hasat/recipes.ts`).
+
+- **Anon:** `user_id=null`, `session_id` dolu.
+- **Giriş yapmış:** `user_id` dolu **VE `session_id` de dolu** — kayıt anında
+  her zaman ikisi birden gönderiliyor. Gerekçe: `v_kpi_recipe_funnel(_by_recipe)`'in
+  `unique_viewers` hesabı zaten `coalesce(user_id::text, session_id)` kullanıyor;
+  aynı ziyaretçi giriş yapmadan önce ve sonra aynı `session_id`'yi taşıdığı için,
+  ileride "anon görüntüleme sonra kayıt oldu" ilişkisi kurulabilir hale geliyor
+  (`v_kpi_recipe_funnel` bilinen sınır #3'ün — "gerçek kayıt basamağı yok" —
+  kapsamı **`recipe_saves`'e** genişletilmedi, bu tur `recipe_views`'ın
+  kendisiyle sınırlı; `recipe_saves.user_id` hâlâ NOT NULL + RLS `auth.uid()`
+  zorunlu, anon kaydetme M4-a'nın onaylı kapsamı dışında kaldı).
+- `session_id`: `crypto.randomUUID()`, `localStorage` anahtarı `hasat-anon-session-id`
+  (`src/lib/hasat/session.ts`), sayfa yüklemeleri arasında ve girişten önce/sonra sabit kalıyor.
+- IP/user-agent hâlâ toplanmıyor (KVKK, P23-M2-ek kararı korunuyor).
+
+**Doğrulama (kural #96, gerçek RLS simülasyonu, 2026-07-30):**
+| Test | Sonuç |
+|---|---|
+| `set role anon` + `session_id` dolu, `user_id=null` insert | ✅ Kabul edildi, gerçek satır yazıldı |
+| `set role authenticated` + `request.jwt.claims.sub` = Zeynep'in UUID'si, `user_id`+`session_id` ikisi de dolu insert | ✅ Kabul edildi |
+| `v_kpi_recipe_funnel_by_recipe` iki farklı `session_id`'den sonra `recipe_views=2, unique_viewers=2` dönüyor mu | ✅ Doğrulandı |
+| Test verisi temizliği | ✅ 3 test satırı silindi, `select count(*) ... = 0` ile doğrulandı |
+
+### D — `min_order` yuvarlaması, gerçek veriyle bilinçli test (M2'den beri uykuda olan yol)
+
+`rpc_recipe_shopping_list` gerçek veriyle koşuldu:
+
+| Senaryo | Sonuç |
+|---|---|
+| **Kekik** (eşleşen), "Kekikli Zeytinyağı Ezmesi", varsayılan porsiyon | İhtiyaç 0.012 kg, `min_order`=5 kg → `purchase_canonical`=5 kg, `rounded_up_to_min_order=true`, `recipes_covered`≈416.67 |
+| **Fındık** (eşleşen), "Vegan Fındık Kreması", varsayılan porsiyon | İhtiyaç 0.26 kg, `min_order`=1 kg → satın alınacak 1 kg, `recipes_covered`≈3.85 |
+| **Fındık**, aynı tarif × 2 porsiyon | İhtiyaç 0.52 kg, satın alınacak yine 1 kg (min_order sabit) → `recipes_covered`≈1.92 — porsiyon büyüdükçe "bu miktar kaç tarif yapar" oranının doğru düştüğü doğrulandı |
+| **Nohut + Zeytinyağı** (eşleşmeyen), "Zeytinyağlı Nohut Yemeği" × 2 porsiyon | `min_order_canonical=null`, `purchase_canonical=needed_canonical` (yuvarlama yok), `best_price_per_canonical=null`, `recipes_covered=1.00` — UI bu durumda fiyat/min_order hiç göstermiyor |
+
+### G — Kullanılmayan RPC alanları (çıkış kriteri)
+
+`rpc_recipe_availability` (malzeme kartında kullanılan): `ingredient_id`
+(join key), `crop_display_name`, `crop_photo_url`, `active_listing_count`.
+**Kullanılmayan:** `sort_order`, `crop`, `free_text_name`, `quantity`,
+`unit`, `is_key_ingredient`, `is_platform_crop`, `is_matched`,
+`canonical_unit`, `best_price_per_canonical` — hepsi ya SSR loader'ın zaten
+okuduğu `recipe_ingredients` satırıyla (sort_order/crop/free_text_name/
+quantity/unit/is_key_ingredient) ya da `rpc_recipe_shopping_list`'in aynı
+alanıyla (is_platform_crop/is_matched/canonical_unit/best_price_per_canonical)
+birebir aynı değeri taşıyor; kart "durum+fotoğraf" (availability) /
+"satın alma planlaması" (shopping_list) olarak iki RPC'ye bilinçli
+bölündüğü için aynı veri iki kaynaktan okunmadı.
+
+`rpc_recipe_shopping_list` (kullanılan): `ingredient_id`, `is_platform_crop`,
+`is_matched`, `recipe_quantity`, `recipe_unit`, `scaled_quantity`,
+`scale_factor`, `canonical_unit`, `min_order_canonical`,
+`purchase_canonical`, `needed_canonical`, `rounded_up_to_min_order`,
+`recipes_covered`, `conversion_available`, `best_price_per_canonical`,
+`estimated_cost`. **Kullanılmayan:** `sort_order`, `crop`,
+`crop_display_name`, `free_text_name` (SSR ingredient satırı + availability's
+`crop_display_name` tercih edildi), `recipe_servings`/`requested_servings`
+(zaten `recipe.servings` ve kartın kendi `servings` state'i tarafından
+sürülüyor — RPC'ye gönderileni geri okumak yeni bilgi değil).
+
+### B/C/F — Rotalar, liste sayfası, görseller
+Detaylar `TODO.md` M4-a build log'unda ve `Build/E2E-QA.md` → S22'de.
+
+### Dokunulan dosyalar (hasat-d2c-marketplace)
+- `src/routes/tarifler.index.tsx` (yeni)
+- `src/routes/tarifler.$slug.tsx` (yeni)
+- `src/lib/hasat/recipes.ts` (yeni)
+- `src/lib/hasat/session.ts` (yeni)
+- `src/components/hasat/RepresentativePhoto.tsx` (yeni)
+- `src/routes/buyer.discover.tsx` (küçük ekleme — "Tarifler" banner'ı, mevcut mantık değişmedi)
+- `src/routeTree.gen.ts` (otomatik yeniden üretildi, elle dokunulmadı)
+- `src/lib/core/` — **dokunulmadı** (kural #105)

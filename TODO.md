@@ -91,7 +91,7 @@ tags:
 | 6 | Yapılandırılmış RFQ | P1 | ✅ Kapandı (P17-E) |
 | 7 | Hal fiyatı referans bandı | P1 | ✅ Kapandı (P19, sadece İzmir pilotu) |
 | 8 | Lojistik adımı (taşıma+takip) | P1/P0 | ✅ **Kapandı (P17-B alanları + P20 bildirimi)** |
-| 9 | Parselden tabağa QR görünümü | P2 | 🔵 **P23-M4'e bağlandı** (2026-07-28) — tarif→malzeme→parsel zinciri tam olarak bu özellik; ayrı iş olarak beklemiyor |
+| 9 | Parselden tabağa QR görünümü | P2 | 🔵 **P23-M4-b'ye bağlandı** (2026-07-28, M4 kendi içinde a/b'ye bölündü 2026-07-30) — tarif→malzeme→parsel zinciri tam olarak bu özellik; ayrı iş olarak beklemiyor |
 | 10 | SMS/WhatsApp bildirim genişletmesi | P2 | ✅ **Kapandı (P20, P24'te regresyonu düzeltildi)** |
 | 11 | Onaylı alıcıya vade/cari | P1→P2 | ⬜ Yapılmadı |
 | 12 | Hasat öncesi finansman | P2 | ⬜ Yapılmadı — partner gerektirir, uzun vade |
@@ -320,6 +320,9 @@ Son değişikliğin (`buyer.producer.$id` guest-erişimi) routing-guard seviyesi
 | **P22-D parsel-bazlı gruplamayla düzeltildi (2026-07-24)** | Berkin'in geri bildirimi: bir parselde birden fazla ürün olabileceği için Rutin Bakım satırları eylem yerine parsele göre gruplanmalı, crop her satırda açıkça görünmeli. |
 | **P22-E — Yeni ürün türü talep sistemi tamamlandı (2026-07-24)** | Çiftçi kataloğunda olmayan ürünü talep edebiliyor, buyer'ın katalog-dışı RFQ'su aynı kanalı tetikliyor — ikisi de Berkin'in telefonuna gerçek SMS ile ulaşıyor (mevcut kanıtlanmış Twilio altyapısı yeniden kullanıldı). Gerçek SMS testiyle doğrulandı. |
 | **P22-F — Rutin Bakım günlükle birleştirildi (2026-07-24)** | Berkin kararı: "rutin bakım'daki işler, günlükteki işlerle aynı olmalı." Ayrı `care_journal_entries` tablosu kaldırıldı, rutin bakım "Yaptım" artık gerçek bir günlük (`harvest_entries`) kaydı oluşturuyor ve P21'in batch-bağlama mekanizmasını aynen kullanıyor. Gerçek testte birim-uyuşmazlığı bug'ı bulunup düzeltildi (kayıt, ürünün varsayılan birimi yerine bağlı olduğu batch'in biriminden yazılmalıydı). |
+| **13 vs 14 odak crop sayımı — Berkin doğruladı (2026-07-30)** | M3'te otonom bırakılan açık soru kapandı: "13" Berkin'in kendi aritmetik hatasıydı, doğru sayı 14. `P23-Mobile.md` ve `DB-Schema.md` buna göre güncellendi. |
+| **P23-M4 a/b'ye bölündü (2026-07-30)** | Public tarif yüzeyi (a) ile Talep Et akışı + admin heatmap + Gap #9 (b) ayrı turlarda yapılacak — tek PR'da üç yeni yüzeyin review yükünü büyütmemek için. Görev metni zaten bu ayrımı tanımlıyordu, burada sadece roadmap'e yansıtıldı. |
+| **P23-M4-a tamamlandı (2026-07-30)** | `/tarifler` + `/tarifler/$slug` (SSR, misafire açık), malzeme kartı 3 durumu, `recipe_views` ölçümleme + `v_kpi_recipe_funnel_by_recipe`. `crop_requests.quantity`/`.unit` migration gerekmediği (zaten vardı) ve yeni view'a varsayılan olarak düşen anon/authenticated grant'i bulunup düzeltildi. Gerçek RLS simülasyonu + gerçek `min_order` yuvarlama testleriyle doğrulandı; canlı tarayıcı testi bu oturumun ağ kısıtı yüzünden Berkin'e kaldı. |
 
 ---
 
@@ -991,17 +994,19 @@ dışı: Keşfet/ürün listesi/siparişlerim/tarif listesi (webden port edilece
 
 #### 🔶 Otonom alınan kararlar (kural #107 — Berkin onayı YOK)
 
-1. **"13 odak crop" ↔ gerçekte 14 crop sayım tutarsızlığı.** Görev metni
-   A bölümünde crop'ları "13 odak crop" olarak adlandırdı, ama listelenen
-   crop'lar (7 dayanıklı + 6 taze + safran) toplamda 14 ediyor. **Safran'ı
-   dahil ederek 14 crop'un tamamı işlendi** — hem `crop_culinary_meta`
-   seedinde hem görsel listesinde. Gerekçe: safran'ı culinary seedden
+1. **"13 odak crop" ↔ gerçekte 14 crop sayım tutarsızlığı — ÇÖZÜLDÜ (P23-M4-a, 2026-07-30).**
+   Görev metni A bölümünde crop'ları "13 odak crop" olarak adlandırmıştı, ama
+   listelenen crop'lar (7 dayanıklı + 6 taze + safran) toplamda 14 ediyordu.
+   M3'te otonom olarak 14'ün tamamı işlenmişti (gerekçe aşağıda korunuyor);
+   **Berkin M4-a görev talimatında bunu doğruladı: "13" rakamı kendi aritmetik
+   hatasıydı, doğru sayı 14.** Artık açık madde değil — bkz. `P23-Mobile.md` →
+   M3 ve `Build/DB-Schema.md` → P23-M3, ikisi de bu turda 14 olarak düzeltildi.
+   Orijinal gerekçe (M3'te otonom karar verilirken): safran'ı culinary seedden
    hariç tutmak kendi tarifinin (Safranlı Zerde, "1 tutam safran") E
    doğrulamasını (`rpc_recipe_shopping_list` NULL dönmemeli) doğrudan
    ihlal ederdi; ayrıca P25 crop-agnostic ilkesiyle çelişirdi (safran'ı
    görsel altyapıdan dışlamak "öne çıkarmama" değil "eksik bırakma"
-   olurdu). **Netleşmesi gereken soru:** kastedilen gerçekten "13" mü ve
-   öyleyse hangi crop dışarıda kalmalıydı?
+   olurdu).
 2. **İşlenmiş/türetilmiş ürünler → `free_text_name`, ham crop'un kendisi
    değil.** `crop_config`'te karşılığı olan ama tarifte işlenmiş haliyle
    geçen malzemeler (domates salçası, nar ekşisi, un, pirinç) editoryal
@@ -1021,7 +1026,137 @@ dışı: Keşfet/ürün listesi/siparişlerim/tarif listesi (webden port edilece
 | **14 crop görseli** — liste + dosya adları: `Build/DB-Schema.md` → "P23-M3" | Berkin |
 | **18 tarif kapak fotoğrafı** (`cover_photo_url`, hepsi NULL) | Berkin |
 | `default_photo_url` güncelleme SQL'ini görseller yüklendikten sonra çalıştırmak | Berkin/Claude (M3 sonrası) |
-| 13 vs 14 sayı tutarsızlığının netleştirilmesi (yukarı bkz.) | Berkin |
+| ~~13 vs 14 sayı tutarsızlığının netleştirilmesi~~ — ✅ **Berkin M4-a'da doğruladı: 14 doğru** (yukarı bkz.) | Kapandı |
 | **Glossary insan gözden geçirmesi** — P22-C içeriği AI üretimi, bölgesel doğrulama yapılmadı. **Hâlâ açık, bu turda kapanmadı.** | Berkin |
-| `crop_culinary_meta` kalan 56 crop'un alias + conversion_hints'i | M4/M9 |
-| "Temsili görsel" etiketinin gerçek UI'a eklenmesi | M4 |
+| `crop_culinary_meta` kalan 56 crop'un alias + conversion_hints'i | M4-b/M9 |
+| ~~"Temsili görsel" etiketinin gerçek UI'a eklenmesi~~ — ✅ **P23-M4-a'da eklendi** (`RepresentativePhoto` component'i) | Kapandı |
+
+---
+
+### 🟢 P23-M4-a — Public Tarif Yüzeyi + DB Eki + Ölçümleme — **TAMAMLANDI (2026-07-30, Claude Code doğrudan)**
+
+**Arka plan:** `Build/P23-Mobile.md` M4-a. M4, tek turda hem public yüzey hem
+Talep Et akışı hem admin heatmap açmanın riskini azaltmak için **a/b'ye
+bölündü** — bu tur yalnızca a: `/tarifler` + `/tarifler/$slug` (misafire
+açık, SSR/SEO), malzeme kartı 3 durumu (CTA'sız), `recipe_views` ölçümleme,
+`v_kpi_recipe_funnel_by_recipe`. Talep Et, admin heatmap, Gap #9 → M4-b.
+
+#### A — DB eki
+1. **`crop_requests.quantity`/`.unit`** — **migration gerekmedi**, canlı
+   DB'de zaten mevcuttu (nullable, constraint/trigger yok). Muhtemelen
+   P17-E'nin (Yapılandırılmış RFQ) orijinal şemasından — görev metni bunun
+   ekleneceğini varsayıyordu, kontrol edilip düzeltildi.
+2. **`v_kpi_recipe_funnel_by_recipe`** (yeni view) — `v_kpi_recipe_funnel`'ın
+   per-recipe eşleniği, aynı sert-join deseni. `security_invoker=true`
+   (`pg_class.reloptions` ile doğrulandı). **Gerçek bulgu:** view
+   oluşturulduktan hemen sonra `anon`/`authenticated`'a otomatik
+   INSERT/SELECT/UPDATE/DELETE grant'i düştüğü görüldü (bu projede yeni
+   relation'lara varsayılan grant düşüren bir kural var, mevcut 20+1 KPI
+   view'ının hiçbirinde yoktu) — ayrı bir `revoke all ... from anon,
+   authenticated` migration'ıyla diğer KPI view'larıyla aynı admin-only
+   desene çekildi, grants iki kez sorgulanarak doğrulandı. Detay:
+   `Build/DB-Schema.md` → "P23-M4-a".
+3. Kohortsuz yüzde sınırı (`view_to_save_pct`, `offer_to_order_pct`)
+   **düzeltilmedi** (bilinçli, zaten belgeli) — ama iki funnel view de
+   admin-only olduğu için ve bu turun UI'ı bu view'lara hiç dokunmadığı
+   için yanlış okunma riski bu turda zaten sıfır.
+
+#### B — Rotalar ve erişim
+`src/routes/tarifler.index.tsx` (`/tarifler`) + `src/routes/tarifler.$slug.tsx`
+(`/tarifler/$slug`) — P19'da kurulan `index.tsx`+`$param.tsx` kardeş-rota
+konvansiyonuyla (bkz. `buyer.prices.index.tsx`/`buyer.prices.$crop.tsx`),
+**`/buyer/` dışında** (o layout'un guard'ı misafiri hiç render etmiyor —
+`buyer.tsx` `beforeLoad`). Her iki route da TanStack Start `loader` ile
+gerçek SSR verisi çekiyor (anon-safe, RLS zaten public+published tarifleri
+açık bırakıyor); `head()` başlık/description/canonical + (detay sayfasında)
+`application/ld+json` `Recipe` şeması üretiyor — mevcut `index.tsx`
+route'unun zaten kullandığı `scripts: [{type:"application/ld+json", ...}]`
+deseniyle aynı. `routeTree.gen.ts` gerçek `vite build` ile yeniden
+üretildiği doğrulandı (yeni iki route id/path doğru göründü), elle
+dokunulmadı. Buyer alt navigasyonuna yeni sekme **eklenmedi** — `buyer.discover.tsx`'e
+küçük bir banner kartı ("🍽️ Tarif fikri mi arıyorsun?") eklendi, mevcut
+mantığa dokunulmadı.
+
+#### C — Liste sayfası
+Filtreler (süre/zorluk/diyet etiketi/mutfak) client-side, `buyer.discover.tsx`'in
+zaten kullandığı state-driven deseniyle aynı (URL parametresi yok). "Şu an
+Hasat'ta tam alınabilir tarifler" filtresi `v_recipe_coverage.coverage_pct`
+ile besleniyor — ana keşif yolu olarak konumlandırılmadı, ayrı bir checkbox.
+Kapak fotoğrafı yoksa (18/18) ilk `is_key_ingredient` malzemenin
+`crop_config.default_photo_url`'üne düşüyor, o da yoksa nötr placeholder —
+hiçbir durumda boş kutu yok.
+
+#### D — Detay sayfası
+`rpc_recipe_availability` + `rpc_recipe_shopping_list` ile besleniyor.
+Malzeme kartı üç durumu gerçek veriyle doğrulandı (bkz. E2E-QA S22 → A):
+eşleşti (kekik) → link + fiyat/min_order · platform crop ama eşleşmiyor
+(zeytinyağı/susam) → nötr "Hasat'ta henüz yok", CTA yok · platform-dışı
+(tuz) → nötr, hiç durum etiketi yok. Porsiyon +/- her değişimde
+`rpc_recipe_shopping_list`'i yeniden çağırıyor. `min_order` yuvarlaması
+gerçek yansıması (`needed_canonical` vs `purchase_canonical`, "bu miktar
+~N tarif yapar") artık kartta görünüyor — bu yol M2'den beri hiç UI'a
+bağlanmamıştı. `recipe_steps.timer_seconds` dolu adımlarda süre gösteriliyor.
+
+#### E — Ölçümleme
+`recipe_views` yazımı canlıya alındı: `/tarifler/$slug` her mount'ta bir
+satır yazıyor (anon → `session_id` only, giriş yapmış → `user_id` **+**
+`session_id` ikisi birden — aynı ziyaretçi girişten önce/sonra
+eşleştirilebilsin diye). `session_id`, `crypto.randomUUID()` ile üretilip
+`localStorage`'da (`hasat-anon-session-id`) saklanıyor. IP/user-agent
+toplanmıyor (KVKK).
+
+#### F — Görseller
+"Temsili görsel" etiketi `RepresentativePhoto` component'inde (yeni, paylaşılan)
+zorunlu kılındı — hem liste kartlarında hem detay kapağında hem malzeme
+crop fotoğrafında aynı kural geçerli.
+
+#### G — Kullanılmayan alan listesi
+`Build/DB-Schema.md` → "P23-M4-a" → "G" bölümünde tam liste ve gerekçe var.
+Özet: `rpc_recipe_availability`'den yalnızca `crop_photo_url`/`crop_display_name`/
+`active_listing_count` kullanıldı (gerisi SSR ingredient satırı ya da
+`rpc_recipe_shopping_list`'in aynı alanıyla birebir çakışıyordu);
+`rpc_recipe_shopping_list`'in neredeyse tamamı (16/20 alan) kullanıldı,
+kalan 4'ü (`sort_order`/`crop`/`crop_display_name`/`free_text_name`/
+`recipe_servings`/`requested_servings`) zaten elde olan veriyle aynıydı.
+
+#### H — Dokunulmayanlar (kural #105 dahil)
+`src/lib/core/` — dokunulmadı. Checkout/ödeme, `unit_type` enum'u, design
+token'ları/storage adapter (M5), mobil kod, Talep Et akışı, admin heatmap,
+Gap #9 — hiçbiri bu turda yok.
+
+#### Doğrulama (kural #96)
+Tam tablo: `Build/E2E-QA.md` → S22. Özet: gerçek `anon`/`authenticated` RLS
+simülasyonuyla `recipe_views` insert'i + `v_kpi_recipe_funnel_by_recipe`'in
+doğru saydığı doğrulandı (test verisi silindi); kekik/fındık (eşleşen) ve
+nohut/zeytinyağı (eşleşmeyen) ile `min_order` yuvarlaması gerçek veriyle
+test edildi; `vite build` (SSR dahil) + `tsc --noEmit` + `eslint` temiz;
+`/tarifler`'in statik meta'sının gerçek SSR HTML'ine yazıldığı `curl` ile
+doğrulandı. **Bu oturumun ağ politikası** `efuqpiaavrzimvstpdpm.supabase.co`'ya
+canlı SSR sırasında erişimi engellediği için (P24'te Berkin'in de yaşadığı
+aynı kısıt), tam veri akışlı canlı tarayıcı testi ve detay sayfasının
+dinamik JSON-LD'sinin view-source kanıtı **Berkin'in tarayıcısına** bırakıldı
+— bkz. E2E-QA S22 → C.
+
+#### Dokunulan dosyalar (`hasat-d2c-marketplace`)
+`src/routes/tarifler.index.tsx` (yeni) · `src/routes/tarifler.$slug.tsx`
+(yeni) · `src/lib/hasat/recipes.ts` (yeni) · `src/lib/hasat/session.ts`
+(yeni) · `src/components/hasat/RepresentativePhoto.tsx` (yeni) ·
+`src/routes/buyer.discover.tsx` (küçük ekleme) · `src/routeTree.gen.ts`
+(otomatik yeniden üretildi).
+
+#### Otonom alınan kararlar (kural #107)
+1. **"Eşleşti" malzeme kartının linki `/buyer/discover`'a gidiyor**, crop'a
+   özel filtrelenmiş bir sayfaya değil — `buyer.discover.tsx`'in arama
+   kutusu URL parametresi almıyor, bunu eklemek bu PR'ın kapsamını
+   büyütürdü. `buyer.prices.$crop.tsx` (fiyat grafiği sayfası) alternatif
+   olarak değerlendirildi ama gerçek ilan/min_order göstermiyor, reddedildi.
+   **Netleşmesi gereken soru:** Berkin crop'a özel filtrelenmiş bir
+   keşif sayfası isterse bu M4-b'de ele alınabilir.
+2. **`recipe_saves`'in anon "kaydet" yolu açılmadı** — görev metninin E
+   bölümündeki "kayıt anında session_id yakala" cümlesi `recipe_views`'a
+   uygulandı (görüntüleme anında session_id), `recipe_saves`'e değil.
+   `recipe_saves.user_id` hâlâ NOT NULL + RLS girişli kullanıcı zorunlu
+   kılıyor — bunu değiştirmek şema/RLS değişikliği demek, görev metninin
+   izin verdiği "1 nullable kolon" kapsamının (crop_requests) dışında.
+   `Build/DB-Schema.md`'nin `v_kpi_recipe_funnel` "üç bilinen sınır #3"ü
+   bu yüzden hâlâ tam kapanmadı — M4-b/M9 açık maddesi.
