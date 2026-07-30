@@ -96,7 +96,7 @@ Platform hiçbir crop'a özel muamele göstermez — domates/elma/safran/lavanta
 | Rekabet hukuku danışmanlığı | 🔴 Yapılmadı |
 | Glossary insan gözden geçirmesi | 🟡 P22-C içeriği AI üretimi, bölgesel doğrulama yapılmadı |
 | `useSetDefaultAddress` diğer adresleri `false`'a çekmiyor | 🟡 Düşük öncelik (P23-M1'de kapanacak) |
-| **P23 — Buyer Mobile & Recipe App** | 🟡 M0 + M1 kapandı; M2 uygulandı (tarayıcı QA S20-B bekliyor); M3 + M3-D tamamlandı (tarayıcı QA S21 bekliyor); **M4-a (public tarif yüzeyi + DB eki + ölçümleme) tamamlandı (2026-07-30), tarayıcı QA (S22) bekliyor** — M4-b (Talep Et + admin heatmap + Gap #9) sırada → `Build/Roadmap.md` |
+| **P23 — Buyer Mobile & Recipe App** | 🟡 M0 + M1 kapandı; M2 uygulandı (tarayıcı QA S20-B bekliyor); M3 + M3-D tamamlandı (tarayıcı QA S21 bekliyor); **M4 (a+b+c — public tarif yüzeyi, Talep Et, admin heatmap, Gap #9, `cook_minutes` düzeltmesi) tamamen kapandı (2026-07-30, tarayıcı QA S22-S24 bekliyor)**; **M5-a (hasat-mobile iskeleti + hasat-core ikinci hedefi + tesisat) tamamlandı (2026-07-30)** — M5-b (ekran yazma) sırada → `Build/Roadmap.md` |
 
 ### BENCHMARK Gap durumu
 Kapandı: #2 teslim/ihtilaf · #3 değerlendirme · #5 tekrar sipariş · #6 RFQ · #7 hal fiyat bandı · #8 lojistik · #10 bildirimler
@@ -137,12 +137,12 @@ Bu sayılar ürün kararlarını doğrudan etkiliyor — özellikle tarif/tüket
 | SMS | Twilio Edge Function `send-sms` |
 | Deploy | hasat.lovable.app |
 
-### Repolar (2026-07-28)
+### Repolar (2026-07-30)
 | Repo | İçerik | Kim yazıyor |
 |---|---|---|
 | `hasat-d2c-marketplace` | Web uygulaması | Lovable (`main`, sync bot `gpt-engineer-app[bot]`) + Claude Code (feature branch → PR) |
-| `hasat-mobile` | Mobil (Expo + Expo Router + Nativewind) — **M5'te açılacak** | %100 Claude Code (Lovable RN üretemiyor) |
-| `hasat-core` | Paylaşılan TS — **açıldı 2026-07-29 (M1-b).** Şu an içinde: DB tipleri, design token'ları, `convertQuantity`. Sorgu hook'ları + zod + storage adapter M5'e bırakıldı | Claude Code; subtree ile web'e iner (mobil hedefi M5'te) |
+| `hasat-mobile` | Mobil (Expo SDK 57 + Expo Router + Nativewind) — **açıldı 2026-07-30 (M5-a).** Expo iskelet + `hasat-core` subtree'si + telefon OTP girişi kurulu; tarif ekranları M5-b | %100 Claude Code (Lovable RN üretemiyor) |
+| `hasat-core` | Paylaşılan TS — açıldı 2026-07-29 (M1-b). İçinde: DB tipleri, design token'ları, `convertQuantity`, **Supabase client factory + storage adapter (M5-a)**. Sorgu hook'ları + zod M5-b'ye bırakıldı | Claude Code; subtree ile web'e **ve mobile'a** iner (M5-a'da ikinci hedef eklendi) |
 | `hasat-vault` | İş notları, roadmap, dokümanlar (**public** — kod/sır yok) | Claude Code PR + Berkin merge |
 
 ### Mobil stack (M5+)

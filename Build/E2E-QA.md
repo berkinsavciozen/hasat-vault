@@ -499,6 +499,89 @@ yeni hata. Gerçek `vite build` **yine yapılamadı** — M4'ün üç turunda da
 
 ---
 
+### S25 — P23-M5-a Mobil İskelet + `hasat-core` İkinci Hedefi + Tesisat
+
+**Arka plan:** `Build/P23-Mobile.md` → M5-a, `TODO.md` → "P23-M5-a" build log,
+`Build/Shared-Architecture.md` → ikinci hedef + drift kör noktasının kapanışı.
+Bu tur **üç ayrı repo, dört ayrı PR** üretti — hepsinin merge edilmesi
+gerekiyor, tek bir "Publish" yeterli değil:
+
+| Repo | Branch/PR | İçerik |
+|---|---|---|
+| `hasat-core` | `claude/p23-m5a-mobile-scaffold-7mh19f` | `core/supabase/client.ts`, dual-target `sync-to-web.yml`/`drift-check.yml`, `check-manifest-freshness.mjs`, README güncellemesi |
+| `hasat-mobile` | `claude/p23-m5a-mobile-scaffold-7mh19f` | Expo iskelet, `src/lib/core` subtree'si, `app/login.tsx`/`app/home.tsx`, storage adapter |
+| `hasat-d2c-marketplace` | `claude/p23-m5a-mobile-scaffold-7mh19f` | Süre filtresi düzeltmesi (`activeRecipeMinutes` + "Önceden başlamak gerekir" rozeti) — **ayrı commit** |
+| `hasat-d2c-marketplace` | `claude/p23-m5-storage-adapter` | `src/integrations/supabase/client.ts` → paylaşılan factory (canlı auth'a dokunan tek nokta) — **ayrı PR** |
+
+Claude Code'un bu turda **doğrudan doğrulayabildiği** (statik, bu oturumda —
+kural #96): `expo start` ile Android bundle'ı gerçekten derlendi (1850 modül,
+kendi ekran kodumuz bundle içinde bulundu); `expo prebuild` sonrası
+`android/gradle.properties`'te `compileSdkVersion`/`targetSdkVersion=36`
+gerçekten göründü; `hasat-core` ↔ `hasat-mobile` manifest hash'leri birebir
+eşleşiyor; drift script'i (hem eski MODİFİYE kontrolü hem yeni sürüm-gerisi
+kontrolü) kasten bozulup exit 1 verdiği, geri alınınca exit 0'a döndüğü
+doğrulandı; web'de `tsc --noEmit` + `npm run build` temiz.
+
+**Claude Code'un doğrulayamadığı** (bu oturumun ağ politikası
+`efuqpiaavrzimvstpdpm.supabase.co`'yu 403 ile engelliyor — P24/M4-a'da da
+aynı kısıt yaşanmıştı): gerçek tarayıcıda/cihazda OTP girişi, oturumun
+cihaz/tarayıcı kapatılıp açıldığında kalıcı olduğu. **Bu yüzden aşağıdaki
+adımlar QA'nın asıl ağırlığını taşıyor.**
+
+#### A. `hasat-core` + `hasat-mobile` PR'larını merge et (sıra önemli)
+1. Önce `hasat-core`'daki PR'ı merge et.
+2. `hasat-core`'un `sync-to-web.yml` Action'ı otomatik tetiklenip
+   `hasat-mobile`'a (ve `hasat-d2c-marketplace`'e) bir "hasat-core sync" PR'ı
+   açmalı — **bu PR'ları da merge et** (aksi halde M5 açık maddesi olarak
+   kapanan sürüm-gerisi kör noktası tekrar canlı hale gelir, bkz.
+   `Shared-Architecture.md`).
+3. `hasat-mobile`'daki asıl scaffold PR'ını merge et.
+
+| # | Adım | Beklenen |
+|---|---|---|
+| 1 | `hasat-core` PR'ını GitHub'da aç, diff'i gözden geçir | `core/supabase/client.ts` yeni, `sync-to-web.yml`/`drift-check.yml` matrix'li |
+| 2 | Merge et | `main`'e iner |
+| 3 | Actions sekmesinde `sync core to targets` workflow'unun koştuğunu izle | İki job (web + mobil) yeşil, her ikisine de "hasat-core sync" PR'ı açılmış |
+| 4 | O iki sync PR'ını da merge et | `hasat-mobile`/`hasat-d2c-marketplace`'te `src/lib/core/` güncel |
+| 5 | `drift-check.yml`'i elle tetikle (workflow_dispatch) | İki hedefte de "Sapma yok" + "Sürüm gerisi yok" — yeşil |
+| 6 | `hasat-mobile` scaffold PR'ını merge et | Expo app + login ekranı `main`'e iner |
+
+#### B. Mobilde gerçek OTP girişi + oturum kalıcılığı (Berkin'in kendi cihazında)
+| # | Adım | Beklenen |
+|---|---|---|
+| 1 | `hasat-mobile`'ı klonla, `npm install`, `npx expo start` | Metro açılır, QR kod çıkar |
+| 2 | Expo Go (ya da dev client) ile telefonda tara | Uygulama açılır, `/login` ekranı gösterir |
+| 3 | Test hesabı telefonunu gir: `5001234567` (farmer, 905001234567) ya da `5009876543` (buyer, 905009876543) | "Kod Gönder" aktif olur |
+| 4 | Kod Gönder'e bas, OTP ekranına geç, `123456` gir | "Giriş Yap ✓" aktif olur |
+| 5 | Giriş Yap'a bas | `/home`'a yönlenir, telefon numarası + rol doğru görünür |
+| 6 | Uygulamayı tamamen kapat (task switcher'dan sil), tekrar aç | **Tekrar `/login` istemiyor** — direkt `/home`'a düşüyor (oturum `expo-secure-store`'da kalıcı) |
+| 7 | `/home`'daki "Çıkış yap"a bas | `/login`'e döner |
+| 8 | Uygulamayı tekrar kapat/aç | Bu sefer `/login` gösteriyor (çıkış gerçekten oturumu temizlemiş) |
+
+#### C. Web'de auth regresyonu yok (canlı auth'a dokunan tek nokta)
+| # | Adım | Beklenen |
+|---|---|---|
+| 1 | `hasat.lovable.app/login`'de normal telefon+OTP girişi yap (kendi hesabınla ya da test hesabıyla) | Öncekiyle birebir aynı akış — hiçbir görsel/davranışsal fark yok |
+| 2 | Giriş yaptıktan sonra sayfayı yenile (F5) | Oturum düşmüyor, tekrar login istenmiyor |
+| 3 | Tarayıcıyı tamamen kapat, tekrar aç, `hasat.lovable.app`'e git | Hâlâ giriş yapılmış durumda (localStorage korunmuş) |
+| 4 | DevTools → Application → Local Storage'da Supabase'in oturum anahtarını kontrol et | Değer var, önceki formatla aynı görünüyor |
+
+**Beklenen sonuç: A (6/6) + B (8/8) + C (4/4) geçiyor.** B ve C bu turda
+Claude Code tarafından **doğrulanamadı** (ağ kısıtı) — bu QA'nın asıl amacı
+tam da bu iki bölüm.
+
+#### D. Ayrıca kontrol edilecek (kapsam dışı bulgular)
+- `hasat-core/db/types.ts`'te `recipes.rest_minutes` eksik (M4-c'den beri tip
+  üretimi yenilenmemiş) — bu turda bulundu, düzeltilmedi (kapsam dışı, kural
+  #107). Fırsat varsa `supabase gen types typescript --project-id
+  efuqpiaavrzimvstpdpm` yeniden çalıştırılıp `hasat-core`'a commit edilmeli.
+- Süre filtresi düzeltmesi (`hasat.lovable.app/tarifler`, "Süre" filtresi):
+  Ekşi Mayalı Ekmek/Köme artık "1 saatten uzun" filtresine düşmüyor (aktif
+  süreleri düşük), ama kartlarında/detay sayfasında turuncu "Önceden başlamak
+  gerekir" rozeti görünmeli.
+
+---
+
 ## Feature Sonrası Süreç
 
 1. Yeni prompt tamamlanınca yeni S-numarası eklenir

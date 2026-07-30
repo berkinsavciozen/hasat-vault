@@ -1,6 +1,6 @@
 ---
 title: Hasat — Paylaşılan Mimari (Web + Mobil)
-updated: 2026-07-29
+updated: 2026-07-30
 tags:
   - hasat
   - architecture
@@ -57,13 +57,32 @@ DB'ye taşınamayan kısım:
 | Üretilmiş DB tipleri | `supabase gen types typescript` çıktısı | ✅ M1 |
 | Design token'ları | Marka renkleri, spacing, tipografi ölçeği | ✅ M1 |
 | Saf yardımcılar | `convertQuantity()` | ✅ M1 |
-| Saf yardımcılar (kalan) | coverage skoru, offer-status etiketleri, para/tarih formatlama | ⬜ M5 |
-| **Supabase storage adapter** | web `localStorage` ↔ mobil `expo-secure-store` | ⬜ **M5** |
-| **Supabase sorgu fonksiyonları** | `fetchListings()`, `fetchRecipe()` … | ⬜ **M5** |
-| **TanStack Query hook'ları** | `useListings()`, `useRecipes()` — **React Native'de de çalışıyor** | ⬜ **M5** |
-| Zod şemaları | Form/RPC girdi doğrulama | ⬜ M5 |
+| Saf yardımcılar (kalan) | coverage skoru, offer-status etiketleri, para/tarih formatlama | ⬜ M5-b/M9 |
+| **Supabase storage adapter** | `core/supabase/client.ts` — `createHasatSupabaseClient()`, storage parametreli | ✅ **M5-a (2026-07-30)** |
+| **Supabase sorgu fonksiyonları** | `fetchListings()`, `fetchRecipe()` … | ⬜ **M5-b** |
+| **TanStack Query hook'ları** | Mobilde `@tanstack/react-query` kuruldu (M5-a); ortak hook'lar (`useListings()`, `useRecipes()`) henüz core'a taşınmadı | ⬜ **M5-b** |
+| Zod şemaları | Form/RPC girdi doğrulama | ⬜ M5-b |
 
-### ⚠️ Storage adapter + query hook'ları M1'den M5'e taşındı (2026-07-29)
+### ✅ Storage adapter M5-a'da taşındı (2026-07-30) — M1'den revize geçmişi
+
+Bu doküman ilk yazıldığında (2026-07-28) storage adapter M1'e yazılmıştı, sonra
+M1 uygulanırken M5'e ertelendi (2026-07-29, aşağıdaki gerekçe o zaman
+yazılmıştı, tarihi kayıt olarak korunuyor). **M5-a'da taşındı:**
+`hasat-core/core/supabase/client.ts` → `createHasatSupabaseClient(url, key,
+{ storage })` — `persistSession`/`autoRefreshToken` sabit, `storage` platform
+başına parametre (web: `localStorage`, mobil: `expo-secure-store` tabanlı
+`LargeSecureStore` — AES + AsyncStorage + SecureStore anahtarı, Supabase'in
+resmi Expo deseni; SecureStore'un ~2048 byte/değer sınırı Supabase'in oturum
+payload'unu aşıyor, bu yüzden ham SecureStore yetmiyordu). Web tarafında
+`src/integrations/supabase/client.ts` bu factory'yi kullanacak şekilde minimal
+değiştirildi (ayrı PR — canlı auth'a dokunan tek nokta); `storage` opsiyonel
+yapıldı ki web'in SSR yolu (`typeof window === 'undefined'` → `storage:
+undefined`) davranışı birebir korunsun. `npm run typecheck` + `npm run build`
+temiz; gerçek tarayıcıda OTP girişi bu oturumun ağ politikası Supabase host'unu
+engellediği için doğrulanamadı (P24/M4-a'da da aynı kısıt yaşanmıştı) —
+Berkin'in kendi tarayıcısında doğrulaması gerekiyor.
+
+#### Orijinal erteleme gerekçesi (2026-07-29, tarihi kayıt)
 
 Bu doküman ilk yazıldığında (2026-07-28) storage adapter M1'e yazılmıştı. **Bu
 karar M1 uygulanırken revize edildi:** storage adapter, sorgu fonksiyonları ve
@@ -101,36 +120,52 @@ ertelendi):
 hasat-core (ayrı repo)
    │
    ├── git subtree ──► hasat-d2c-marketplace : src/lib/core/   ✅ M1'de kuruldu
-   └── git subtree ──► hasat-mobile          : src/lib/core/   ⬜ M5 (repo henüz yok)
+   └── git subtree ──► hasat-mobile          : src/lib/core/   ✅ M5-a'da kuruldu (2026-07-30)
 ```
 
 - **git subtree** (submodule değil) — Lovable'ın build'i submodule init etmez; subtree düz dosya olarak iner
-- `hasat-core`'da bir **GitHub Action**, değişiklikte hedef repoya PR açar
-  — **M1'de tek hedefli** (sadece web); ikinci hedef `hasat-mobile` doğduğunda M5'te eklenecek
+- `hasat-core`'da bir **GitHub Action**, değişiklikte **her iki hedef repoya birden** (matrix) PR açar
+  — M1'de tek hedefliydi (sadece web); **ikinci hedef `hasat-mobile` M5-a'da eklendi**
 - Her core dosyasının başında: `// hasat-core — BU DOSYAYI BURADA DÜZENLEME`
 - Hedef repoda bir **hash manifest** dosyası (`src/lib/core/.manifest`) → sapma saniyeler içinde tespit edilir
 
-### Boru hattının kurulu hali (M1, 2026-07-29)
+### Boru hattının kurulu hali (M1: 2026-07-29 · ikinci hedef + sürüm-gerisi kontrolü: M5-a, 2026-07-30)
 
 | Parça | Nerede | Ne yapar |
 |---|---|---|
 | Kaynak | `hasat-core/core/` | Tek doğruluk kaynağı. Build step yok, publish yok. |
-| Manifest | `core/.manifest` → `src/lib/core/.manifest` | Her core dosyasının sha256'sı |
+| Manifest | `core/.manifest` → `src/lib/core/.manifest` (her iki hedefte) | Her core dosyasının sha256'sı |
 | Sapma scripti | `hasat-core` → `npm run drift -- <yol>` | **DEĞİŞTİRİLMİŞ / EKSİK / FAZLA** üç durumu yakalar, farkta exit 1 |
-| Sync Action | `.github/workflows/sync-to-web.yml` | `core/**` değişince web reposuna PR açar |
-| Drift Action | `.github/workflows/drift-check.yml` | Web'e inmiş kopyayı günlük doğrular |
+| **Sürüm-gerisi scripti** (**M5-a'da eklendi**) | `hasat-core` → `npm run drift:freshness -- <yol>` | Hedefin manifest'i `core/.manifest`'ten farklıysa (bekleyen sync PR'ı) exit 1 — bkz. aşağıdaki "kör nokta" bölümü, artık kapalı |
+| Sync Action | `.github/workflows/sync-to-web.yml` | `core/**` değişince **her iki hedefe de** (matrix) PR açar |
+| Drift Action | `.github/workflows/drift-check.yml` | Her iki hedefte de günlük hem sapma hem sürüm-gerisi kontrolü yapar |
 
-**Gereken secret:** `hasat-core` reposunda `SYNC_TOKEN` (web reposuna push + PR
-yetkisi olan PAT). ✅ Eklendi ve **iki workflow da canlıda yeşil doğrulandı**
-(2026-07-29). Ayrıca sync job'ının `permissions: contents: write` izni var —
+**Gereken secret:** `hasat-core` reposunda `SYNC_TOKEN` (her iki hedef repoya
+push + PR yetkisi olan PAT). ✅ Web için 2026-07-29'da eklendi ve iki workflow
+canlıda yeşil doğrulandı; **kapsamına `hasat-mobile` M5-a'da Berkin tarafından
+eklendi.** Ayrıca sync job'ının `permissions: contents: write` izni var —
 `core-dist` dalını kendi reposuna geri itiyor.
+
+**M5-a doğrulaması (statik, bu oturumda):** `hasat-core`'a `git subtree add
+--prefix=src/lib/core <hasat-core> core-dist --squash` ile `hasat-mobile`'a
+indirildi; `diff core/.manifest src/lib/core/.manifest` → birebir aynı.
+`check-drift.mjs` ve `check-manifest-freshness.mjs` her ikisi de kasten
+bozulup (bir core dosyasını hedefte elle düzenleyip / `hasat-core`'da yeni bir
+değişiklik yapıp hedefe hiç sync etmeyerek) exit 1 verdiği, sonra geri alınıp
+tekrar exit 0'a döndüğü doğrulandı. GitHub Action'ların kendisi (matrix,
+gerçek CI koşusu) bu oturumda tetiklenmedi — sadece PR merge edildiğinde
+çalışır; canlı doğrulaması Berkin'e kalıyor (M1'in Action'ları da aynı şekilde
+merge sonrası doğrulanmıştı).
 
 > ⚠️ `hasat-core` şu an **public**. İçinde sır yok, ama üretilmiş DB tipleri
 > tüm tablo/kolon/enum/view adlarını açıkça gösteriyor. Bilinçliyse sorun yok;
 > değilse Settings → General → Change visibility ile private yapılabilir
 > (subtree ve Action'lar private'da da aynen çalışır).
 
-### ⚠️ Drift kontrolünün kör noktası — "bayat ama tutarlı" hali (P23-M2-ek'te bulundu)
+### ✅ Drift kontrolünün kör noktası — KAPANDI (M5-a, 2026-07-30)
+
+> Bu bölüm P23-M2-ek'te bulunan bir açık maddeydi (M5'e bırakılmıştı). Tarihi
+> kayıt olarak aşağıda korunuyor; "Önerilen düzeltme" artık uygulandı.
 
 `drift-check.yml`, web reposunun `src/lib/core/` klasörünü **o klasörün kendi
 `.manifest` dosyasıyla** karşılaştırıyor:
@@ -167,11 +202,15 @@ diff core/.manifest target/src/lib/core/.manifest         # sürüm gerisi (eksi
 
 Farkta uyarı ver ve bekleyen sync PR'ını işaret et.
 
-**Bu turda bilinçli olarak DÜZELTİLMEDİ.** Gerekçe: lansmandan dört hafta önce
-çalışan bir bekçiye dokunmak, kazandırdığından fazla risk getirir; ayrıca ikinci
-hedef (`hasat-mobile`) M5'te doğduğunda script zaten elden geçecek. **M5 açık
-maddesi.** O zamana kadar koruma insan tarafında: *sync PR'ı açıldığında merge
-edilmeli, açık bırakılmamalı.*
+**M5-a'da uygulandı:** `scripts/check-manifest-freshness.mjs` (yeni script,
+`diff`'in kendisi değil ama aynı işi görüyor + Türkçe, aksiyon işaret eden bir
+hata mesajı) `drift-check.yml`'e üçüncü adım olarak eklendi (matrix'teki her
+iki hedef için de çalışıyor). Artık cevaplanan soru: hem "hedef kopya elle mi
+değiştirilmiş?" (`check-drift.mjs`) hem "hedef `hasat-core`'un GÜNCEL
+sürümünde mi?" (`check-manifest-freshness.mjs`) — ikisi birden yeşil olmadan
+bekçi susmuyor. **Kasten bozup exit 1 verdiği, sonra geri alındığı bu oturumda
+doğrulandı** (bkz. yukarıdaki "Boru hattının kurulu hali" → "M5-a
+doğrulaması").
 
 ### KURAL (#105)
 
@@ -230,9 +269,10 @@ Reddedilen alternatifler: (a) dosyayı re-export'a çevirmek — Lovable üzerin
 | M1 | Küçük şema borçları (bkz. `P23-Mobile.md` M1) | ⬜ |
 | M2 | Katman 1 RPC'leri (tarif eşleştirme, birim dönüşümü, alışveriş listesi, funnel view) | ⬜ |
 | M2 | `device_tokens` tablosu | ⬜ |
-| **M5** | **Storage adapter + sorgu fonksiyonları + TanStack Query hook'ları + zod şemaları** (M1'den taşındı) | ⬜ |
-| **M5** | **Drift script'ine sürüm-gerisi kontrolü** (hedef `.manifest` ↔ `hasat-core` `core/.manifest`) — bkz. "Drift kontrolünün kör noktası" | ⬜ |
-| M5 | Sync Action'a ikinci hedef (`hasat-mobile`) | ⬜ |
+| **M5-a** | **Storage adapter** (`core/supabase/client.ts`) — web'in davranışı değişmeden | ✅ 2026-07-30 |
+| M5-b | Sorgu fonksiyonları + TanStack Query hook'ları + zod şemaları (mobilde kütüphane kuruldu, ortak hook'lar henüz core'a taşınmadı) | ⬜ |
+| **M5-a** | **Drift script'ine sürüm-gerisi kontrolü** (hedef `.manifest` ↔ `hasat-core` `core/.manifest`) — bkz. "Drift kontrolünün kör noktası" | ✅ 2026-07-30 |
+| **M5-a** | Sync Action'a ikinci hedef (`hasat-mobile`) | ✅ 2026-07-30 |
 | M9 | Bildirim event map konsolidasyonu (lansman sonrası) | ⬜ |
 
 ---
@@ -257,6 +297,12 @@ Otomatik bağlanmadı, çünkü tek yol `styles.css`'in core'dan bir CSS dosyas�
 
 **Karar gerekiyor (M5):** ya `styles.css` core'dan bir `tokens.css` import
 etsin, ya da drift scriptine "token'lar iki dosyada aynı mı" kontrolü eklensin.
+
+**M5-a notu:** Mobil taraf bu riski büyütmedi — `hasat-mobile/tailwind.config.js`
+üçüncü bir kopya yazmak yerine `core/design/tokens.ts`'i doğrudan `require`
+ediyor (Node'un TS dosyalarını doğrudan çalıştırabilmesi sayesinde, sabit bir
+yedekle). Yani hâlâ iki yer var (`styles.css` ↔ `tokens.ts`), üç değil —
+mobil `tokens.ts`'e bağlı, `styles.css`'e değil. Yukarıdaki karar hâlâ açık.
 
 ### 2. `src/integrations/supabase/types.ts` silindi — Lovable geri üretebilir
 
