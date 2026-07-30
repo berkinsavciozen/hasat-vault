@@ -1,6 +1,6 @@
 ---
 title: Hasat — E2E QA Test Dokümanı
-updated: 2026-07-29
+updated: 2026-07-30
 tags:
   - hasat
   - qa
@@ -323,6 +323,69 @@ Dashboard'dan `recipes` tablosuna bakmak (M4'e kadar).
 
 ---
 
+### S22 — P23-M4-a Public Tarif Yüzeyi + DB Eki + Ölçümleme
+
+> **Kural #109 — QA'nın İLK adımı Publish'e basmak.** Bu tur frontend kodu
+> Claude Code tarafından `hasat-d2c-marketplace` reposuna PR olarak açıldı
+> (Lovable'ın kendisi değil). PR merge edildikten sonra bile `main`'deki
+> kod **Lovable'da Publish'e basılmadan** `hasat.lovable.app`'e inmez — bu
+> S20/S21'in aksine, bu tur **gerçekten yeni bir ekran** açıyor
+> (`/tarifler`), o yüzden bu kez atlanamaz.
+
+**Arka plan:** `Build/P23-Mobile.md` M4-a. Kapsam: `/tarifler` +
+`/tarifler/$slug` (misafire açık, SSR/SEO), malzeme kartı 3 durumu,
+`recipe_views` ölçümleme, `v_kpi_recipe_funnel_by_recipe`. Talep Et akışı,
+admin heatmap, Gap #9 → M4-b (bu turda yok).
+
+#### A. Veri katmanı doğrulaması — Claude Code + Supabase MCP (kural #96)
+Ayrıntılı sonuç tablosu: `Build/DB-Schema.md` → "P23-M4-a". Özet: `anon` ve
+`authenticated` rolüyle gerçek `recipe_views` insert'i test edildi
+(`session_id` her ikisinde de dolu), `v_kpi_recipe_funnel_by_recipe` iki
+test görüntülemesini doğru saydı, kekik/fındık (eşleşen) ve nohut/zeytinyağı
+(eşleşmeyen) ile `min_order` yuvarlaması gerçek veriyle doğrulandı, yeni
+view'ın `security_invoker=true` olduğu ve `anon`/`authenticated`'a GRANT
+**olmadığı** (bu projede yeni view'lara varsayılan grant düştüğü fark
+edildi, elle revoke edildi) doğrulandı. Test verisi (3 `recipe_views`
+satırı) silindi.
+
+#### B. Sandbox kısıtı — canlı tarayıcı testi Claude Code tarafında yapılamadı
+Bu oturumun ağ politikası `efuqpiaavrzimvstpdpm.supabase.co`'ya SSR sırasında
+doğrudan bağlanmayı engelledi (P24'te Berkin'in de karşılaştığı aynı kısıt —
+bkz. `TODO.md` P24 notu, "tarayıcının Supabase host'una doğrudan bağlanmasını
+403 ile engelledi"). Bunun yerine: (a) üretim build'i (`vite build`, SSR
+dahil) hatasız tamamlandı, `/tarifler` ve `/tarifler/$slug` için ayrı SSR
+chunk'ları üretildi; (b) `tsc --noEmit` ve `eslint` temiz; (c) `/tarifler`'in
+statik `head()` meta'sının (başlık/description/canonical) gerçekten SSR
+HTML'ine yazıldığı ham `curl` çıktısıyla doğrulandı — sayfanın veri kısmı
+ağ kısıtı yüzünden hata verse bile meta etiketleri doğru render oldu; (d)
+`/tarifler/$slug`'ın **dinamik** JSON-LD'si (loader verisine bağlı) bu
+sandbox'ta canlı doğrulanamadı — kod incelemesi + tip kontrolü + build
+başarısıyla güveniliyor, **gerçek view-source kanıtı aşağıdaki B adımlarında
+Berkin'den bekleniyor.**
+
+#### C. Berkin'in tarayıcı adımları
+
+| # | Adım | Beklenen |
+|---|---|---|
+| 1 | Lovable editörünü aç, **Publish**'e bas | Yeni build yayınlandı |
+| 2 | Gizli sekme (giriş yapmadan) → `hasat.lovable.app/tarifler` | Tarif listesi açılıyor, kapak fotoğrafı yoksa crop görseli + "Temsili görsel" etiketi ya da nötr placeholder görünüyor (boş kutu yok) |
+| 3 | Zorluk/süre/diyet filtrelerini dene | Liste filtreleniyor |
+| 4 | "Şu an Hasat'ta tam alınabilir tarifler" kutusunu işaretle | Neredeyse boş/tek sonuç dönüyor — **bu beklenen, hata değil** (gerçek arz 18 tarifin sadece birinde %100 kapsıyor) |
+| 5 | Bir tarife tıkla, örn. **Kekikli Zeytinyağı Ezmesi** | Detay sayfası açılıyor; **kekik** malzemesi "Ürün sayfasına git" linkiyle + fiyatla görünüyor, **zeytinyağı/susam** nötr "Hasat'ta henüz yok" (link/CTA yok), **tuz** hiç durum etiketi olmadan sade görünüyor |
+| 6 | Porsiyon sayacını + / − ile değiştir | Malzeme miktarları yeniden hesaplanıyor (RPC yeniden çağrılıyor) |
+| 7 | Adımlarda bekleme/pişirme süresi olanlara bak | Süre (⏱ dk/sa/gün) görünüyor |
+| 8 | Sayfa kaynağını görüntüle (view-source / Ctrl+U) | `<title>`, meta description, `rel="canonical"`, `application/ld+json` (`"@type":"Recipe"`) HTML kaynağında gerçekten var |
+| 9 | Alıcı olarak giriş yap (`905009876543`, OTP `123456`), aynı tarife git, "Ürün sayfasına git" tıkla | `/buyer/discover`'a yönlendiriyor |
+| 10 | Alıcı → **Keşfet** sekmesini aç | Yeni "🍽️ Tarif fikri mi arıyorsun?" kutusu görünüyor (bottom nav'da yeni sekme **yok** — 5 slot dolu kuralına uyuldu), tıklayınca `/tarifler`'e gidiyor |
+| 11 | Supabase Dashboard → `recipe_views` tablosu | Adım 5/9'daki görüntülemelerin gerçek satırları var, `session_id` dolu |
+| 12 | Çiftçi/alıcı diğer ekranlar (Keşfet ürün listesi, Günlük, Siparişler) | Bu tur hiçbirine dokunmadı — davranış aynı |
+
+**Beklenen sonuç: 12/12 geçiyor.** Adım 4'ün "boş/az sonuç" dönmesi bug
+değildir — arz gerçeğinin (`Build/P23-Mobile.md` → "Arz gerçeği") doğrudan
+yansımasıdır.
+
+---
+
 ## Feature Sonrası Süreç
 
 1. Yeni prompt tamamlanınca yeni S-numarası eklenir
@@ -354,3 +417,4 @@ Dashboard'dan `recipes` tablosuna bakmak (M4'e kadar).
 - **2026-07-16:** **S8-S17 eklendi.** Fiyatlandırma/Keşfet/Görüşmeler/Raporlar/Abonelikler canlı test edildi (S8-S13, hepsi ✅). Detaylı fotoğraf/sayfa incelemesinde **4 yeni kritik bug bulunup düzeltildi** (S14-S17): günlük foto yükleme tamamen sahteydi, Parti sayfası kapak fotoğrafı yoktu, Üretici Detay ve Abonelik Oluştur sayfaları **tamamen mock/sahte veriye bağlıydı ve gerçekte hiçbir zaman DB'ye yazmıyordu**. Bu son ikisi bugüne kadarki en kritik "sessizce çalışmıyor" bulgularından — kullanıcıya hiçbir hata göstermeden özelliğin var olmadığı senaryolar.
 - **2026-07-28:** **S18 eklendi (P23-M1-a şema borçları).** Safran Soğanı birim bug'ı, `listings.min_order>quantity` BEFORE INSERT trigger'ı (+1 ihlal eden satır düzeltmesi), `buyer_profiles.company_name` nullable, `buyer_addresses` tek-varsayılan-adres trigger'ı — hepsi Supabase MCP ile gerçek SQL/insert/update testleriyle doğrulandı, Berkin'in uygulama üzerinden yapacağı QA adımları eklendi.
 - **2026-07-28:** **S19 eklendi (P22-G rutin bakım tarih/filtre + trigger temizliği).** `buyer_addresses` çift trigger'ı (P23-M1-a'nın kendi eklediği trigger'la çakışıyordu) düşürüldü; rutin bakım hesabı `v_routine_maintenance_status` view'ına taşındı (kural #106); asıl bug (eksik React Query invalidation) bulunup düzeltildi; "Yaptım" formuna tarih seçici eklendi; P22-E SMS'lerine eksik alanlar eklendi. Hepsi gerçek veri/Twilio testiyle doğrulandı; tarayıcı testi Berkin'e kaldı.
+- **2026-07-30:** **S22 eklendi (P23-M4-a public tarif yüzeyi).** Bu, S18/S19'dan farklı olarak **gerçekten yeni bir ekran** açıyor (`/tarifler`, `/tarifler/$slug`) — kural #109 gereği QA'nın ilk adımı Lovable'da Publish'e basmak. Malzeme kartının 3 durumu (eşleşti/nötr/platform-dışı) ve `min_order` yuvarlaması gerçek veriyle doğrulandı; `recipe_views` + yeni `v_kpi_recipe_funnel_by_recipe` gerçek `anon`/`authenticated` RLS simülasyonuyla test edildi. Bu oturumun ağ politikası Supabase'e canlı SSR sırasında erişimi engellediği için (P24'teki aynı kısıt), tam tarayıcı testi + detay sayfasının dinamik JSON-LD'sinin view-source kanıtı Berkin'e kaldı.

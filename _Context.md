@@ -1,6 +1,6 @@
 ---
 title: Hasat — AI Context
-updated: 2026-07-29
+updated: 2026-07-30
 tags: [hasat, ai-context]
 ---
 
@@ -96,12 +96,12 @@ Platform hiçbir crop'a özel muamele göstermez — domates/elma/safran/lavanta
 | Rekabet hukuku danışmanlığı | 🔴 Yapılmadı |
 | Glossary insan gözden geçirmesi | 🟡 P22-C içeriği AI üretimi, bölgesel doğrulama yapılmadı |
 | `useSetDefaultAddress` diğer adresleri `false`'a çekmiyor | 🟡 Düşük öncelik (P23-M1'de kapanacak) |
-| **P23 — Buyer Mobile & Recipe App** | 🟡 M0 + M1 kapandı; M2 uygulandı (tarayıcı QA S20-B bekliyor); **M3 + M3-D tamamlandı (2026-07-30), tarayıcı QA (S21) bekliyor** → `Build/Roadmap.md` |
+| **P23 — Buyer Mobile & Recipe App** | 🟡 M0 + M1 kapandı; M2 uygulandı (tarayıcı QA S20-B bekliyor); M3 + M3-D tamamlandı (tarayıcı QA S21 bekliyor); **M4-a (public tarif yüzeyi + DB eki + ölçümleme) tamamlandı (2026-07-30), tarayıcı QA (S22) bekliyor** — M4-b (Talep Et + admin heatmap + Gap #9) sırada → `Build/Roadmap.md` |
 
 ### BENCHMARK Gap durumu
 Kapandı: #2 teslim/ihtilaf · #3 değerlendirme · #5 tekrar sipariş · #6 RFQ · #7 hal fiyat bandı · #8 lojistik · #10 bildirimler
 Bloke: #1 escrow (P17-A) · #4 fatura (P17-D)
-P23'e bağlandı: #9 parselden tabağa QR → M4
+P23'e bağlandı: #9 parselden tabağa QR → M4-b
 Yapılmadı: #11 vade/cari · #12 hasat öncesi finansman
 
 ---
@@ -167,6 +167,8 @@ Bu sayılar ürün kararlarını doğrudan etkiliyor — özellikle tarif/tüket
 - **Tarif katmanı (P23-M2, 2026-07-29):** `recipes`, `recipe_steps`, `recipe_ingredients`, `crop_culinary_meta`, `recipe_saves`, `recipe_rfq_links`, `device_tokens` + `crop_config.default_photo_url` + `crop-photos` public bucket. Mantık DB'de: `fn_culinary_to_canonical`, `rpc_recipe_availability`, `rpc_recipe_shopping_list`, `v_recipe_coverage`, `v_kpi_recipe_funnel`.
 - **Malzeme→crop eşleştirmesi runtime'da fuzzy text matching ile YAPILMAZ** — `recipe_ingredients.crop` editoryal olarak bir kez doldurulur; `extract-recipe` bu alanı daima `null` bırakır.
 - **"Admin" diye bir DB rolü yok.** `profiles.role` yalnızca `farmer`/`buyer`; `is_admin()` fonksiyonu yok. Admin erişimi = service-role anahtarlı edge function (`admin-kpi` + `x-admin-key`). "Yazma sadece admin" pratikte "hiç politika yazma" demek — service_role RLS'i baypas eder.
+- **`v_kpi_recipe_funnel_by_recipe`** (P23-M4-a, 2026-07-30): `v_kpi_recipe_funnel`'ın per-recipe eşleniği — aynı sert-join deseni, `recipe_id` kırılımında. `security_invoker=true`, `anon`/`authenticated`'a GRANT yok (admin erişimi diğer KPI view'larıyla aynı desende, service-role). ⚠️ Bu projede yeni view'lara **varsayılan olarak** `anon`/`authenticated` GRANT düşüyor (muhtemelen `ALTER DEFAULT PRIVILEGES`) — diğer 20+1 KPI view'ının hiçbirinde bu yoktu; her yeni admin-only view'da grants'in gerçekten boş olduğu ayrıca doğrulanmalı, "postgres/service_role'a CREATE VIEW yazdım" yeterli değil.
+- **`crop_requests.quantity`/`.unit`** P23-M4-a'da eklenecek sanılıyordu — **canlı DB'de zaten mevcut** (nullable, trigger/constraint yok), muhtemelen P17-E'nin orijinal RFQ şemasından. Migration atlandı, sadece doğrulanıp dokümante edildi.
 - **`v_kpi_recipe_funnel` uçtan uca SERT JOIN (P23-M2-ek, 2026-07-29).** Beş basamak: `recipe_views` → `recipe_saves` → (`recipe_rfq_links`→`crop_requests` = malzeme yok yolu | `offers.source_recipe_id` = malzeme var yolu) → `orders.offer_id`. **Sezgisel atıf YOK** — önceki sürümdeki "aynı alıcı + aynı crop + talepten sonra" çıkarımı fazla atıf ürettiği için kaldırıldı. `crop_requests` ile `offers`/`orders` arasında hâlâ FK yok; bu yüzden teklif/sipariş atfı `offers.source_recipe_id` üzerinden yürüyor.
 - **`recipe_views`** (P23-M2-ek): görüntüleme olayı. IP/user-agent loglanmaz (KVKK). INSERT anon dahil serbest, SELECT yalnızca service_role.
 - **`offers.source_recipe_id`** (P23-M2-ek): nullable FK → `recipes`. `offers.subscription_id` ile aynı konvansiyon — "bu teklif nereden doğdu".

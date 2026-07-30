@@ -1,6 +1,6 @@
 ---
 title: Hasat — P23 Buyer Mobile & Recipe App
-updated: 2026-07-28
+updated: 2026-07-30
 tags:
   - hasat
   - p23
@@ -153,18 +153,17 @@ Araştırmayla belirlendi, iki katman + safran:
 | **Katman 2 — taze, Ağustos–Ekim penceresi** | `domates`, `biber`, `patlıcan`, `üzüm`, `incir`, `elma` (6) |
 | **Safran** | Tam 1 tarif, öne çıkarılmadan — diğerlerinin arasında bir crop (P25 crop-agnostic ilkesi) |
 
-⚠️ **Sayı notu:** Görev metni bu listeyi "13 odak crop" olarak adlandırıyor,
-ama yukarıdaki liste 7+6+1=**14** crop içeriyor — kaynağında bir sayım
-tutarsızlığı var. Bu otonom olarak çözüldü: **14 crop'un tamamı** hem
+✅ **Sayı notu — ÇÖZÜLDÜ (P23-M4-a, 2026-07-30):** Görev metni bu listeyi
+"13 odak crop" olarak adlandırmıştı, ama yukarıdaki liste 7+6+1=**14** crop
+içeriyor. M3'te bu otonom olarak çözülmüştü: **14 crop'un tamamı** hem
 `crop_culinary_meta` seedinde hem `default_photo_url` görsel listesinde
-işlendi. Gerekçe: safran'ı culinary seedden hariç tutmak kendi tarifinin
-(Safranlı Zerde, "1 tutam safran") `rpc_recipe_shopping_list`'te NULL
-dönmesine yol açardı — bu da E doğrulamasının kendisini (aşağıda) ihlal
-ederdi ve P25 crop-agnostic ilkesiyle çelişirdi (safran'ı görsel altyapıdan
-dışlamak onu ikinci sınıf crop yapardı, "öne çıkarma" değil "eksik bırakma"
-olurdu). **Bu karar Berkin onayı almadan verildi** — sayının kastının "14"
-mü yoksa gerçekten "13" mü (ve hangi crop'un dışarıda kalması gerektiği)
-olduğu netleşmeli.
+işlendi. **Berkin M4-a'da doğruladı: "13" kendi aritmetik hatasıydı, doğru
+sayı 14** — artık açık madde değil. Gerekçe (M3'te otonom karar verilirken):
+safran'ı culinary seedden hariç tutmak kendi tarifinin (Safranlı Zerde,
+"1 tutam safran") `rpc_recipe_shopping_list`'te NULL dönmesine yol açardı —
+bu da E doğrulamasının kendisini (aşağıda) ihlal ederdi ve P25
+crop-agnostic ilkesiyle çelişirdi (safran'ı görsel altyapıdan dışlamak onu
+ikinci sınıf crop yapardı, "öne çıkarma" değil "eksik bırakma" olurdu).
 
 **Gerçekleşen dağılım:** Katman 1'den 10 tarif, Katman 2'den 7 tarif, safran
 1 tarif = **18 tarif toplam** (hedef aralık 15–20 içinde).
@@ -210,7 +209,7 @@ istiyorsan o crop'un tarifini yaz ilkesi bu dağılımla uygulandı.
 #### Berkin'e kalan işler
 - 14 crop görseli + 18 tarif kapak fotoğrafı (liste: `DB-Schema.md`)
 - Glossary insan gözden geçirmesi (P22-C'den bekleyen, hâlâ açık — `TODO.md`)
-- 14 vs 13 sayı tutarsızlığının netleştirilmesi (yukarıda)
+- ~~14 vs 13 sayı tutarsızlığının netleştirilmesi~~ — ✅ Berkin M4-a'da doğruladı (yukarıda)
 
 ### M3-D — Mobil UI Görsel Şartnamesi (yeni paralel iş kolu, Berkin onayladı)
 
@@ -234,8 +233,21 @@ Bu dosyadan referanslanır, serbest dolaşan bir artifact değildir (üçüncü
 doğruluk kaynağı riski).
 
 ### M4 — Web tarif yüzeyi *(huninin üst ağzı — mobilden ÖNCE)*
-- `/tarifler` + `/tarifler/$slug` — **`/buyer/` dışında**, misafire açık, SSR ile SEO'lu
-- Malzeme kartı 3 durumu: eşleşti → ürün sayfası · yok → **Talep Et** + haber ver · platform-dışı (tuz/un) → nötr
+
+> **M4-a / M4-b'ye bölündü (2026-07-30).** Tek turda hem public yüzeyi hem
+> Talep Et akışını hem admin heatmap'i açmak riskliydi (üç ayrı yeni yüzey,
+> tek PR'da Berkin'in review yükü + Lovable çakışma riski birden büyür).
+> Bölünme kural #107 kapsamında değil (görev metni zaten M4-a'yı ayrı
+> tanımlıyordu) — burada sadece kayda geçiriliyor.
+
+#### M4-a — Public tarif okuma yüzeyi + DB eki + ölçümleme — ✅ **TAMAMLANDI (2026-07-30)**
+- `/tarifler` + `/tarifler/$slug` — **`/buyer/` dışında**, misafire açık, SSR ile SEO'lu (başlık/description/canonical/JSON-LD `Recipe`)
+- Malzeme kartı 3 durumu: eşleşti → ürün sayfası + fiyat/min_order · platform crop ama eşleşmiyor → nötr "Hasat'ta henüz yok" (CTA yok) · platform-dışı (tuz/un) → nötr
+- `recipe_views` yazımı canlıya alındı (`session_id` + `user_id`), `v_kpi_recipe_funnel_by_recipe` (per-recipe funnel) eklendi
+- Detaylar: `Build/DB-Schema.md` → "P23-M4-a", `Build/E2E-QA.md` → S22
+
+#### M4-b — Talep Et akışı + admin heatmap + Gap #9 — ⬜ **SIRADA**
+- Eşleşmeyen malzeme kartına **Talep Et** CTA'sı (M4-a'da bilinçli olarak nötr bırakıldı, CTA'sız)
 - Admin'de talep heatmap'i
 - **BENCHMARK Gap #9 — "parselden tabağa QR görünümü"** buraya bağlandı (şu an sahipsiz duruyor; tarif→malzeme→parsel zinciri tam olarak o özellik)
 - **Neden mobilden önce:** SEO 3–6 ayda birikir; içeriksiz ve kullanıcısız bir native app'in store'da değeri yok, 4.2 reddi de en çok o durumda gelir
