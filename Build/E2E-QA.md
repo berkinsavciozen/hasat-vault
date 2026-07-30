@@ -386,6 +386,70 @@ yansımasıdır.
 
 ---
 
+### S23 — P23-M4-b Talep Et Akışı + Admin Talep Isı Haritası + Gap #9
+
+> **Kural #109 — QA'nın İLK adımı Publish'e basmak.** Bu tur da (S22 gibi)
+> Claude Code tarafından `hasat-d2c-marketplace` reposuna PR olarak açıldı.
+> Merge sonrası bile Lovable'da **Publish**'e basılmadan `hasat.lovable.app`
+> eski build'i göstermeye devam eder.
+
+**Arka plan:** `Build/P23-Mobile.md` M4-b. Kapsam: eşleşmeyen malzemede
+"Talep Et" CTA'sı + guest niyet takibi, "haber ver" (mevcut
+`crop_request_match` deseni), admin talep ısı haritası, Gap #9 (mevcut
+batch/traceability sayfasına link), ve M4-a'nın 3 bulgusunun düzeltilmesi
+(malzeme büyük harf, `totalTime`, `image`). Tam ayrıntı: `Build/DB-Schema.md`
+→ "P23-M4-b".
+
+#### A. Veri katmanı + uçtan uca doğrulama — Claude Code + Supabase MCP (kural #96)
+Ayrıntılı sonuç tablosu: `Build/DB-Schema.md` → "P23-M4-b" → "Doğrulama".
+Özet: gerçek RLS simülasyonuyla (Zeynep, authenticated) `crop_requests` +
+`recipe_rfq_links` insert edildi, `v_kpi_recipe_funnel_by_recipe`'de o
+tarifin talep basamağı 0→1 arttığı doğrulandı; ardından Ahmet için yeni bir
+aktif `zeytinyağı` ilanı eklenip **"haber ver" trigger'ının** (a) bölge
+uyuşmadığında doğru şekilde **atladığı**, (b) bölge boş/uyuştuğunda
+`notifications` satırı yazıp talebi `status='added'`'e çektiği ayrı ayrı
+kanıtlandı; gerçek SMS gönderilmediği (`net._http_response`) doğrulandı;
+tüm test verisi (crop_requests/recipe_rfq_links/listings/notifications)
+silindi, funnel view'ı 0'a döndü. `totalTime` düzeltmeleri (13/18 tarif)
+SQL ile önce/sonra listelendi. Yeni `v_kpi_crop_demand_heatmap` view'ının
+`anon`/`authenticated` grant'i olmadığı (kural #110) ve `security_invoker=true`
+olduğu doğrulandı.
+
+#### B. Sandbox kısıtı — bu turda `bun install` de engellendi (yeni bulgu)
+Önceki turlarda ağ kısıtı yalnızca canlı Supabase SSR/tarayıcı erişimini
+kapatıyordu (bkz. S22 → B). Bu turda ayrıca `bun install`'ın kullandığı
+paket mirror'ı (`bun.lock`'a kilitli `*-npm.pkg.dev/lovable-core-prod/...`
+tarball URL'leri) org egress politikasıyla 403 aldı — tam bağımlılık kurulumu
+yapılamadı. Kısmen kurulu `node_modules` ile `tsc --noEmit`, `eslint` ve
+`prettier` çalıştırıldı: değişen/yeni dosyalarda **sıfır yeni hata**
+(değişiklik öncesi/sonrası tsc çıktısı satır-satır özdeş, kalan hatalar
+tamamen pre-existing implicit-any deseni + eksik paketler — `recharts`,
+`zod`, `@lovable.dev/*`). Gerçek `vite build` bu oturumda **yapılamadı** —
+Lovable/Berkin'in ortamında doğrulanmalı.
+
+#### C. Berkin'in tarayıcı adımları
+
+| # | Adım | Beklenen |
+|---|---|---|
+| 1 | Lovable editörünü aç, **Publish**'e bas | Yeni build yayınlandı |
+| 2 | `hasat.lovable.app/tarifler/zeytinyagli-nohut-yemegi` gibi zeytinyağı/susam içeren bir tarife git | **Zeytinyağı** malzemesinin altında artık gri bir pil değil, turuncu **"Talep Et →"** butonu var |
+| 3 | Aynı sayfada eşleşen bir malzemeye bak (ör. **domates**, varsa) | "Ürün sayfasına git" linkinin altında **"🔍 Parselden tabağa: kaynağını gör"** linki var (Gap #9) — tıklayınca parti/izlenebilirlik sayfası açılıyor |
+| 4 | Giriş yapmadan (gizli sekme) "Talep Et"e bas | `/login`'e yönleniyor |
+| 5 | Telefonla giriş yap (yeni bir test numarası, onboarding'den geçecek şekilde) | Onboarding tamamlanınca `/buyer/discover`'a düşüyor, üstte **"Yarım kalan talebiniz var"** bandı görünüyor |
+| 6 | Bandaki linke tıkla | Tarif sayfasına dönüyor, **"Talep Et" formu otomatik açılıyor**, malzeme adı önceden dolu/kilitli |
+| 7 | Zaten giriş yapmış bir alıcıyla (Zeynep, `905009876543`/`123456`) doğrudan "Talep Et"e bas | Form direkt açılıyor (login'e gitmiyor), miktar/birim alanı tarifin ihtiyacına göre **önceden dolu** geliyor |
+| 8 | Formu gönder | "Talebiniz alındı… bu ürün geldiğinde size de haber vereceğiz" mesajı görünüyor |
+| 9 | Bir tarifte, önceki bekleme/soğutma/mayalanma içeren adımı olan (ör. Cevizli Üzümlü Köme, Ekşi Mayalı Ekmek) sürelere bak | Toplam süre artık "N dk" değil, "N gün M sa" gibi okunabilir bir biçimde ve gerçekçi (köme için ~3 gün) |
+| 10 | Sayfa kaynağını görüntüle (view-source) — kapak fotoğrafı olmayan bir tarifte | JSON-LD'de `"image"` alanı **hiç yok** (temsili görsel varsa bile) — Berkin bir tarife gerçek kapak fotoğrafı yükleyince bu alan otomatik belirmeli |
+| 11 | Admin → `/admin/kpi` → anahtarı gir → **"Talep Isı Haritası"** sekmesi | Tablo açılıyor; **zeytinyağı** satırı "9 tarifte temel malzeme" + "Aktif ilan: Yok" ile turuncu vurgulu görünüyor; adım 8'de gönderilen test talebi (temizlenmemişse) o crop'un satırında görünüyor |
+| 12 | Bildirim zilini aç (adım 8'in ardından, eşleşen bir çiftçi ilan açtığında) | Yeni bir "🎉 Talep ettiğiniz ürün geldi" bildirimi görünüyor, tıklayınca `/tarifler`'e gidiyor |
+
+**Beklenen sonuç: 12/12 geçiyor.** Adım 10'un "image alanı yok" göstermesi
+bug değildir — 18/18 tarifin `cover_photo_url`'i hâlâ NULL olduğu sürece
+beklenen davranıştır.
+
+---
+
 ## Feature Sonrası Süreç
 
 1. Yeni prompt tamamlanınca yeni S-numarası eklenir
@@ -418,3 +482,4 @@ yansımasıdır.
 - **2026-07-28:** **S18 eklendi (P23-M1-a şema borçları).** Safran Soğanı birim bug'ı, `listings.min_order>quantity` BEFORE INSERT trigger'ı (+1 ihlal eden satır düzeltmesi), `buyer_profiles.company_name` nullable, `buyer_addresses` tek-varsayılan-adres trigger'ı — hepsi Supabase MCP ile gerçek SQL/insert/update testleriyle doğrulandı, Berkin'in uygulama üzerinden yapacağı QA adımları eklendi.
 - **2026-07-28:** **S19 eklendi (P22-G rutin bakım tarih/filtre + trigger temizliği).** `buyer_addresses` çift trigger'ı (P23-M1-a'nın kendi eklediği trigger'la çakışıyordu) düşürüldü; rutin bakım hesabı `v_routine_maintenance_status` view'ına taşındı (kural #106); asıl bug (eksik React Query invalidation) bulunup düzeltildi; "Yaptım" formuna tarih seçici eklendi; P22-E SMS'lerine eksik alanlar eklendi. Hepsi gerçek veri/Twilio testiyle doğrulandı; tarayıcı testi Berkin'e kaldı.
 - **2026-07-30:** **S22 eklendi (P23-M4-a public tarif yüzeyi).** Bu, S18/S19'dan farklı olarak **gerçekten yeni bir ekran** açıyor (`/tarifler`, `/tarifler/$slug`) — kural #109 gereği QA'nın ilk adımı Lovable'da Publish'e basmak. Malzeme kartının 3 durumu (eşleşti/nötr/platform-dışı) ve `min_order` yuvarlaması gerçek veriyle doğrulandı; `recipe_views` + yeni `v_kpi_recipe_funnel_by_recipe` gerçek `anon`/`authenticated` RLS simülasyonuyla test edildi. Bu oturumun ağ politikası Supabase'e canlı SSR sırasında erişimi engellediği için (P24'teki aynı kısıt), tam tarayıcı testi + detay sayfasının dinamik JSON-LD'sinin view-source kanıtı Berkin'e kaldı.
+- **2026-07-30:** **S23 eklendi (P23-M4-b Talep Et + admin talep ısı haritası + Gap #9).** Eşleşmeyen malzemede baskın-durum "Talep Et" CTA'sı + guest niyet takibi (`localStorage` + `/login`'in `next` param'ı), mevcut `crop_request_match`/`dispatch_sms` deseni yeniden kullanılarak "haber ver" (yeni bir trigger, yeni tablo yok), `/admin/kpi`'ye talep ısı haritası sekmesi, Gap #9 mevcut `/batch/$listingId` sayfasına link olarak kapandı. Uçtan uca gerçek RLS simülasyonuyla doğrulandı: talep+huni atfı, "haber ver"in bölge eşleşmesine göre doğru tetiklenip/atlandığı, gerçek SMS gönderilmediği. Ayrıca M4-a'nın 3 bulgusu (malzeme büyük harf, 13/18 tarifte eksik `totalTime`, `image` alanının temsili görselle karışması) düzeltildi. **Yeni bulgu:** bu oturumda `bun install` de org egress politikasıyla engellendi (Lovable'ın özel paket mirror'ı) — `tsc`/`eslint`/`prettier` kısmi kurulumla temiz sonuç verdi ama gerçek `vite build` yapılamadı, Lovable/Berkin'in ortamında doğrulanmalı.

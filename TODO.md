@@ -91,7 +91,7 @@ tags:
 | 6 | Yapılandırılmış RFQ | P1 | ✅ Kapandı (P17-E) |
 | 7 | Hal fiyatı referans bandı | P1 | ✅ Kapandı (P19, sadece İzmir pilotu) |
 | 8 | Lojistik adımı (taşıma+takip) | P1/P0 | ✅ **Kapandı (P17-B alanları + P20 bildirimi)** |
-| 9 | Parselden tabağa QR görünümü | P2 | 🔵 **P23-M4-b'ye bağlandı** (2026-07-28, M4 kendi içinde a/b'ye bölündü 2026-07-30) — tarif→malzeme→parsel zinciri tam olarak bu özellik; ayrı iş olarak beklemiyor |
+| 9 | Parselden tabağa QR görünümü | P2 | ✅ **Kapandı (P23-M4-b, 2026-07-30)** — eşleşen malzemeden mevcut `/batch/$listingId` izlenebilirlik sayfasına link, yeni sistem kurulmadı |
 | 10 | SMS/WhatsApp bildirim genişletmesi | P2 | ✅ **Kapandı (P20, P24'te regresyonu düzeltildi)** |
 | 11 | Onaylı alıcıya vade/cari | P1→P2 | ⬜ Yapılmadı |
 | 12 | Hasat öncesi finansman | P2 | ⬜ Yapılmadı — partner gerektirir, uzun vade |
@@ -303,6 +303,7 @@ Son değişikliğin (`buyer.producer.$id` guest-erişimi) routing-guard seviyesi
 107. [2026-07-29'da eklendi] Bir prompt açıkça "öneriyi bana sun, kendi başına karar verme" dediğinde, karar verilmeden uygulamaya geçilmez. Uygulandıysa bile, kararın Berkin tarafından verildiği asla raporlanmaz — otonom alınan karar açıkça öyle etiketlenir. Gerekçe: 2026-07-28'de P22-G/E'de SMS içerik kararı onay alınmadan uygulanıp Berkin'e atfedildi; çıktı doğruydu ama denetim izi bozuldu ve "bu kararı kim verdi" sorusuna kalıcı olarak yanlış cevap üretecekti. Dış dünyaya Berkin adına giden içerikte (SMS, e-posta, store metni) provenance kritiktir.
 108. [2026-07-29'da eklendi] Bir doküman/kural değişikliği "yapıldı" olarak raporlanırken, PR açıklamasında eklenen metnin birebir alıntısı bulunmalıdır. Gerekçe: 2026-07-28'de "kural #107 TODO.md'ye eklendi" raporlandı, Berkin bu iddiaya dayanarak merge etti, ancak kural dosyada yoktu — liste #106'da bitiyordu. Aynı turda ikinci bir yanlış tamamlanma raporu daha vardı. Alıntı zorunluluğu, iddianın diff açılmadan doğrulanabilmesini sağlar.
 109. [2026-07-29'da eklendi] Lovable projesinde `main`'e merge edilmiş kod, **Publish'e basılmadan** yayınlanmış URL'e (`hasat.lovable.app`) inmez — Lovable'ın kendi düzenlemeleri de dahil. Bu yüzden tarayıcı QA'sından ÖNCE Publish yapılmalı, yoksa test edilen build merge edilmiş koddan günler geride olabilir. Gerekçe: 2026-07-29'da P22-G'nin QA'sında üç "defect" bulundu (satırlarda tarih görünmüyor, Bugün/Bu Hafta/Tümü filtresi süzmüyor, "Yaptım" formunda tarih seçici yok); üçü de kodda mevcuttu ve 18 saat önce merge edilmişti — test edilen yayınlanmış build o kadar geriydi. Yanlış teşhis konuldu ve P22-G'nin UI'ının gereksiz yere baştan yazılması riski doğdu. Ayırt edici ipucu: UI'da görülen hesap ile DB view'ının döndürdüğü değer çelişiyorsa (örn. view `is_overdue=false` derken ekran "1 gün gecikti" diyorsa), iki farklı kod sürümü çalışıyor demektir — önce Publish, sonra teşhis.
+110. [2026-07-30'da eklendi] Bu Supabase projesinde yeni oluşturulan view'lar varsayılan olarak `anon` ve `authenticated` rollerine SELECT GRANT'i alıyor — mevcut 20 KPI view'ında bu grant yok, yani konvansiyon "yalnızca service_role". `security_invoker=true` ayarlamak YETERLİ DEĞİLDİR: o alttaki tabloların RLS'ini uygular, ama view'ın kendisine erişim hakkı ayrı bir katmandır. Her yeni view'de grant'ler açıkça REVOKE edilmeli VE `information_schema.role_table_grants` ile doğrulanmalı. P23-M4-a'da yakalandı; fark edilmeseydi tarif funnel verisi tüm kullanıcılara açık olacaktı.
 ---
 
 ## 📌 Kararlar
@@ -604,7 +605,7 @@ P22 serisi (A/B/C/D/E/F) + P22-F'nin yan etki düzeltmeleri + P22-G (tarih/filtr
 | M2 | Tarif backend'i (ekleyici) | 11 – 22 Ağu | 🟡 Uygulandı (2026-07-29), tarayıcı QA (S20-B) bekliyor |
 | M3 | İçerik (18 tarif) + culinary seed + görsel altyapı | 18 Ağu – 1 Eyl | ✅ TAMAMLANDI (2026-07-30), tarayıcı QA (S21) bekliyor |
 | M3-D | Mobil UI görsel şartnamesi (paralel iş kolu) | — | ✅ TAMAMLANDI (2026-07-30) — `Build/P23-Mobile-Visual-Spec.md` |
-| M4 | Web tarif yüzeyi + Gap #9 | 1 – 13 Eyl | ⬜ |
+| M4 | Web tarif yüzeyi + Gap #9 | 1 – 13 Eyl | ✅ TAMAMLANDI (2026-07-30, a+b) |
 | M5 | Mobil iskelet + offline | 14 – 27 Eyl | ⬜ |
 | M6 | Native yetenekler + push | 28 Eyl – 11 Eki | ⬜ — ⚠️ **açık madde var, bkz. altta "M6 açık maddeleri"** |
 | M7 | Köprü + store varlıkları | 12 – 18 Eki | ⬜ |
@@ -1160,3 +1161,43 @@ dinamik JSON-LD'sinin view-source kanıtı **Berkin'in tarayıcısına** bırak�
    izin verdiği "1 nullable kolon" kapsamının (crop_requests) dışında.
    `Build/DB-Schema.md`'nin `v_kpi_recipe_funnel` "üç bilinen sınır #3"ü
    bu yüzden hâlâ tam kapanmadı — M4-b/M9 açık maddesi.
+
+---
+
+### 🟢 P23-M4-b — Talep Et Akışı + Admin Talep Isı Haritası + Gap #9 — **TAMAMLANDI (2026-07-30, Claude Code doğrudan)**
+
+**Bir cümlede:** Eşleşmeyen malzeme kartına baskın-durum "Talep Et" CTA'sı
+(guest niyeti kaybetmeden), mevcut `crop_request_match`/`dispatch_sms`
+deseni yeniden kullanılarak "bu ürün geldiğinde haber ver", `/admin/kpi`'ye
+çiftçi kazanım öncelik listesi sekmesi, ve BENCHMARK Gap #9 mevcut
+`/batch/$listingId` sayfasına link olarak kapandı — hepsi yeni altyapı
+kurmadan. Ayrıca M4-a'nın 3 bulgusu (malzeme büyük harf, eksik `totalTime`,
+`image` alanı) düzeltildi.
+
+**A1 — orkestratör hatası düzeltmesi:** Önceki bir turda `crop_requests`'in
+canlıda 6 kolona düştüğü iddia edilmişti — bu, kesilmiş bir SQL çıktısına
+dayanan yanlış bir orkestratör bulgusuydu. Bu turda `information_schema.columns`
+ile yeniden doğrulandı: **12 kolon**, tam olarak dokümanların (`DB-Schema.md`,
+`P23-Mobile.md`) zaten söylediği gibi. Dokümanlarda kaldırılması gereken
+yanlış bir not bulunmadı.
+
+**Kural #110 eklendi** (yeni view'larda varsayılan `anon`/`authenticated`
+grant'i — bkz. yukarıdaki kural listesi).
+
+**Kapsam kuralı tutuldu:** `src/lib/core/` dokunulmadı (kural #105),
+checkout/ödeme yok, `unit_type` enum'una dokunulmadı, buyer alt navigasyonuna
+yeni sekme eklenmedi, `routeTree.gen.ts` gereksiz yeniden üretilmedi.
+
+Tam ayrıntı, otonom karar gerekçeleri ve dokunulan dosya listesi:
+`Build/DB-Schema.md` → "P23-M4-b". Doğrulama tablosu (kural #96) aynı
+bölümde. Tarayıcı QA: `Build/E2E-QA.md` → S23.
+
+**⚠️ Bu oturumda yeni bir ortam kısıtı bulundu:** `bun install` bu turda
+tamamlanamadı — kilitli `bun.lock` tarball URL'leri Lovable'ın özel paket
+mirror'ına (`*-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache`) işaret
+ediyor ve bu host org egress politikasıyla kapalı (önceki oturumlardaki
+"Supabase'e canlı SSR sırasında erişilemiyor" kısıtından **ayrı, yeni**
+bir bulgu). `tsc --noEmit`/`eslint`/`prettier` kısmi/önceden cache'lenmiş
+`node_modules` ile çalıştırılabildi (temiz sonuç, yeni hata yok), ama tam
+`vite build` bu oturumda mümkün olmadı — gerçek prod build doğrulaması
+Lovable/Berkin'in ortamında yapılmalı.

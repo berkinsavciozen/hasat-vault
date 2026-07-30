@@ -246,10 +246,13 @@ doğruluk kaynağı riski).
 - `recipe_views` yazımı canlıya alındı (`session_id` + `user_id`), `v_kpi_recipe_funnel_by_recipe` (per-recipe funnel) eklendi
 - Detaylar: `Build/DB-Schema.md` → "P23-M4-a", `Build/E2E-QA.md` → S22
 
-#### M4-b — Talep Et akışı + admin heatmap + Gap #9 — ⬜ **SIRADA**
-- Eşleşmeyen malzeme kartına **Talep Et** CTA'sı (M4-a'da bilinçli olarak nötr bırakıldı, CTA'sız)
-- Admin'de talep heatmap'i
-- **BENCHMARK Gap #9 — "parselden tabağa QR görünümü"** buraya bağlandı (şu an sahipsiz duruyor; tarif→malzeme→parsel zinciri tam olarak o özellik)
+#### M4-b — Talep Et akışı + admin heatmap + Gap #9 — ✅ **TAMAMLANDI (2026-07-30)**
+- Eşleşmeyen malzeme kartına **Talep Et** CTA'sı — baskın durum tasarımı (68 malzemenin 54'ü), yeni tablo yok (`crop_requests`+`recipe_rfq_links` zaten yetiyordu), guest niyeti `localStorage` + `/login`'in `next` param'ıyla korunuyor
+- **"Bu ürün geldiğinde haber ver"** — mevcut `crop_request_match`/`dispatch_sms` deseni yeniden kullanıldı (yeni tablo/event yok), yeni bir `listings` trigger'ı bekleyen eşleşen talepleri bildiriyor
+- Admin'de talep ısı haritası (`v_kpi_crop_demand_heatmap`, `/admin/kpi` → "Talep Isı Haritası" sekmesi)
+- **BENCHMARK Gap #9 — "parselden tabağa QR görünümü"** kapandı: eşleşen malzemeden mevcut `/batch/$listingId` izlenebilirlik sayfasına link, yeni sistem kurulmadı
+- M4-a'nın 3 bulgusu da bu turda düzeltildi: malzeme adlarının cümle-içi küçük harfi, 13/18 tarifte eksik `totalTime` (dinlenme/soğutma/mayalanma/ıslatma süresi), JSON-LD `image` alanının temsili görselle karışması
+- Detay: `Build/DB-Schema.md` → "P23-M4-b", `Build/E2E-QA.md` → S23
 - **Neden mobilden önce:** SEO 3–6 ayda birikir; içeriksiz ve kullanıcısız bir native app'in store'da değeri yok, 4.2 reddi de en çok o durumda gelir
 
 ### M5 — Mobil iskelet

@@ -709,3 +709,263 @@ Detaylar `TODO.md` M4-a build log'unda ve `Build/E2E-QA.md` → S22'de.
 - `src/routes/buyer.discover.tsx` (küçük ekleme — "Tarifler" banner'ı, mevcut mantık değişmedi)
 - `src/routeTree.gen.ts` (otomatik yeniden üretildi, elle dokunulmadı)
 - `src/lib/core/` — **dokunulmadı** (kural #105)
+
+---
+
+## P23-M4-b — Talep Et Akışı + Admin Talep Isı Haritası + Gap #9 (2026-07-30)
+
+`Build/P23-Mobile.md` M4-b. Kapsam: eşleşmeyen malzeme kartına "Talep Et"
+CTA'sı, "bu ürün geldiğinde haber ver", admin talep ısı haritası, BENCHMARK
+Gap #9 (parselden tabağa), ve M4-a'nın üç bulgusunun düzeltilmesi.
+
+### A1 — Orkestratör hatası düzeltmesi
+
+Önceki bir turda `crop_requests`'in canlıda yalnızca 6 kolon içerdiği ve
+dokümanla çeliştiği bildirilmişti. **Bu yanlıştı** — orkestratörün okuduğu
+SQL çıktısı kesilmişti. Bu turda `information_schema.columns` ile yeniden
+doğrulandı: canlı tablo **12 kolonlu** —
+`id, requested_by, crop_name_free_text, note, status, created_at, quantity,
+unit, region, target_date_start, target_date_end, target_price`. P17-E
+genişletmesi gerçekten yapılmış, dokümanlar (bu dosya + `P23-Mobile.md`)
+zaten doğruydu — P23-M4-a'da da aynı sonuç bulunmuştu (bkz. yukarı, "P23-M4-a
+→ A"). Kontrol edildi, mevcut dokümanlarda kaldırılması gereken yanlış bir
+"doküman–gerçeklik farkı" notu **yoktu** — düzeltilecek bir şey bulunmadı,
+sadece burada kayıt altına alınıyor ki bu yanlış iddia bir daha dolaşıma
+girmesin.
+
+### B — M4-a bulgularının düzeltilmesi
+
+**1. Malzeme satırlarında büyük harf.** `formatCrop()` her zaman Title Case
+üretiyor ("Ceviz", "Zeytinyağı") — bu bir liste kartının başlığı için doğru
+ama JSON-LD `recipeIngredient`'te ("16 adet Ceviz (kabaca kırılmış)") ve
+malzeme kartının görünen adında yanlış: ikisi de bir cümle başlangıcı değil,
+bir liste satırı. Yeni `formatCropIngredient()` (`format.ts`) aynı slug→etiket
+dönüşümünü tamamen küçük harfle yapıyor; hem `ingredientLabel()` (JSON-LD)
+hem malzeme kartının `name` değişkeni artık bunu kullanıyor. `formatCrop()`
+(Title Case) diğer tüm kullanım yerlerinde (parti sayfası başlığı gibi,
+gerçek cümle/başlık konumları) **değişmeden** kaldı.
+
+**2. `totalTime` tutarlılığı — 18 tarifin tamamı kontrol edildi, 13'ünde
+düzeltme yapıldı.** Yöntem: her `recipe_steps` satırı, talimat metninde
+pasif-bekleme fiili (dinlendir/bekle/soğu/mayaland/ısla/kurut) VE bir
+`timer_seconds` değeri olup olmadığına göre tarandı. Bir pasif adımın
+dakikası, mevcut `prep_minutes`/`cook_minutes`'tan birine **birebir eşit**
+değilse (örn. ekşi mayalı ekmeğin 30 dk otoliz adımı `prep_minutes=30`'a
+tam eşit — zaten sayılmış kabul edildi), "sayılmamış" kabul edilip eklendi:
+pişirmeden **önceki** bekleme → `prep_minutes`'e, pişirmeden **sonraki**
+bekleme/soğutma (yemeğin ne zaman gerçekten "hazır" sayıldığını belirleyen)
+→ `cook_minutes`'e.
+
+| Tarif | Önce | Sonra | Eklenen (dk) | Neden |
+|---|---|---|---|---|
+| Cevizli Biber Ezmesi (Muhammara) | 35 | 65 | +30 (cook) | Buzdolabı dinlendirmesi (görevin kendi örneği) |
+| Cevizli Kurabiye | 35 | 50 | +15 (cook) | Fırından çıkınca soğuma |
+| Cevizli Üzümlü Köme | 50 | 4370 | +4320 (cook) | 3 gün kurutma — hiç sayılmamıştı |
+| Ekşi Mayalı Tam Buğday Ekmeği | 75 | 1065 | +960 (prep) +30 (cook) | 4 sa mayalanma + 12 sa soğuk mayalanma (prep); fırın sonrası soğuma (cook) |
+| Fırında Patlıcan Musakka | 65 | 90 | +20 (prep) +5 (cook) | Patlıcanı tuzlu suda bekletme; servis öncesi dinlendirme |
+| İncir Reçeli | 80 | 830 | +720 (prep) +30 (cook) | Bir gece şekerle bekletme; kavanoza alma öncesi soğutma |
+| Köz Biber-Patlıcan Ezmesi | 40 | 50 | +10 (prep) | Kabuk soyma öncesi poşette dinlendirme |
+| Nohut Falafel | 30 | 60 | +30 (prep) | Kızartma öncesi buzdolabı dinlendirmesi |
+| Safranlı Zerde | 50 | 80 | +30 (cook) | Servis öncesi soğutma |
+| Vegan Fındık Kreması | 25 | 145 | +120 (cook) | Kavanozda koyulaşma/soğuma (2 sa) |
+| Zeytinyağlı Buğday Tanesi Salatası | 55 | 90 | +35 (cook) | Haşlama sonrası soğutma + servis öncesi buzdolabı |
+| Zeytinyağlı Mercimek Köftesi | 45 | 60 | +15 (prep) | Bulgurun su çekmesi için dinlendirme |
+| Zeytinyağlı Nohut Yemeği | 60 | 555 | +480 (prep) +15 (cook) | Bir gece ıslatma; servis öncesi dinlendirme |
+
+Değişmeyen 5: Cevizli Elmalı Salata, Ev Yapımı Zeytinyağlı Domates Sosu
+(tek şüpheli adım "ılıyınca" — soğutma/dinlenme fiili değil, bilinçli
+atlandı), Kekikli Zeytinyağı Ezmesi, Mercimek Çorbası, Taze Üzüm ve Cevizli
+Yeşil Salata. `toIsoDuration()` kod değişikliği gerekmedi (72+ saatlik
+değerler için de geçerli ISO8601 — `PT72H30M` gibi). UI'daki ham "N dk"
+gösterimi çok günlük tarifler için okunaksız olacağından yeni
+`formatTotalMinutes()` (dk/sa/gün otomatik seçer) hem liste hem detay
+sayfasında `Clock` rozetine bağlandı.
+
+**3. `image` alanı.** JSON-LD kodu artık `recipe.displayPhotoUrl` (temsili
+crop foto dahil fallback) yerine ham `recipe.cover_photo_url`'e bakıyor —
+alan yalnızca tarifin **kendi gerçek** kapak fotoğrafı varsa yazılıyor.
+Gerekçe: temsili bir crop stok fotoğrafını Google'a "bu yemeğin fotoğrafı"
+diye sunmak, projenin kendi "temsili görsel" dürüstlük ilkesini (bkz. M3 →
+"Fotoğraf stratejisi") JSON-LD katmanında ihlal ederdi ve structured-data
+uyuşmazlığı olarak cezalandırılabilir. Şu an 18/18 `cover_photo_url` NULL
+olduğu için alan hâlâ hiç yazılmıyor — kod, Berkin kapak fotoğraflarını
+yükledikçe otomatik devreye girecek şekilde hazır. `og:image` (sosyal
+önizleme, bir veri iddiası değil) bilinçli olarak `displayPhotoUrl`'de
+bırakıldı, değişmedi.
+
+### C — Talep Et Akışı (kayıt zorunlu — Berkin kararı)
+
+**Yeni tablo yok.** `crop_requests` (P17-E) + `recipe_rfq_links` (P23-M2-ek)
+zaten tam ihtiyacı karşılıyor — `quantity`/`unit`/`region`/`target_price`
+hepsi mevcuttu (bkz. A1). Yapılan iş tamamen frontend: `CropRequestModal`
+(daha önce yalnızca `buyer.discover.tsx` içinde yaşayan inline form) paylaşılan
+bir bileşene (`src/components/hasat/CropRequestModal.tsx`) çıkarıldı ve
+`recipeId`/`lockCropName`/`initialQuantity`/`initialUnit` prop'larıyla
+genişletildi — hem Keşfet'in genel "Ürün Talep Et" formu hem tarif sayfasının
+malzeme-özel "Talep Et"i **aynı** `useCreateCropRequest()` mutasyonunu (ve
+onun içindeki eşleştirme/SMS mantığını) kullanıyor, iki kopya yok (kural #98).
+
+- **Baskın durum tasarımı:** eşleşmeyen platform crop artık nötr bir pilden
+  ibaret değil — pilin altında saffron renkli, gerçek bir "Talep Et →" butonu
+  var (68 malzemenin 54'ünün durumu, kenar durum gibi görünmemesi için).
+- **Miktar önerisi:** modal açılırken `rpc_recipe_shopping_list`'in o
+  malzeme için hesapladığı `purchase_canonical`/`canonical_unit` miktar/birim
+  alanlarına otomatik dolduruluyor (kullanıcı değiştirebilir) — "miktar kritik"
+  talimatının karşılığı, boş bırakılması kolay bir alan değil.
+- **Ürün adı kilitli** (`lockCropName`): tarif sayfasından açılan talepte
+  ürün adı düzenlenemiyor — huninin `recipe_rfq_links` atfının, kullanıcının
+  formda adı değiştirip başka bir ürün talep etmesiyle bozulmaması için.
+- **`recipe_rfq_links`:** `crop_requests` insert'i başarılı olur olmaz aynı
+  akışta `recipe_id`+`crop_request_id` satırı yazılıyor — huni atfı (kural
+  #96 ile gerçek veriyle doğrulandı, aşağı bkz.).
+
+**Guest → kayıt round-trip (niyet kaybı yok):** `/login` rotası zaten
+`next` arama parametresini destekliyordu (girişten sonra geri döner) **ama
+yalnızca profili tamamlanmış kullanıcılar için** — yeni bir kullanıcı önce
+onboarding'e düşüyor ve `next` orada kayboluyor. Bu yüzden niyet ayrıca
+`localStorage`'a da yazılıyor (`src/lib/hasat/recipe-intent.ts`,
+`hasat-pending-recipe-request` anahtarı: `recipeId`/`recipeSlug`/`crop`/
+`cropLabel`): guest "Talep Et"e bastığında hem bu kayıt yazılıyor hem
+`/login?role=buyer&next=/tarifler/$slug`'a yönleniyor. Tarif sayfası her
+mount'ta (giriş yapılmışsa) bu kaydı kontrol edip **aynı tarif** için
+eşleşen malzemeyi bulup modalı otomatik açıyor. Ayrıca `/buyer/discover`'a
+(onboarding sonrası varsayılan iniş sayfası) yarım kalan bir niyet varsa
+"Yarım kalan talebiniz var" bandı eklendi — kullanıcı `next` ile
+`/tarifler/$slug`'a dönemese bile niyeti görüp tek tıkla tamamlayabiliyor.
+
+**"Bu ürün geldiğinde haber ver".** Yeni tablo/altyapı kurulmadı — mevcut
+`price_alerts` **deseni** (bir bekleyen kayıt + `dispatch_sms`/`notifications`
+üzerinden otomatik tetiklenen bildirim) yeniden kullanıldı, ama `price_alerts`
+tablosunun kendisi değil: o tablo `farmer_id`-scoped ve RLS'i yalnızca
+çiftçiye açık (buyer için uygun değil). Bunun yerine zaten var olan
+`crop_requests` satırının kendisi "bekleyen istek" rolünü görüyor, ve yeni
+bir trigger — `notify_crop_request_fulfilled()` (`AFTER INSERT OR UPDATE OF
+status ON listings`, `status` `'active'`'e geçince) — P17-E'nin **forward**
+eşleşmesinin (buyer talep açar → eşleşen çiftçiler `crop_request_match`
+event'iyle bildirilir) **reverse**'ü: bir çiftçinin yeni/aktifleşen ilanı,
+bekleyen (`status='pending'`) eşleşen talepleri buluyor ve **aynı** event'i
+(`crop_request_match`, aynı `notif_prefs.crop_request_match_sms` toggle'ı,
+aynı `notifications` tablosu) buyer'a doğru çalıştırıyor. Eşleşme
+`crop_name_free_text` ↔ `crop_config.crop`/`display_name` (case-insensitive)
++ `region` doluysa çiftçinin `profiles.city`'siyle karşılaştırma. Bildirilen
+talep `status='added'`'e çekiliyor ki aynı çiftçinin sonraki ilanlarında
+tekrar tekrar bildirim gitmesin.
+
+**🔶 Otonom kararlar (kural #107 — Berkin onayı yok):**
+1. **Event adı `crop_request_match` yeniden kullanıldı** (yeni bir event
+   icat edilmedi) — hem forward hem reverse yönde "talebiniz/arzınız
+   eşleşti" anlamına geliyor, tek toggle'la yönetiliyor. Alternatif (yeni bir
+   `crop_request_fulfilled` SMS event'i + yeni `notif_prefs` kolonu) daha
+   açık olurdu ama "yeni altyapı kurma" talimatını ihlal ederdi.
+2. **`crop_requests.status` hedefi `'matched'` değil `'added'` oldu.**
+   İlk yazımda `'matched'` kullanıldı, ama `crop_requests_status_check`
+   CHECK constraint'i yalnızca `pending`/`added`/`rejected` kabul ediyor —
+   `'matched'` sessizce trigger'ın kendi `exception when others` bloğuna
+   düşüp durum hiç güncellenmezdi (bulunup gerçek bir test senaryosuyla
+   düzeltildi, bkz. Doğrulama). `'added'` ("talep edilen ürün kataloğa
+   eklendi") en yakın mevcut değer.
+3. **Yeni bir UPDATE RLS politikası gerekmedi.** `notify_crop_request_fulfilled()`
+   `SECURITY DEFINER` (mevcut `notify_*` trigger fonksiyonu konvansiyonu) —
+   `crop_requests.status` güncellemesi RLS'i baypas ediyor, buyer'a yeni bir
+   yazma yetkisi açılmadı.
+
+### D — Admin Talep Isı Haritası
+
+Yeni view: **`v_kpi_crop_demand_heatmap`** (`security_invoker=true`,
+mevcut 21 KPI view'ıyla aynı desen — `anon`/`authenticated`'a **grant yok**,
+kural #110). İki sinyali birleştiriyor, ikisi de bağımsız çalışıyor:
+
+1. **Gerçek buyer talebi** — `crop_requests` (canonical crop'a
+   `crop_config` üzerinden çözülmüş) × `requester_count`, `total_quantity_normalized`
+   (kg/g arası dönüşüm, L karışmıyor), `regions[]`.
+2. **Tarif korpusu sinyali** — `recipe_ingredients.is_key_ingredient=true`
+   × yayınlanmış tarif sayısı. **Talep sıfır olsa bile** bu sinyal tek
+   başına yüzeye çıkıyor — görevin verdiği örnek ("zeytinyağı 18 tarifin
+   12'sinde temel malzeme ve aktif ilanı yok") bunun için: canlı veri
+   zeytinyağını **9** tarifte `is_key_ingredient=true` ve `has_active_listing=false`
+   olarak gösteriyor (görev metnindeki "12" muhtemelen key+non-key tüm
+   kullanımları sayıyordu; bu view bilinçli olarak yalnızca "temel malzeme"
+   ile sınırlı, aynı ölçünün gevşek/sıkı iki versiyonu — gerçek veri,
+   uydurma değil).
+
+`has_active_listing` her iki sinyal için de hesaplanıyor — çiftçi kazanım
+önceliklendirmesinin asıl sinyali budur: talep var (buyer ve/veya tarif
+korpusu) ama arz yok.
+
+`/admin/kpi`'ye yeni bir sekme eklendi ("Talep Isı Haritası"), mevcut
+service_role + `x-admin-key` desenine (kural: yeni desen icat etme) aynen
+uyarak — `admin-kpi` edge function'ına tek bir `safe(supabase.from(...))`
+satırı eklendi, yeni bir endpoint/fonksiyon açılmadı.
+
+**Grant doğrulaması (kural #110):**
+```sql
+revoke all on public.v_kpi_crop_demand_heatmap from anon, authenticated;
+```
+`information_schema.role_table_grants` ile **boş** döndüğü doğrulandı
+(view oluşturulduktan hemen sonra `anon`/`authenticated`'a otomatik
+INSERT/SELECT/UPDATE/DELETE grant'i düştüğü, tıpkı M4-a'daki
+`v_kpi_recipe_funnel_by_recipe` gibi, yine gözlendi — bu artık beklenen bir
+proje davranışı). `security_invoker=true` `pg_class.reloptions` ile ayrıca
+doğrulandı.
+
+### E — BENCHMARK Gap #9 — Parselden Tabağa
+
+**Yeni izlenebilirlik/QR sistemi kurulmadı.** P16-H'den beri var olan
+`/batch/$listingId` sayfası (mevcut `ProvenanceTimeline`/`CoverageBadge`
+bileşenleriyle, buyer'a costs/notes gizlenmiş kürasyonlu hasat geçmişi
+gösteren public-benzeri sayfa) zaten tam olarak "bu ürünün parseline kadar
+izini sür" sayfasıydı — eksik olan tek şey ona **tarif malzemesinden**
+giden bir bağlantıydı. Yeni `useMatchedListingIds()` hook'u (client-side,
+`listings` tablosunun zaten anon'a açık `status='active'` satırlarını
+sorguluyor — yeni bir grant/RLS gerekmedi) her eşleşen crop için en ucuz
+aktif ilanın id'sini buluyor; malzeme kartının "eşleşti" dalına "🔍
+Parselden tabağa: kaynağını gör" linki eklendi, `/batch/$listingId`'ye
+gidiyor. **Yalnızca eşleşen malzemelerde** (14/68) görünüyor — eşleşmeyen
+malzemede zincirin kendisi olmadığı için link de yok, gösterilmiyor.
+
+### F — Dokunulmayanlar
+`src/lib/core/` (kural #105) · checkout/ödeme · `unit_type` enum'u · design
+token/storage adapter (M5) · mobil kod · buyer alt navigasyonuna yeni sekme
+(5 slot dolu, `/buyer/discover`'a küçük bir bant eklendi, sekme değil) ·
+`routeTree.gen.ts` (yeni rota eklenmedi, dokunulmadı).
+
+### Doğrulama (kural #96 — hepsi gerçek çalıştırma, Claude Code + Supabase MCP)
+
+| Kontrol | Sonuç |
+|---|---|
+| `crop_requests` gerçekten 12 kolon (A1) | ✅ `information_schema.columns` ile doğrulandı |
+| Uçtan uca: Zeynep (authenticated RLS simülasyonu) `crop_requests` + `recipe_rfq_links` insert | ✅ İkisi de kabul edildi, gerçek satırlar yazıldı |
+| `v_kpi_recipe_funnel_by_recipe` talep basamağı arttı mı (Zeytinyağlı Nohut Yemeği) | ✅ `recipe_requests` 0 → **1** |
+| "Haber ver" — bölge **uyuşmazlığında** bildirim gitmiyor mu (Ahmet: Safranbolu ≠ istenen İstanbul) | ✅ Doğru şekilde **atlandı** — bildirim yok |
+| "Haber ver" — bölge **boş/uyuştuğunda** yeni aktif ilan bildirimi tetikliyor mu | ✅ `notifications` satırı yazıldı (`type='crop_request_fulfilled'`), `crop_requests.status` → `added` |
+| Gerçek SMS gönderilmedi mi (Zeynep'in `crop_request_match_sms=false` olduğu bilerek seçildi) | ✅ `net._http_response`'ta ilgili pencerede 0 yeni satır |
+| `v_kpi_crop_demand_heatmap` grant revoke (kural #110) | ✅ `anon`/`authenticated` grant'i **boş** |
+| `v_kpi_crop_demand_heatmap` `security_invoker=true` | ✅ `pg_class.reloptions` ile doğrulandı |
+| `totalTime` düzeltmeleri — 18/18 tarif SQL ile listelendi | ✅ Tam 13 satır değişti, 5 satır aynı kaldı (yukarıdaki tablo) |
+| Yeni UPDATE RLS politikası gerekti mi | Hayır — `SECURITY DEFINER` trigger RLS'i baypas ediyor (bkz. otonom karar #3) |
+| Test verisi temizliği | ✅ Test `crop_requests`/`recipe_rfq_links`/`listings`/`notifications` satırları tamamen silindi, funnel view'ı 0'a döndüğü doğrulandı |
+| Frontend: `tsc --noEmit` + `eslint` | ✅ Yeni/değişen dosyalarda sıfır yeni hata (öncesi/sonrası tsc çıktısı satır-satır aynı, sadece pre-existing implicit-any + eksik-paket (recharts/zod/@lovable.dev) gürültüsü — ortamın paket registry'si org politikasıyla engellendiği için `bun install` tam tamamlanamadı, kısmi `node_modules` üzerinden çalıştırıldı) |
+| `vite build` (prod, SSR dahil) | ⚠️ **Yapılamadı** — bu oturumda `bun install` Lovable'ın özel paket mirror'ına (`*-npm.pkg.dev/lovable-core-prod/...`) org egress politikasıyla 403 aldığı için tamamlanamadı (yeni bulgu, aşağıda not edildi). `tsc`/`eslint` kısmi kurulu paketlerle çalıştırılabildi, gerçek `vite build` Berkin'in/Lovable'ın ortamında doğrulanmalı. |
+
+**⚠️ Yeni ortam kısıtı notu:** Önceki oturumlarda ağ kısıtı yalnızca canlı
+Supabase SSR/tarayıcı erişimini engelliyordu; bu oturumda ayrıca `bun
+install`'ın kullandığı paket mirror'ı da (`europe-west*-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache`)
+org politikasıyla kapalıydı — `bun.lock`'taki kilitli tarball URL'leri bu
+mirror'a işaret ediyor. Kısmi/önceden cache'lenmiş `node_modules` ile
+`tsc --noEmit`/`eslint`/`prettier` çalıştırılabildi (temiz sonuç), ama tam
+bir `bun install` + `vite build` bu oturumda mümkün olmadı. Gerçek build
+doğrulaması Lovable/Berkin'in ortamında yapılmalı.
+
+### Dokunulan dosyalar (hasat-d2c-marketplace)
+- `src/components/hasat/CropRequestModal.tsx` (yeni — `buyer.discover.tsx`'ten çıkarıldı + genişletildi)
+- `src/lib/hasat/recipe-intent.ts` (yeni)
+- `src/lib/hasat/format.ts` (`formatCropIngredient` eklendi)
+- `src/lib/hasat/queries.ts` (`useCreateCropRequest` artık oluşturulan id'yi döndürüyor)
+- `src/lib/hasat/recipes.ts` (`useMatchedListingIds`, `formatTotalMinutes` eklendi)
+- `src/routes/tarifler.$slug.tsx` (Talep Et CTA, Gap #9 linki, lowercase/image düzeltmeleri, guest niyet takibi)
+- `src/routes/tarifler.index.tsx` (`formatTotalMinutes` kullanımı)
+- `src/routes/buyer.discover.tsx` (paylaşılan modal + yarım-kalan-talep bandı)
+- `src/components/hasat/NotificationBell.tsx` (`crop_request_fulfilled` ikon/hedef)
+- `src/routes/admin.kpi.tsx` (Talep Isı Haritası sekmesi)
+- `supabase/functions/admin-kpi/index.ts` (heatmap sorgusu)
+- `src/lib/core/` — **dokunulmadı** (kural #105)
