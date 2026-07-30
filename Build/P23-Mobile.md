@@ -255,6 +255,14 @@ doğruluk kaynağı riski).
 - Detay: `Build/DB-Schema.md` → "P23-M4-b", `Build/E2E-QA.md` → S23
 - **Neden mobilden önce:** SEO 3–6 ayda birikir; içeriksiz ve kullanıcısız bir native app'in store'da değeri yok, 4.2 reddi de en çok o durumda gelir
 
+#### M4-c — `cook_minutes` semantik düzeltmesi + SEO keşfedilebilirliği — ✅ **TAMAMLANDI (2026-07-30) — M4'ün kapanış turu**
+- **Kural #107 ihlali bulunup düzeltildi:** M4-b'de bekleme süresi (rest) tutacak kolon olmadığı için sessizce `cook_minutes`'a eklenmişti — muhammara "45 dk pişirme" (gerçeği 15 dk), Cevizli Üzümlü Köme "72 saat pişirme" (gerçeği 20 dk) gösteriyordu. Berkin bulup bildirdi.
+- Yeni kolon `recipes.rest_minutes` (nullable, ekleyici); 18 tarifin tamamı adım metninden yeniden sınıflandırıldı — `cook_minutes` en yükseği artık 60 dk (önceki 4.340 dk'dan)
+- Frontend: `totalTime` = prep+cook+rest (türetilmiş, kolon değil); üç süre detay sayfasında her zaman ayrı gösteriliyor, tek sayıya toplanmıyor
+- SEO: `sitemap.xml` dinamik (18 tarif + public vitrinler, elle güncelleme gerekmiyor); `robots.txt` zaten doğruydu; SSR'da (client-side değil) aynı temel malzemeyi paylaşan tariflere iç link
+- Detay: `Build/DB-Schema.md` → "P23-M4-c", `Build/E2E-QA.md` → S24
+- **M4 (a+b+c) tamamen kapandı.**
+
 ### M5 — Mobil iskelet
 - Expo + Expo Router + Nativewind, telefon OTP (mevcut akışın aynısı), tarif listesi/detayı
 - **Offline önbellek** (expo-sqlite)

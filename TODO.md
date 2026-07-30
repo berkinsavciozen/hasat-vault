@@ -605,7 +605,7 @@ P22 serisi (A/B/C/D/E/F) + P22-F'nin yan etki düzeltmeleri + P22-G (tarih/filtr
 | M2 | Tarif backend'i (ekleyici) | 11 – 22 Ağu | 🟡 Uygulandı (2026-07-29), tarayıcı QA (S20-B) bekliyor |
 | M3 | İçerik (18 tarif) + culinary seed + görsel altyapı | 18 Ağu – 1 Eyl | ✅ TAMAMLANDI (2026-07-30), tarayıcı QA (S21) bekliyor |
 | M3-D | Mobil UI görsel şartnamesi (paralel iş kolu) | — | ✅ TAMAMLANDI (2026-07-30) — `Build/P23-Mobile-Visual-Spec.md` |
-| M4 | Web tarif yüzeyi + Gap #9 | 1 – 13 Eyl | ✅ TAMAMLANDI (2026-07-30, a+b) |
+| M4 | Web tarif yüzeyi + Gap #9 | 1 – 13 Eyl | ✅ TAMAMLANDI (2026-07-30, a+b+c) |
 | M5 | Mobil iskelet + offline | 14 – 27 Eyl | ⬜ |
 | M6 | Native yetenekler + push | 28 Eyl – 11 Eki | ⬜ — ⚠️ **açık madde var, bkz. altta "M6 açık maddeleri"** |
 | M7 | Köprü + store varlıkları | 12 – 18 Eki | ⬜ |
@@ -1201,3 +1201,51 @@ bir bulgu). `tsc --noEmit`/`eslint`/`prettier` kısmi/önceden cache'lenmiş
 `node_modules` ile çalıştırılabildi (temiz sonuç, yeni hata yok), ama tam
 `vite build` bu oturumda mümkün olmadı — gerçek prod build doğrulaması
 Lovable/Berkin'in ortamında yapılmalı.
+
+---
+
+### 🟢 P23-M4-c — `cook_minutes` Semantik Düzeltmesi + SEO Keşfedilebilirliği — **TAMAMLANDI (2026-07-30, Claude Code doğrudan) — M4'ün kapanış turu**
+
+**⚠️ Kural #107 ihlali (bu turda bulunup düzeltildi):** M4-b'de `totalTime`
+düzeltilirken bekleme süresini tutacak bir kolon olmadığı görülmüştü.
+Yeni kolon eklemek (şema değişikliği) ile mevcut `cook_minutes`'a ekleyip
+`cookTime`'ı kirletmek arasında **sessizce** ikincisi seçildi ve
+raporlanmadı — kural #107 tam olarak bu tür belirsizlikleri Berkin'e
+bildirmek için var. Sonuç gerçek ve görünür bir hataydı: muhammara'da
+45 dk "pişirme süresi" (gerçeği 15 dk), Cevizli Üzümlü Köme'de 72 saat
+"pişirme süresi" (gerçeği 20 dk). Berkin bu turda bunu bulup bildirdi.
+
+**Yapılanlar:**
+1. Yeni kolon `recipes.rest_minutes` (nullable, ekleyici).
+2. 18 tarifin tamamı adım metinlerinden yeniden sınıflandırıldı —
+   `cook_minutes` gerçek aktif pişirme süresine geri çekildi (en yükseği
+   artık **60 dk**, önceki 4.340 dk'dan), bekleme/dinlenme/soğuma/mayalanma/
+   ıslatma süresi `rest_minutes`'a taşındı. İki özel durum bulundu (Ekşi
+   Mayalı Ekmek'in otoliz'i, Safranlı Zerde'nin safran bekletmesi) — ikisinin
+   de orijinal `prep_minutes`'ı tamamen bir pasif adımdan geliyordu, o da
+   düzeltildi.
+3. Frontend: `totalTime` artık `prep+cook+rest` türetilmiş değeri; üç süre
+   detay sayfasında hiçbir zaman tek sayıya toplanmadan ayrı gösteriliyor
+   ("20 dk hazırlık · 15 dk pişirme · 30 dk dinlenme").
+4. SEO: `sitemap.xml` dinamik hale getirildi (18 tarif + public vitrinler,
+   yeni tarif eklendiğinde elle güncelleme gerekmiyor); `robots.txt` zaten
+   doğruydu; tarif detaylarına aynı temel malzemeyi paylaşan tariflere SSR
+   (loader'da, client-side değil) iç link eklendi; liste + iç linklerin
+   gerçek `<a href>` olduğu kütüphane kaynağından doğrulandı.
+
+Tam tablo, gerekçe ve doğrulama: `Build/DB-Schema.md` → "P23-M4-c".
+Tarayıcı QA: `Build/E2E-QA.md` → S24.
+
+**Kapsam kuralı tutuldu:** `src/lib/core/` dokunulmadı (kural #105),
+checkout/ödeme yok, `unit_type` enum'una dokunulmadı, buyer alt navigasyonu
+değişmedi, `routeTree.gen.ts` yeniden üretilmedi (yeni rota yok, `sitemap.xml`
+zaten vardı, sadece içeriği genişletildi).
+
+**⚠️ `bun install` bu turda da başarısız oldu** (aynı org egress kısıtı,
+M4-b'de bulunan). `tsc --noEmit`/`eslint`/`prettier` kısmi kurulumla temiz
+sonuç verdi. Gerçek `vite build` M4'ün üç turunda da (M4-a hariç) hiç
+koşmadı — Lovable/Berkin'in ortamında doğrulanmalı.
+
+**M4 tamamen kapandı** (a: public tarif yüzeyi · b: Talep Et + admin
+heatmap + Gap #9 · c: cook_minutes düzeltmesi + SEO). Sıradaki taş: M5
+(mobil iskelet).

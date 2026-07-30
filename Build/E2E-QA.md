@@ -450,6 +450,55 @@ beklenen davranıştır.
 
 ---
 
+### S24 — P23-M4-c `cook_minutes` Semantik Düzeltmesi + SEO Keşfedilebilirliği (M4'ün kapanışı)
+
+> **Kural #109 — QA'nın İLK adımı Publish'e basmak.** Bu tur da Claude Code
+> tarafından PR olarak açıldı; merge sonrası Lovable'da **Publish**'e
+> basılmadan `hasat.lovable.app` eski build'i göstermeye devam eder.
+
+**Arka plan:** `Build/P23-Mobile.md` M4-c. M4-b'de bir kural #107 ihlali
+bulunup düzeltildi: bekleme süresini tutacak kolon olmadığı için
+`cook_minutes`'a sessizce eklenmişti (muhammara "45 dk pişirme" — gerçeği
+15 dk). Yeni `recipes.rest_minutes` kolonu + 18 tarifin tamamının yeniden
+sınıflandırılması + `sitemap.xml`'in dinamikleştirilmesi + iç link ağı bu
+turun konusu. Tam ayrıntı: `Build/DB-Schema.md` → "P23-M4-c".
+
+#### A. Veri katmanı + kod doğrulaması — Claude Code (kural #96)
+Ayrıntılı tablo: `Build/DB-Schema.md` → "P23-M4-c" → tam prep/cook/rest
+tablosu + doğrulama. Özet: 18/18 tarif gerçek SQL ile yazılıp okunarak
+doğrulandı; `cook_minutes`'ın hiçbiri 120 dk'yı aşmıyor (en yüksek 60 dk,
+İncir Reçeli); JSON-LD'nin üç süreyi doğru ürettiği gerçek DB değerleriyle
+simüle edilip kanıtlandı (`PT20M`/`PT15M`/`PT1H5M` gibi); `sitemap.xml`
+gerçek veriyle üretilip `xmllint --noout` ile geçerli XML olduğu ve 18
+tarif URL'i içerdiği doğrulandı; liste + iç link'lerin gerçek `<a href>`
+olduğu TanStack Router `Link` bileşeninin kaynak kodundan doğrulandı.
+
+#### B. Sandbox kısıtı — `bun install` bu turda da engellendi
+M4-b'de bulunan kısıt (Lovable'ın özel paket mirror'ı org egress
+politikasıyla kapalı) bu turda da geçerliydi. Kısmi `node_modules` ile
+`tsc --noEmit`/`eslint`/`prettier` çalıştırıldı — değişen dosyalarda sıfır
+yeni hata. Gerçek `vite build` **yine yapılamadı** — M4'ün üç turunda da
+(M4-a hariç) hiç koşmadı, Lovable/Berkin'in ortamında doğrulanmalı.
+
+#### C. Berkin'in tarayıcı adımları
+
+| # | Adım | Beklenen |
+|---|---|---|
+| 1 | Lovable editörünü aç, **Publish**'e bas | Yeni build yayınlandı |
+| 2 | `hasat.lovable.app/tarifler/cevizli-biber-ezmesi-muhammara`'ya git | Üst bilgide artık tek bir "N dk" değil, **"20 dk hazırlık · 15 dk pişirme · 30 dk dinlenme"** gibi ayrı üç süre görünüyor |
+| 3 | `hasat.lovable.app/tarifler/cevizli-uzumlu-kome`'ye git | Süre artık "3 gün" mertebesinde makul görünüyor, "72 saat pişirme" gibi saçma bir "pişirme süresi" **yok** |
+| 4 | Sayfa kaynağını görüntüle (view-source) — muhammara sayfasında | JSON-LD'de `cookTime` **"PT15M"** (15 dk), `totalTime` **"PT1H5M"** (65 dk) — `cookTime` artık `totalTime`'la aynı değil |
+| 5 | Herhangi bir tarif sayfasının altına in | Aynı ana malzemeyi paylaşan **2-3 diğer tarife** link var (örn. cevizli tariflerde "ceviz ile diğer tarifler") |
+| 6 | O linke tıkla | İlgili tarif sayfası açılıyor |
+| 7 | `hasat.lovable.app/sitemap.xml`'i tarayıcıda aç | Geçerli bir XML dönüyor, içinde 18 `/tarifler/...` URL'i var |
+| 8 | `hasat.lovable.app/robots.txt`'i aç | `Sitemap:` satırı var, `/tarifler` hiçbir yerde engellenmemiş |
+| 9 | `/tarifler` liste sayfasında bir tarif kartına sağ tık → "Bağlantı adresini kopyala" (ya da view-source'ta ara) | Kartın gerçek bir `<a href="/tarifler/...">` olduğu görünüyor, salt `onClick`'e bağlı değil |
+| 10 | Google Search Console'a (varsa) `sitemap.xml`'i gönder | (Bu adım Berkin'in kendi hesabında, bu QA'nın kapsamı dışında ama önerilir) |
+
+**Beklenen sonuç: 9/9 geçiyor** (10. adım opsiyonel/bilgi amaçlı).
+
+---
+
 ## Feature Sonrası Süreç
 
 1. Yeni prompt tamamlanınca yeni S-numarası eklenir
@@ -483,3 +532,4 @@ beklenen davranıştır.
 - **2026-07-28:** **S19 eklendi (P22-G rutin bakım tarih/filtre + trigger temizliği).** `buyer_addresses` çift trigger'ı (P23-M1-a'nın kendi eklediği trigger'la çakışıyordu) düşürüldü; rutin bakım hesabı `v_routine_maintenance_status` view'ına taşındı (kural #106); asıl bug (eksik React Query invalidation) bulunup düzeltildi; "Yaptım" formuna tarih seçici eklendi; P22-E SMS'lerine eksik alanlar eklendi. Hepsi gerçek veri/Twilio testiyle doğrulandı; tarayıcı testi Berkin'e kaldı.
 - **2026-07-30:** **S22 eklendi (P23-M4-a public tarif yüzeyi).** Bu, S18/S19'dan farklı olarak **gerçekten yeni bir ekran** açıyor (`/tarifler`, `/tarifler/$slug`) — kural #109 gereği QA'nın ilk adımı Lovable'da Publish'e basmak. Malzeme kartının 3 durumu (eşleşti/nötr/platform-dışı) ve `min_order` yuvarlaması gerçek veriyle doğrulandı; `recipe_views` + yeni `v_kpi_recipe_funnel_by_recipe` gerçek `anon`/`authenticated` RLS simülasyonuyla test edildi. Bu oturumun ağ politikası Supabase'e canlı SSR sırasında erişimi engellediği için (P24'teki aynı kısıt), tam tarayıcı testi + detay sayfasının dinamik JSON-LD'sinin view-source kanıtı Berkin'e kaldı.
 - **2026-07-30:** **S23 eklendi (P23-M4-b Talep Et + admin talep ısı haritası + Gap #9).** Eşleşmeyen malzemede baskın-durum "Talep Et" CTA'sı + guest niyet takibi (`localStorage` + `/login`'in `next` param'ı), mevcut `crop_request_match`/`dispatch_sms` deseni yeniden kullanılarak "haber ver" (yeni bir trigger, yeni tablo yok), `/admin/kpi`'ye talep ısı haritası sekmesi, Gap #9 mevcut `/batch/$listingId` sayfasına link olarak kapandı. Uçtan uca gerçek RLS simülasyonuyla doğrulandı: talep+huni atfı, "haber ver"in bölge eşleşmesine göre doğru tetiklenip/atlandığı, gerçek SMS gönderilmediği. Ayrıca M4-a'nın 3 bulgusu (malzeme büyük harf, 13/18 tarifte eksik `totalTime`, `image` alanının temsili görselle karışması) düzeltildi. **Yeni bulgu:** bu oturumda `bun install` de org egress politikasıyla engellendi (Lovable'ın özel paket mirror'ı) — `tsc`/`eslint`/`prettier` kısmi kurulumla temiz sonuç verdi ama gerçek `vite build` yapılamadı, Lovable/Berkin'in ortamında doğrulanmalı.
+- **2026-07-30:** **S24 eklendi (P23-M4-c `cook_minutes` düzeltmesi + SEO — M4'ün kapanışı).** S23'te sessizce yapılan bir kural #107 ihlali (bekleme süresi tutacak kolon olmadığı için `cook_minutes`'a eklenmişti, muhammara "45 dk pişirme" gösteriyordu, gerçeği 15 dk) bulunup düzeltildi: yeni `recipes.rest_minutes` kolonu, 18 tarifin tamamı adım metninden yeniden sınıflandırıldı (`cook_minutes` en yükseği artık 60 dk). `totalTime` = prep+cook+rest türetilmiş değeri; üç süre detay sayfasında ayrı gösteriliyor. SEO: `sitemap.xml` dinamikleştirildi (18 tarif + public vitrinler), `robots.txt` zaten doğruydu, aynı ana malzemeyi paylaşan tariflere SSR'da (client-side değil) iç link eklendi — hepsi gerçek `<a href>`. `bun install` bu turda da engellendi, gerçek `vite build` M4'ün üç turunda da (a hariç) hiç koşmadı.
