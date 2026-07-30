@@ -969,3 +969,160 @@ doğrulaması Lovable/Berkin'in ortamında yapılmalı.
 - `src/routes/admin.kpi.tsx` (Talep Isı Haritası sekmesi)
 - `supabase/functions/admin-kpi/index.ts` (heatmap sorgusu)
 - `src/lib/core/` — **dokunulmadı** (kural #105)
+
+---
+
+## P23-M4-c — `cook_minutes` Semantik Düzeltmesi + SEO Keşfedilebilirliği (2026-07-30)
+
+`Build/P23-Mobile.md` M4-c — M4'ün kapanış turu. M4-b'de bir gerçek hata
+düzeltildi ve bu hatanın kendisi de kayda geçiriliyor (kural #107 ihlali —
+aşağıda).
+
+### Kural #107 ihlali — kayıt
+
+M4-b'de `totalTime`'ı düzeltirken `recipes` tablosunda bekleme/dinlenme
+süresini tutacak ayrı bir kolon **olmadığı** ortaya çıktı. İki seçenek
+vardı: (a) yeni bir kolon ekleyip doğru modellemek, (b) mevcut
+`cook_minutes`'a ekleyip `totalTime`'ı düzeltmek ama `cookTime`'ı
+kirletmek. **Sessizce (b)'yi seçtim ve bunu Berkin'e bildirmedim** — kural
+#107 tam olarak bunun için var ("kapsam/mimari değiştirme, şüphe varsa dur
+ve bildir"). Yeni bir kolon eklemek şema değişikliği demekti, bu da kuralın
+tam olarak yakalamak istediği türde bir belirsizlikti; iki seçenek arasında
+sessizce seçim yapmak yerine görev tamamlanmadan önce sorulmalıydı. Sonuç
+gerçek ve görünür bir hataydı: muhammara'da 45 dk "pişirme süresi" (gerçeği
+15 dk), Cevizli Üzümlü Köme'de 4.340 dk = 72 saat "pişirme süresi" (gerçeği
+20 dk). Bu turda düzeltiliyor.
+
+### 1 — Yeni kolon: `rest_minutes`
+
+```sql
+alter table public.recipes add column if not exists rest_minutes integer;
+```
+
+Nullable, default yok, trigger/constraint yok — tamamen ekleyici, mevcut
+`prep_minutes`/`cook_minutes`'la aynı stil. `totalTime` hâlâ bir kolon
+olarak **tutulmuyor** — `prep_minutes + cook_minutes + rest_minutes` olarak
+frontend'de türetiliyor (schema.org'da zaten "rest" için ayrı bir alan yok,
+`totalTime`'a dahil olması doğru).
+
+### 2 — 18 tarifin tamamı yeniden sınıflandırıldı
+
+Yöntem: her `recipe_steps` satırının talimat metni yeniden okundu (M4-b'nin
+build log'undaki deltalara güvenilmedi, sadece çapraz kontrol için
+kullanıldı — görev metninin uyardığı gibi log eksik/yanlış olabilirdi).
+Kural: bir adım **pasif** (dinlendirin/bekletin/soğu.../mayaland.../ısla...)
+ise `rest_minutes`'a gider — kullanıcının ocak başında bulunmasını
+gerektirmiyorsa, ne zaman prep/cook'a "sayılmış görünürse görünsün".
+
+**İki özel durum bulundu** (M4-b'nin "sayı birebir eşleşiyorsa zaten
+sayılmış" sezgisi bu ikisinde yanılmıştı): Ekşi Mayalı Ekmek'in orijinal
+(M3) `prep_minutes=30`'u tamamen otoliz adımının ("30 dakika dinlendirin")
+süresiydi — otoliz **pasif bir dinlenme**, aktif hamur yoğurma değil;
+gerçek aktif prep sadece s2'deki yoğurma (10 dk). Safranlı Zerde'nin
+orijinal `prep_minutes=15`'i de tamamen safranın sıcak suda "bekletip" renk
+vermesi süresiydi — aynı şekilde pasif. Her ikisinde de `prep_minutes`
+gerçek aktif işe göre küçük bir sayıya çekildi, tam süre `rest_minutes`'a
+taşındı.
+
+| Tarif | prep | cook | rest | total | Not |
+|---|---|---|---|---|---|
+| Cevizli Biber Ezmesi (Muhammara) | 20 | **15** | 30 | 65 | cook: yalnızca közleme (görevin kendi örneği) |
+| Cevizli Elmalı Salata | 15 | 0 | 0 | 15 | değişmedi |
+| Cevizli Kurabiye | 20 | **15** | 15 | 50 | cook: yalnızca fırınlama |
+| Cevizli Üzümlü Köme | 30 | **20** | 4320 | 4370 | cook: şurup pişirme; rest: 3 gün kurutma |
+| Ekşi Mayalı Tam Buğday Ekmeği | **10** | 45 | 1020 | 1075 | prep: yalnızca yoğurma (otoliz→rest); rest: otoliz+mayalanma+soğuk mayalanma+soğuma |
+| Ev Yapımı Zeytinyağlı Domates Sosu | 15 | 40 | 0 | 55 | değişmedi ("ılıyınca" pasif-dinlenme fiili değil) |
+| Fırında Patlıcan Musakka | 25 | **40** | 25 | 90 | cook: kızartma+kavurma+fırın; rest: tuzlu su bekletme+servis öncesi |
+| İncir Reçeli | 20 | **60** | 750 | 830 | cook: kaynatma+pişirme; rest: bir gece bekletme+soğutma |
+| Kekikli Zeytinyağı Ezmesi | 10 | 0 | 0 | 10 | değişmedi |
+| Köz Biber-Patlıcan Ezmesi | 20 | 20 | 10 | 50 | rest: kabuk soyma öncesi dinlendirme |
+| Mercimek Çorbası | 10 | 30 | 0 | 40 | değişmedi |
+| Nohut Falafel | 20 | 10 | 30 | 60 | rest: kızartma öncesi buzdolabı |
+| Safranlı Zerde | **5** | 35 | 45 | 85 | prep: yalnızca ölçme; rest: safran bekletme+servis öncesi soğutma |
+| Taze Üzüm ve Cevizli Yeşil Salata | 15 | 0 | 0 | 15 | değişmedi |
+| Vegan Fındık Kreması | 15 | **10** | 120 | 145 | cook: yalnızca kavurma; rest: koyulaşma/soğuma |
+| Zeytinyağlı Buğday Tanesi Salatası | 15 | **40** | 35 | 90 | cook: haşlama; rest: soğutma+servis öncesi buzdolabı |
+| Zeytinyağlı Mercimek Köftesi | 25 | 20 | 15 | 60 | rest: bulgur su çekme dinlendirmesi |
+| Zeytinyağlı Nohut Yemeği | 15 | **45** | 495 | 555 | cook: kavurma+haşlama; rest: bir gece ıslatma+servis öncesi |
+
+**Doğrulama:** `cook_minutes`'ın en yükseği **60 dk** (İncir Reçeli, kaynatma
+10 dk + pişirme 50 dk — s2/s3 adım metinleriyle birebir örtüşüyor), 120
+dakikayı aşan yok. Kalan 5 tarifte (Cevizli Elmalı Salata, Domates Sosu,
+Kekikli Ezme, Mercimek Çorbası, Taze Üzüm Salata) hiç pasif bekleme adımı
+yok, değişmedi.
+
+### 3 — Frontend: üç süre ayrı, `totalTime` türetilmiş
+
+`recipes.ts`: `RecipeListItem`/`RecipeDetail`'e `rest_minutes` eklendi,
+`RECIPE_LIST_COLUMNS`'a dahil edildi. Yeni `totalRecipeMinutes()`
+(prep+cook+rest) ve `formatTimeBreakdown()` (sıfır olmayan bileşenleri
+"20 dk hazırlık · 15 dk pişirme · 30 dk dinlenme" biçiminde birleştirir,
+sıfır olanlar atlanır). `formatTotalMinutes()` aynı iç formatlayıcıyı
+(`formatMinutesPart`) paylaşacak şekilde küçük bir refactor'la korundu.
+
+`tarifler.$slug.tsx`: JSON-LD'de `prepTime`/`cookTime` doğrudan
+`recipe.prep_minutes`/`cook_minutes`'tan (artık DB'de doğru), `totalTime`
+`totalRecipeMinutes()`'tan geliyor. Sayfa başlığındaki tek "Clock + N dk"
+rozeti kaldırıldı, yerine `formatTimeBreakdown()` çıktısı geldi — üç süre
+her zaman ayrı görünüyor, tek bir sayıya asla geri toplanmıyor.
+`tarifler.index.tsx`'in liste kartındaki kompakt rozet toplam süreyi
+göstermeye devam ediyor (yer kısıtlı, süre filtreleri zaten toplam üzerinden
+çalışıyor) — kırılım yalnızca detay sayfasında, kullanıcının gerçekten
+karar verdiği yerde.
+
+**Kanıt (gerçek DB değerleriyle simüle edildi, kural #96):**
+```json
+// Muhammara — prep=20, cook=15, rest=30
+{ "prepTime": "PT20M", "cookTime": "PT15M", "totalTime": "PT1H5M" }
+// Köme — prep=30, cook=20, rest=4320 (3 gün)
+{ "prepTime": "PT30M", "cookTime": "PT20M", "totalTime": "PT72H50M" }
+```
+`cookTime` artık ikisinde de gerçek aktif pişirme süresi; `totalTime`
+gerçek toplam süreyi (kurutma dahil) taşıyor, `PT72H50M` ISO8601'de geçerli
+bir süre (saat bileşeninin 24'ü aşması standarda aykırı değil).
+
+### 4 — SEO keşfedilebilirliği
+
+- **`sitemap.xml`** (`src/routes/sitemap[.]xml.ts`, zaten vardı — statik 5
+  sayfalık listeydi) artık dinamik: `recipes` tablosundan
+  `visibility='public' AND status='published'` olan tüm tarifler (`lastmod`
+  = `updated_at`) + `public_farmer_profiles`'tan tüm public vitrinler
+  (`/s/$slug`, aynı `slugifyFarmer` kuralıyla) ekleniyor. Yeni bir tarif
+  yayınlandığında elle güncelleme **gerekmiyor** — bir sonraki istekte
+  otomatik listede.
+- **`robots.txt`** zaten doğruydu — `Sitemap:` satırı vardı, `/tarifler`'i
+  engelleyen hiçbir `Disallow` yoktu (`Allow: /`, hiçbir yol kısıtlanmamış).
+  Değişiklik yapılmadı.
+- **İç link ağı:** tarif detay sayfasının SSR loader'ı (`fetchRecipeBySlug`)
+  artık aynı **temel malzemeyi** paylaşan 2-3 başka yayınlanmış tarifi de
+  getiriyor ("[Crop] ile diğer tarifler" bölümü) — bilinçli olarak **client-side
+  mount-sonrası fetch değil, loader'ın kendisinde** yapıldı, çünkü bir bot
+  yalnızca JS çalıştıktan sonra göreceği bir linki saymaz; SSR HTML'inin
+  içinde olması şart.
+- **Gerçek `<a href>` doğrulaması:** hem liste sayfası hem yeni "diğer
+  tarifler" bölümü TanStack Router'ın `Link` bileşenini kullanıyor —
+  kütüphane kaynağından doğrudan doğrulandı
+  (`react.createElement("a", rest, children)`, `link.cjs`): gerçek bir
+  `<a>` etiketi üretiyor, JS'e bağımlı bir tıklama değil.
+
+### Doğrulama (kural #96)
+
+| Kontrol | Sonuç |
+|---|---|
+| 18 tarifin prep/cook/rest üçlüsü | ✅ Yukarıdaki tablo, gerçek SQL ile yazıldı ve okunarak doğrulandı |
+| `cook_minutes` hiçbiri 120 dk'yı aşmıyor | ✅ En yüksek 60 dk (İncir Reçeli), adım metniyle kanıtlandı |
+| JSON-LD'de üç sürenin doğru geldiği | ✅ Gerçek DB değerleriyle simüle edildi (yukarıdaki kod bloğu) |
+| `sitemap.xml` 18 tarifi listeliyor + geçerli XML | ✅ Gerçek DB verisiyle üretilip `xmllint --noout` ile doğrulandı, 24 `<url>` (6 statik + 18 tarif) |
+| `robots.txt` `/tarifler`'i engellemiyor | ✅ Zaten doğruydu, `Disallow` yok |
+| Liste + iç link'lerin gerçek `<a href>` olduğu | ✅ TanStack Router `Link` kaynağından doğrulandı |
+| `tsc --noEmit` + `eslint` (değişen dosyalar) | ✅ Yeni hata yok (önce/sonra tsc çıktısı satır-satır aynı, tek fark satır numarası kayması) |
+| `vite build` | ⚠️ **Yine yapılamadı** — `bun install` bu turda da aynı org egress politikasıyla (Lovable paket mirror'ı) 403 aldı. Gerçek build Lovable/Berkin'in ortamında doğrulanmalı — M4-b'de de aynı durum vardı, M4'ün üç turunda da (a hariç) tam bir gerçek prod build hiç koşmadı. |
+
+### Dokunulan dosyalar (hasat-d2c-marketplace)
+- `src/lib/hasat/recipes.ts` (`rest_minutes`, `totalRecipeMinutes`, `formatTimeBreakdown`, `RelatedRecipeItem` + `fetchRecipeBySlug`'a ilişkili tarif sorgusu)
+- `src/routes/tarifler.$slug.tsx` (üç süre ayrı gösterim, JSON-LD düzeltmesi, "diğer tarifler" bölümü)
+- `src/routes/tarifler.index.tsx` (`totalRecipeMinutes` kullanımı)
+- `src/routes/sitemap[.]xml.ts` (dinamik hale getirildi — statik 5 sayfa + 18 tarif + public vitrinler; **route zaten vardı, yeniden üretilmedi, sadece içeriği genişletildi**)
+- `public/robots.txt` — **dokunulmadı** (zaten doğruydu)
+- `src/routeTree.gen.ts` — **dokunulmadı** (yeni rota yok)
+- `src/lib/core/` — **dokunulmadı** (kural #105)
