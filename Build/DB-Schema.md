@@ -397,3 +397,177 @@ recipe_views                                    (1. görüntüleme)
 | `offer_to_order_pct` | **Kohort** oranı — aylık sipariş/aylık teklif değil; ay sınırını geçen teklifleri yanlış saymaz |
 
 `security_invoker=true` (`pg_class.reloptions` ile doğrulandı) · `anon`/`authenticated`'a **GRANT yok** (20 KPI view deseni).
+
+### ⚠️ `v_kpi_recipe_funnel` — üç bilinen sınır (M4 açık maddesi)
+
+P23-M3 denetiminde tespit edildi, düzeltilmedi — kapsam dışıydı (M2-ek'in
+"sert join" düzeltmesi ayrı bir sorunu çözdü, bu üçü farklı bir sınıf).
+
+1. **Yüzdeler kohortsuz.** `view_to_save_pct` gibi oranlar aynı takvim
+   ayının görüntülemesini aynı ayın kaydına bölüyor — bir tarif ayın son
+   günü görüntülenip kaydı ertesi aya sarkarsa o ay düşük, ertesi ay
+   yapay yüksek görünür. Yavaş dönen bir huninin (Hasat'ın kendi
+   konumlandırması — "hızlı teslimat değiliz") bu view'da yanıltıcı sonuç
+   üretmesi olası.
+2. **Tarif kırılımı yok.** View aylık toplam veriyor, hangi tarifin
+   çalışıp hangisinin çalışmadığı görülemiyor. Çözümü ucuz: tüm
+   basamaklarda (`recipe_views`, `recipe_saves`, `recipe_rfq_links`,
+   `offers.source_recipe_id`) zaten `recipe_id` mevcut — per-recipe
+   companion view (`v_kpi_recipe_funnel_by_recipe` gibi) doğrudan
+   yazılabilir, şema değişikliği gerekmez.
+3. **Gerçek bir "kayıt" basamağı yok.** `recipe_saves` zaten giriş yapmış
+   kullanıcıyı ölçüyor (`user_id` NOT NULL) — anon bir ziyaretçinin
+   "beğendim ama giriş yapmadım" sinyali kayboluyor. Çözüm: kayıt anında
+   (giriş yapılmamışsa da) `session_id` yakalamak — `recipe_views`'ta
+   zaten var olan `session_id` desenini `recipe_saves`'e taşımak.
+
+Üçü de M4'te (web tarif yüzeyi, `/tarifler`) ele alınacak — o zaman gerçek
+trafik olacağı için düzeltmenin gerçek veriyle doğrulanması mümkün olacak.
+
+---
+
+## P23-M3 — Tarif İçeriği + Culinary Seed + Görsel Altyapısı (2026-07-30)
+
+`Build/P23-Mobile.md` M3. **Tamamen ekleyici** — hiçbir şema değişikliği
+yok, sadece veri (18 tarif + adım + malzeme satırı, 14 crop'un
+`crop_culinary_meta` seedi). Gerekçe ve crop kararı: `Build/P23-Mobile.md`
+→ M3 bölümü.
+
+### İçerik
+18 tarif (10 Katman 1, 7 Katman 2, 1 safran) — `recipes` + `recipe_steps`
+(98 satır) + `recipe_ingredients` (117 satır). Tüm tarifler
+`author_type='hasat'`, `visibility='public'`, `status='published'`,
+`owner_id=NULL`, `cover_photo_url=NULL` (kapak fotoğrafı Berkin'in işi,
+aşağıda).
+
+**Malzeme modelleme kuralı (bu turda netleşti):** `crop_config`'te gerçek
+bir karşılığı olan malzeme (soğan, sarımsak, havuç, patates, limon,
+pul_biber, nane, susam, kimyon, nar dahil — sadece 14 odak crop değil)
+**her zaman `crop` FK'sine bağlandı**, ama odak-crop olmayanlar için
+**yalnızca metrik birim (g/kg/ml) kullanıldı** — çünkü onların
+`conversion_hints`'i bu turda boş kaldı (M4/M9'a bırakıldı) ve culinary
+birimle (örn. "1 adet soğan") bağlanırlarsa `rpc_recipe_shopping_list`
+sessizce NULL dönerdi. İşlenmiş/türetilmiş ürünler (domates salçası, nar
+ekşisi, un, pirinç) editoryal olarak `free_text_name`'de bırakıldı — ham
+crop'un kendisi değil, ayrı bir market ürünü oldukları için (aynı mantık
+`buğday`→`un` ayrımında zaten P23-M2'den beri var).
+
+### `crop_culinary_meta` seed — 14 crop
+`zeytinyağı`, `nohut`, `mercimek`, `kekik`, `fındık`, `ceviz`, `buğday`,
+`domates`, `biber`, `patlıcan`, `üzüm`, `incir`, `elma`, `safran`.
+`culinary_aliases` + `conversion_hints` (temel metrik birimde — kütle
+crop'larında gram, `zeytinyağı`da ml) tam dolduruldu; domates/kekik M2'den
+genişletildi (yeni birim eklenmedi, mevcut korunup teyit edildi). Kalan 56
+crop boş kaldı — M4/M9'da tamamlanacak.
+
+### Doğrulama (kural #96, 2026-07-30, Claude Code + Supabase MCP)
+| Kontrol | Sonuç |
+|---|---|
+| Her `recipe_ingredients.crop` gerçek bir `crop_config.crop` slug'ına çözülüyor mu | ✅ 0 çözümlenemeyen satır |
+| `rpc_recipe_shopping_list` — 18 tarifin tamamı, varsayılan porsiyon | ✅ 68/68 crop-bağlı satırda `needed_canonical` dolu, 0 NULL |
+| `rpc_recipe_shopping_list` — 2× porsiyon ölçekleme | ✅ 0 NULL (ölçekleme dönüşümü kırmadı) |
+| `rpc_recipe_availability` — yenilemez crop'lar (`pamuk`/`tütün`/`şeker_pancarı`/`safran_soğanı`) | ✅ 18 tarifin hiçbirinde 0 satır |
+| Crop dağılım raporu | ✅ `safran` tam 1 tarifte; `zeytinyağı` 12, `soğan` 6 (sık kullanılan platform-dışı-olmayan malzeme) |
+| Anon rolüyle yayınlanmış 18 tarif okunabiliyor mu | ✅ 18/18 `recipes` + adım/malzeme satırları (SEO şartı) |
+| `get_advisors: security` | ✅ Bu turdan kaynaklı yeni uyarı yok (mevcut, ilgisiz uyarılar değişmedi) |
+
+### Görsel altyapı
+
+#### `crop-photos` isimlendirme konvansiyonu
+Bucket zaten var (`crop-photos`, `public=true`, P23-M2'de açıldı). Bu turda
+karar verilen konvansiyon:
+
+- **Düz ad alanı** (subfolder yok) — bucket'ın tek amacı crop varsayılan
+  fotoğrafları, karışma riski yok.
+- **Dosya adı = crop slug'ının ASCII'ye çevrilmiş hali** + `.jpg`
+  (Türkçe karakter → ASCII, tarif slug kuralıyla aynı ilke): ğ→g, ı→i,
+  ş→s, ç→c, ö→o, ü→u. Örn. `zeytinyağı` → `zeytinyagi.jpg`.
+- **Format/boyut önerisi:** JPG ya da WEBP, yatay (4:3 ya da 16:9), kart
+  UI'da kırpılacağı için kenarlarda önemli detay olmamalı, ~1200×900,
+  <300 KB (mobil veri kullanımı için).
+
+#### Berkin'e teslim edilecek 14 dosya
+| crop (slug) | Dosya adı |
+|---|---|
+| zeytinyağı | `zeytinyagi.jpg` |
+| nohut | `nohut.jpg` |
+| mercimek | `mercimek.jpg` |
+| kekik | `kekik.jpg` |
+| fındık | `findik.jpg` |
+| ceviz | `ceviz.jpg` |
+| buğday | `bugday.jpg` |
+| domates | `domates.jpg` |
+| biber | `biber.jpg` |
+| patlıcan | `patlican.jpg` |
+| üzüm | `uzum.jpg` |
+| incir | `incir.jpg` |
+| elma | `elma.jpg` |
+| safran | `safran.jpg` |
+
+⚠️ 13 vs 14 tutarsızlığı (bkz. `P23-Mobile.md` → M3) burada da geçerli —
+liste 14 dosya içeriyor, otonom karar.
+
+#### `default_photo_url` güncelleme SQL'i (hazır, **uygulanmadı** — dosyalar yok)
+```sql
+-- Berkin 14 dosyayı crop-photos bucket'ına yükledikten SONRA çalıştırılacak.
+UPDATE public.crop_config SET default_photo_url =
+  'https://efuqpiaavrzimvstpdpm.supabase.co/storage/v1/object/public/crop-photos/zeytinyagi.jpg'
+  WHERE crop = 'zeytinyağı';
+UPDATE public.crop_config SET default_photo_url =
+  'https://efuqpiaavrzimvstpdpm.supabase.co/storage/v1/object/public/crop-photos/nohut.jpg'
+  WHERE crop = 'nohut';
+UPDATE public.crop_config SET default_photo_url =
+  'https://efuqpiaavrzimvstpdpm.supabase.co/storage/v1/object/public/crop-photos/mercimek.jpg'
+  WHERE crop = 'mercimek';
+UPDATE public.crop_config SET default_photo_url =
+  'https://efuqpiaavrzimvstpdpm.supabase.co/storage/v1/object/public/crop-photos/kekik.jpg'
+  WHERE crop = 'kekik';
+UPDATE public.crop_config SET default_photo_url =
+  'https://efuqpiaavrzimvstpdpm.supabase.co/storage/v1/object/public/crop-photos/findik.jpg'
+  WHERE crop = 'fındık';
+UPDATE public.crop_config SET default_photo_url =
+  'https://efuqpiaavrzimvstpdpm.supabase.co/storage/v1/object/public/crop-photos/ceviz.jpg'
+  WHERE crop = 'ceviz';
+UPDATE public.crop_config SET default_photo_url =
+  'https://efuqpiaavrzimvstpdpm.supabase.co/storage/v1/object/public/crop-photos/bugday.jpg'
+  WHERE crop = 'buğday';
+UPDATE public.crop_config SET default_photo_url =
+  'https://efuqpiaavrzimvstpdpm.supabase.co/storage/v1/object/public/crop-photos/domates.jpg'
+  WHERE crop = 'domates';
+UPDATE public.crop_config SET default_photo_url =
+  'https://efuqpiaavrzimvstpdpm.supabase.co/storage/v1/object/public/crop-photos/biber.jpg'
+  WHERE crop = 'biber';
+UPDATE public.crop_config SET default_photo_url =
+  'https://efuqpiaavrzimvstpdpm.supabase.co/storage/v1/object/public/crop-photos/patlican.jpg'
+  WHERE crop = 'patlıcan';
+UPDATE public.crop_config SET default_photo_url =
+  'https://efuqpiaavrzimvstpdpm.supabase.co/storage/v1/object/public/crop-photos/uzum.jpg'
+  WHERE crop = 'üzüm';
+UPDATE public.crop_config SET default_photo_url =
+  'https://efuqpiaavrzimvstpdpm.supabase.co/storage/v1/object/public/crop-photos/incir.jpg'
+  WHERE crop = 'incir';
+UPDATE public.crop_config SET default_photo_url =
+  'https://efuqpiaavrzimvstpdpm.supabase.co/storage/v1/object/public/crop-photos/elma.jpg'
+  WHERE crop = 'elma';
+UPDATE public.crop_config SET default_photo_url =
+  'https://efuqpiaavrzimvstpdpm.supabase.co/storage/v1/object/public/crop-photos/safran.jpg'
+  WHERE crop = 'safran';
+```
+
+#### Tarif kapak fotoğrafları — eksik listesi
+Tüm 18 tarif `cover_photo_url=NULL` ile oluşturuldu (Berkin'in işi, task D
+kararı). UI mantığı P23-M2'deki crop fotoğraf fallback'iyle aynı ilkeyi
+izlemeli: `recipe.cover_photo_url ?? crop_config.default_photo_url ??
+placeholder` (tarifin ilk `is_key_ingredient=true` malzemesinin crop'u
+üzerinden). 18 tarifin tamamı bu fallback'e muhtaç — ayrı bir "eksik"
+listesi yok, hepsi eksik.
+
+#### "Temsili görsel" etiketi kararı
+UI'da bir crop görseli (ya da tarif kapağı fallback'i) **temsili** olarak
+kullanıldığında ekranda **"temsili görsel"** etiketi zorunlu — bu M4'in işi
+(tarif/ürün yüzeyleri o fazda kuruluyor), ama karar burada kayıt altına
+alınıyor: stok fotoğrafını çiftçinin ürünüymüş ya da tarifin kendi çekimi
+gibi göstermek, Hasat'ın menşe/güven tezini içeriden çürütür (bkz.
+`Build/P23-Mobile.md` → "Fotoğraf stratejisi"). Kural hem crop
+`default_photo_url` fallback'i hem de tarif kapak fotoğrafı fallback'i için
+aynı şekilde geçerli.

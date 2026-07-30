@@ -286,6 +286,43 @@ Tüm testler canlı DB'de gerçek SQL/insert ile koşuldu, test verisi sonunda *
 
 ---
 
+### S21 — P23-M3 Tarif İçeriği + Culinary Seed (ekleyici, veri katmanı)
+
+> ⚠️ Bu tur da S20 gibi **ekrana yansımıyor** — tarif arayüzü hâlâ M4'te
+> doğacak (`/tarifler` misafire açık sayfası). 18 tarif + culinary seed
+> canlı DB'de var ama hiçbir web/uygulama ekranında henüz görünmüyor. Bu
+> yüzden aşağıdaki test case'in ağırlığı yine **regresyon kontrolü**
+> (mevcut akışlar bozulmadı mı) üzerinde; yeni içerik doğrulaması veri
+> katmanında yapıldı, sonuçları `Build/DB-Schema.md` → "P23-M3" bölümünde.
+
+**Arka plan:** `Build/P23-Mobile.md` M3. Kapsam kuralı: canlı akışlara
+(teklif/sipariş/ilan/günlük) dokunulmadı, `unit_type` enum'una dokunulmadı,
+`crop_config`/`crop_culinary_meta`'nın 14 odak crop dışındaki satırlarına
+dokunulmadı, hiçbir mevcut davranış değiştirilmedi.
+
+#### A. Veri katmanı doğrulaması — Claude Code + Supabase MCP (kural #96)
+Ayrıntılı sonuç tablosu: `Build/DB-Schema.md` → "P23-M3" → "Doğrulama"
+bölümü. Özet: 18/18 tarif anon rolüyle okunabiliyor, 68/68 crop-bağlı
+malzeme satırında alışveriş listesi miktarı NULL dönmüyor, yenilemez
+crop'lar (pamuk/tütün/şeker_pancarı/safran_soğanı) hiçbir sonuçta yok,
+safran tam 1 tarifte, yeni advisor uyarısı yok.
+
+#### B. Berkin'in tarayıcı adımları — regresyon kontrolü (yeni ekran yok)
+
+| # | Adım | Beklenen |
+|---|---|---|
+| 1 | `hasat.lovable.app` → alıcı olarak gir (`905009876543`, OTP `123456`) | Giriş normal çalışıyor |
+| 2 | **Keşfet**'i aç, birkaç ürüne bak | Ürün kartları eskisi gibi listeleniyor, bu tur hiçbir ürün/ilan verisine dokunmadı |
+| 3 | Çiftçi (Ahmet, `905001234567`) → Depo/Vitrin → "+ Yeni Ürün" ile bir ilan oluştur, herhangi bir ürün seç | Kayıt hatasız — birim listesi hâlâ yalnızca **kg / g / L** (bu tur culinary birimleri `crop_culinary_meta`'ya yazdı, `unit_type` enum'una asla sızmadı) |
+| 4 | Aynı çiftçi → **Günlük**/**Rutin Bakım** sekmelerini aç | P22-G davranışı aynen duruyor |
+| 5 | Lovable editöründe projeyi aç, önizlemeyi yükle | Kırmızı build hatası yok — bu tur hiç frontend kodu değiştirmedi |
+
+**Beklenen sonuç: 5/5 "değişmedi".** Bu turda görülecek yeni bir ekran
+**yok** — 18 tarifin kendisini görmek isteyen biri için tek yol Supabase
+Dashboard'dan `recipes` tablosuna bakmak (M4'e kadar).
+
+---
+
 ## Feature Sonrası Süreç
 
 1. Yeni prompt tamamlanınca yeni S-numarası eklenir

@@ -96,7 +96,7 @@ Platform hiçbir crop'a özel muamele göstermez — domates/elma/safran/lavanta
 | Rekabet hukuku danışmanlığı | 🔴 Yapılmadı |
 | Glossary insan gözden geçirmesi | 🟡 P22-C içeriği AI üretimi, bölgesel doğrulama yapılmadı |
 | `useSetDefaultAddress` diğer adresleri `false`'a çekmiyor | 🟡 Düşük öncelik (P23-M1'de kapanacak) |
-| **P23 — Buyer Mobile & Recipe App** | 🟡 M0 + M1 kapandı; **M2 uygulandı (2026-07-29), tarayıcı QA (S20-B) bekliyor** → `Build/Roadmap.md` |
+| **P23 — Buyer Mobile & Recipe App** | 🟡 M0 + M1 kapandı; M2 uygulandı (tarayıcı QA S20-B bekliyor); **M3 + M3-D tamamlandı (2026-07-30), tarayıcı QA (S21) bekliyor** → `Build/Roadmap.md` |
 
 ### BENCHMARK Gap durumu
 Kapandı: #2 teslim/ihtilaf · #3 değerlendirme · #5 tekrar sipariş · #6 RFQ · #7 hal fiyat bandı · #8 lojistik · #10 bildirimler
@@ -227,6 +227,7 @@ hasat-vault/
 ├── Build/                   ← (doğrulandı 2026-07-28)
 │   ├── Roadmap.md              ← P23 görsel Gantt + kilometre taşları
 │   ├── P23-Mobile.md           ← P23 kapsam, şema, M0-M9
+│   ├── P23-Mobile-Visual-Spec.md ← M3-D: mobil UI görsel şartnamesi (5 ekran)
 │   ├── Shared-Architecture.md  ← web+mobil paylaşım mimarisi
 │   ├── Store-Compliance.md     ← Apple 4.2, hesap tipleri, IAP, submit checklist
 │   ├── DB-Schema.md            ← tablo + enum referansı
