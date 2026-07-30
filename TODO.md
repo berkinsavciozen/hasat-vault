@@ -599,7 +599,8 @@ P22 serisi (A/B/C/D/E/F) + P22-F'nin yan etki düzeltmeleri + P22-G (tarih/filtr
 | M0 | Açık işler + hesaplar | 28 Tem – 3 Ağu | ✅ TAMAMLANDI (2026-07-29) |
 | M1 | Paylaşılan çekirdek (`hasat-core`) | 4 – 10 Ağu | ✅ TAMAMLANDI (2026-07-29) |
 | M2 | Tarif backend'i (ekleyici) | 11 – 22 Ağu | 🟡 Uygulandı (2026-07-29), tarayıcı QA (S20-B) bekliyor |
-| M3 | İçerik (15–20 tarif) | 18 Ağu – 1 Eyl | ⬜ |
+| M3 | İçerik (18 tarif) + culinary seed + görsel altyapı | 18 Ağu – 1 Eyl | ✅ TAMAMLANDI (2026-07-30), tarayıcı QA (S21) bekliyor |
+| M3-D | Mobil UI görsel şartnamesi (paralel iş kolu) | — | ✅ TAMAMLANDI (2026-07-30) — `Build/P23-Mobile-Visual-Spec.md` |
 | M4 | Web tarif yüzeyi + Gap #9 | 1 – 13 Eyl | ⬜ |
 | M5 | Mobil iskelet + offline | 14 – 27 Eyl | ⬜ |
 | M6 | Native yetenekler + push | 28 Eyl – 11 Eki | ⬜ — ⚠️ **açık madde var, bkz. altta "M6 açık maddeleri"** |
@@ -925,3 +926,102 @@ Not: job seviyesindeki `permissions:` bloğu **tüm izin kümesini değiştirir*
 | **Drift script'ine sürüm-gerisi kontrolü** (bkz. `Build/Shared-Architecture.md`) | M5 |
 | **`device_tokens` UNIQUE(token) token devri** (bkz. "M6 açık maddeleri") | M6 |
 | `recipe_saves` + `recipe_views` KVKK — gizlilik metnine eklenmesi | M7 |
+
+---
+
+### 🟢 P23-M3 — Tarif İçeriği + Culinary Seed + Görsel Altyapısı — **TAMAMLANDI (2026-07-30, Claude Code + Supabase MCP ile doğrudan)**
+
+**Bir cümlede:** Tarif katmanının içeriği yazıldı — 18 özgün tarif (10 dayanıklı
+omurga + 7 taze/Ağustos-Ekim + 1 safran), 14 odak crop için tam culinary
+dönüşüm seedi, ve görsel altyapının (bucket isimlendirme + `default_photo_url`
+SQL) Berkin'e teslime hazır hali. **Ekranda görünen hiçbir şey değişmedi** —
+tarif arayüzü hâlâ M4'te.
+
+**Kapsam kuralı tutuldu:** canlı akışlara dokunulmadı, `unit_type` enum'una
+dokunulmadı, 14 odak crop dışındaki `crop_culinary_meta` satırlarına
+dokunulmadı, frontend işi yok.
+
+#### Ne yapıldı
+
+**1. Crop odağı ve gerekçe** — `Build/P23-Mobile.md` → M3 bölümüne yazıldı:
+7 dayanıklı (`zeytinyağı`/`nohut`/`mercimek`/`kekik`/`fındık`/`ceviz`/`buğday`)
++ 6 taze (`domates`/`biber`/`patlıcan`/`üzüm`/`incir`/`elma`) + safran (tam 1
+tarif). Dört gerekçe (mainstream=güvenilir tedarik · dayanıklı=hasat
+penceresinden bağımsız · dayanıklı=ihtilaf riski düşük · Kadıköy talep
+profili) birebir dokümana geçti.
+
+**2. 18 tarif** — `recipes` (18) + `recipe_steps` (98) + `recipe_ingredients`
+(117). Tam alan listesi ve malzeme modelleme kuralı: `Build/DB-Schema.md` →
+"P23-M3".
+
+**3. `crop_culinary_meta` seed** — 14 crop için `culinary_aliases` +
+`conversion_hints` tam dolduruldu (domates/kekik M2'den genişletildi, yeni
+birim eklenmeden).
+
+**4. Görsel altyapı** — `crop-photos` isimlendirme konvansiyonu (ASCII slug +
+`.jpg`, düz ad alanı) + `default_photo_url` güncelleme SQL'i (14 satır,
+**uygulanmadı**, dosyalar yok) + Berkin'e teslim listesi. Tarif kapak
+fotoğrafları `cover_photo_url=NULL` ile bırakıldı (18/18 eksik, tek liste).
+"Temsili görsel" etiketi kararı `Build/DB-Schema.md`'ye not düşüldü (M4 işi).
+
+**5. `v_kpi_recipe_funnel`'ın üç bilinen sınırı** dokümante edildi (kohortsuz
+yüzdeler, tarif kırılımı yok, gerçek "kayıt" basamağı yok) — `Build/DB-Schema.md`,
+M4 açık maddesi.
+
+**6. M3-D — Mobil UI Görsel Şartnamesi** (paralel iş kolu, Berkin onaylı):
+`Build/P23-Mobile-Visual-Spec.md` — 5 ekran (Pişirme Modu, Offline Durumu, AI
+Import Akışı, Alt Navigasyon, "Talep Et"), gerçek 18 tarifin adım/timer
+verisiyle kalibre edildi (örn. `timer_seconds` 0 sn'den 259.200 sn'e/3 güne
+kadar aralık, "uzun süreç" eşiği bu yüzden 1 saat olarak belirlendi). Kapsam
+dışı: Keşfet/ürün listesi/siparişlerim/tarif listesi (webden port edilecek).
+
+#### Doğrulama (kural #96 — hepsi gerçek çalıştırma)
+
+| Kontrol | Sonuç |
+|---|---|
+| `recipes`/`recipe_steps`/`recipe_ingredients` satır sayısı (18/98/117) | ✅ Beklenenle birebir |
+| Her `recipe_ingredients.crop` gerçek `crop_config.crop` slug'ına çözülüyor mu | ✅ 0 çözümlenemeyen |
+| `rpc_recipe_shopping_list` — 18 tarif, varsayılan porsiyon, tüm crop-bağlı satırlar | ✅ 68/68 `needed_canonical` dolu, 0 NULL |
+| `rpc_recipe_shopping_list` — 2× porsiyon ölçekleme | ✅ 0 NULL |
+| `rpc_recipe_availability` — yenilemez crop'lar (pamuk/tütün/şeker_pancarı/safran_soğanı) | ✅ 18 tarifin hiçbirinde görünmüyor |
+| Crop dağılım raporu — `safran` en fazla 1 tarifte | ✅ Tam 1 (`safranli-zerde`) |
+| Anon rolüyle 18 tarif + adım + malzeme okunuyor mu (SEO) | ✅ 18/18 |
+| Advisor taraması (`security`) | ✅ Bu turdan kaynaklı yeni uyarı yok |
+| Test verisi | Bu tur test verisi değil, **kalıcı editoryal içerik** — silinmedi |
+
+#### 🔶 Otonom alınan kararlar (kural #107 — Berkin onayı YOK)
+
+1. **"13 odak crop" ↔ gerçekte 14 crop sayım tutarsızlığı.** Görev metni
+   A bölümünde crop'ları "13 odak crop" olarak adlandırdı, ama listelenen
+   crop'lar (7 dayanıklı + 6 taze + safran) toplamda 14 ediyor. **Safran'ı
+   dahil ederek 14 crop'un tamamı işlendi** — hem `crop_culinary_meta`
+   seedinde hem görsel listesinde. Gerekçe: safran'ı culinary seedden
+   hariç tutmak kendi tarifinin (Safranlı Zerde, "1 tutam safran") E
+   doğrulamasını (`rpc_recipe_shopping_list` NULL dönmemeli) doğrudan
+   ihlal ederdi; ayrıca P25 crop-agnostic ilkesiyle çelişirdi (safran'ı
+   görsel altyapıdan dışlamak "öne çıkarmama" değil "eksik bırakma"
+   olurdu). **Netleşmesi gereken soru:** kastedilen gerçekten "13" mü ve
+   öyleyse hangi crop dışarıda kalmalıydı?
+2. **İşlenmiş/türetilmiş ürünler → `free_text_name`, ham crop'un kendisi
+   değil.** `crop_config`'te karşılığı olan ama tarifte işlenmiş haliyle
+   geçen malzemeler (domates salçası, nar ekşisi, un, pirinç) editoryal
+   olarak `free_text_name`'de bırakıldı — ham crop FK'sine bağlanmadı.
+   Gerekçe: P23-M2'den beri var olan `buğday`→`un` ayrımıyla aynı ilke
+   (işlenmiş ürün, farmer'ın sattığı ham üründen farklı bir market
+   kalemi). Görev metni bu ayrımı açıkça tarif etmiyordu, tutarlılık için
+   genişletildi.
+3. **`crop-photos` isimlendirme konvansiyonu** (ASCII slug + `.jpg`, düz ad
+   alanı, ~1200×900/<300KB önerisi) baştan tasarlandı — görev metni
+   yalnızca "bir konvansiyon kur" diyordu, somut kural içermiyordu.
+
+#### Açık maddeler (Berkin'e ait)
+
+| Madde | Nereye |
+|---|---|
+| **14 crop görseli** — liste + dosya adları: `Build/DB-Schema.md` → "P23-M3" | Berkin |
+| **18 tarif kapak fotoğrafı** (`cover_photo_url`, hepsi NULL) | Berkin |
+| `default_photo_url` güncelleme SQL'ini görseller yüklendikten sonra çalıştırmak | Berkin/Claude (M3 sonrası) |
+| 13 vs 14 sayı tutarsızlığının netleştirilmesi (yukarı bkz.) | Berkin |
+| **Glossary insan gözden geçirmesi** — P22-C içeriği AI üretimi, bölgesel doğrulama yapılmadı. **Hâlâ açık, bu turda kapanmadı.** | Berkin |
+| `crop_culinary_meta` kalan 56 crop'un alias + conversion_hints'i | M4/M9 |
+| "Temsili görsel" etiketinin gerçek UI'a eklenmesi | M4 |

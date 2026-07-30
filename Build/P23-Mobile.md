@@ -141,11 +141,97 @@ Bu kararla fotoğraf **kritik yoldan çıktı** — 39 çiftçi fotoğrafı topl
 - AI çıkarma edge function (`extract-recipe`): metin + görsel; `ai_usage_tracking` ile limitli
 - **Çıkış:** Gerçek SQL + RLS simülasyonu; **3 crop testi** (mainstream + niş + yenilemez filtresi)
 
-### M3 — İçerik
-- **15–20 özgün tarif.** Crop dağılımı mainstream ağırlıklı (domates, elma, fındık, zeytinyağı, kekik, patates); **safran en fazla 1–2 tarif** (crop-agnostic ilkesi — bkz. P25)
-- `crop_culinary_meta` seed (70 crop), ~20 crop temsili görseli
-- **Glossary insan gözden geçirmesi** (P22-C'den bekleyen madde: AI üretimi, bölgesel doğrulama yapılmadı)
-- **Tarif seti = arz büyüme planının aynası:** hangi crop'ta çiftçi kazanmak istiyorsan o crop'un tarifini yaz
+### M3 — İçerik — ✅ **TAMAMLANDI (2026-07-30)**
+
+#### Onaylanan crop odağı
+
+Araştırmayla belirlendi, iki katman + safran:
+
+| Katman | Crop'lar |
+|---|---|
+| **Katman 1 — dayanıklı omurga** | `zeytinyağı`, `nohut`, `mercimek`, `kekik`, `fındık`, `ceviz`, `buğday` (7) |
+| **Katman 2 — taze, Ağustos–Ekim penceresi** | `domates`, `biber`, `patlıcan`, `üzüm`, `incir`, `elma` (6) |
+| **Safran** | Tam 1 tarif, öne çıkarılmadan — diğerlerinin arasında bir crop (P25 crop-agnostic ilkesi) |
+
+⚠️ **Sayı notu:** Görev metni bu listeyi "13 odak crop" olarak adlandırıyor,
+ama yukarıdaki liste 7+6+1=**14** crop içeriyor — kaynağında bir sayım
+tutarsızlığı var. Bu otonom olarak çözüldü: **14 crop'un tamamı** hem
+`crop_culinary_meta` seedinde hem `default_photo_url` görsel listesinde
+işlendi. Gerekçe: safran'ı culinary seedden hariç tutmak kendi tarifinin
+(Safranlı Zerde, "1 tutam safran") `rpc_recipe_shopping_list`'te NULL
+dönmesine yol açardı — bu da E doğrulamasının kendisini (aşağıda) ihlal
+ederdi ve P25 crop-agnostic ilkesiyle çelişirdi (safran'ı görsel altyapıdan
+dışlamak onu ikinci sınıf crop yapardı, "öne çıkarma" değil "eksik bırakma"
+olurdu). **Bu karar Berkin onayı almadan verildi** — sayının kastının "14"
+mü yoksa gerçekten "13" mü (ve hangi crop'un dışarıda kalması gerektiği)
+olduğu netleşmeli.
+
+**Gerçekleşen dağılım:** Katman 1'den 10 tarif, Katman 2'den 7 tarif, safran
+1 tarif = **18 tarif toplam** (hedef aralık 15–20 içinde).
+
+#### Gerekçe (dört madde)
+
+1. **İstanbul şeflerinin acısı yenilik değil, güvenilir tedarik.** Şefler
+   zaten kullandıkları malzemenin (zeytinyağı, nohut, domates, kekik...) en
+   iyisini kaynağından bulmak istiyor — niş/egzotik crop'lar bu acıyı
+   çözmüyor. Bu yüzden mainstream crop odağı, egzotik değil.
+2. **Dayanıklı ürün hasat penceresinden bağımsız satılır.** Lansman
+   Eylül/Ekim'e kayarsa (bkz. `Roadmap.md` öteleme kuralı) Katman 1'in
+   stratejisi bozulmaz — zeytinyağı/nohut/mercimek/kekik/fındık/ceviz/buğday
+   yıl boyu tedarik edilebilir.
+3. **Dayanıklı ürün ihtilaf riskini düşürür.** North Star **ihtilafsız**
+   tamamlanmış GMV; lojistik (soğuk zincir, hızlı bozulma) henüz
+   olgunlaşmamışken taze/kırılgan ürün odaklı bir tarif seti doğrudan bu
+   metriği riske atardı.
+4. **Kadıköy talep profili.** Zeytinyağlı meze kültürü, vegan/humus/falafel
+   patlaması, kahvaltı kültürü, ekşi maya/bakery trendi, kuruyemişli
+   tatlılar — 18 tarifin editoryal seçimi bu beş eğilimi doğrudan hedefliyor
+   (bkz. tarif başlıkları: Muhammara, Nohut Falafel, Vegan Fındık Kreması,
+   Ekşi Mayalı Tam Buğday Ekmeği, Cevizli Kurabiye/Köme).
+
+**Tarif seti = arz büyüme planının aynası:** hangi crop'ta çiftçi kazanmak
+istiyorsan o crop'un tarifini yaz ilkesi bu dağılımla uygulandı.
+
+#### Yapılanlar
+- **18 özgün tarif** (10 Katman 1, 7 Katman 2, 1 safran) — tamamen özgün
+  metin, hiçbir siteden kazıma yok. `author_type='hasat'`,
+  `visibility='public'`, `status='published'`, `owner_id=NULL`,
+  `source_type='manual'`, ASCII slug.
+- **`crop_culinary_meta` seed** — 14 odak crop için `culinary_aliases` +
+  `conversion_hints` tam dolduruldu (domates/kekik M2'den genişletildi).
+  Kalan 56 crop boş kaldı, M4/M9'a bırakıldı.
+- **`recipe_steps.timer_seconds`** — bekleme/pişirme/dinlenme içeren her
+  adımda dolu (98 adımın içinde 0 sn'den 259.200 sn'e/3 güne kadar aralık).
+- **Görsel altyapı** — `crop-photos` isimlendirme konvansiyonu +
+  `default_photo_url` güncelleme SQL'i hazır (bkz. `DB-Schema.md`), henüz
+  uygulanmadı (görseller Berkin'in işi).
+- **Doğrulama (kural #96)** — bkz. `Build/E2E-QA.md` → S21.
+
+#### Berkin'e kalan işler
+- 14 crop görseli + 18 tarif kapak fotoğrafı (liste: `DB-Schema.md`)
+- Glossary insan gözden geçirmesi (P22-C'den bekleyen, hâlâ açık — `TODO.md`)
+- 14 vs 13 sayı tutarsızlığının netleştirilmesi (yukarıda)
+
+### M3-D — Mobil UI Görsel Şartnamesi (yeni paralel iş kolu, Berkin onayladı)
+
+**Amaç:** M5/M6'nın iterasyon maliyetini düşürmek. Mobilde Lovable yok, EAS
+build dakikalar sürüyor, local inceleme mümkün değil — görsel hedef olmadan
+girmek her düzeltmeyi pahalı yapıyor. **BE de-riske etme amacı değil** (o işi
+M4 yapıyor).
+
+**Zamanlama:** İlk 2–3 tarif hazır olduktan sonra başlaması şart koşulmuştu
+("placeholder metinle pişirme modu tasarlamak işe yaramaz") — M3'ün 18 tarifi
+tamamlandıktan sonra yapıldı, gerçek adım uzunlukları ve timer aralığı
+(0 sn – 3 gün) şartnameyi doğrudan şekillendirdi.
+
+**Kapsam — tam 5 ekran:** Pişirme modu · Offline durumu · AI import akışı ·
+Alt navigasyon · "Talep Et". **Kapsam dışı:** Keşfet, ürün listesi,
+siparişlerim, tarif listesi (webdeki muadillerini yakından takip ediyor,
+port edilecek).
+
+**Çıktı:** `Build/P23-Mobile-Visual-Spec.md` — görsel şartname, kod değil.
+Bu dosyadan referanslanır, serbest dolaşan bir artifact değildir (üçüncü
+doğruluk kaynağı riski).
 
 ### M4 — Web tarif yüzeyi *(huninin üst ağzı — mobilden ÖNCE)*
 - `/tarifler` + `/tarifler/$slug` — **`/buyer/` dışında**, misafire açık, SSR ile SEO'lu
