@@ -1,6 +1,6 @@
 ---
 title: Hasat — Master Roadmap & Build Log
-updated: 2026-07-29
+updated: 2026-07-30
 tags:
   - hasat
   - todo
@@ -324,6 +324,9 @@ Son değişikliğin (`buyer.producer.$id` guest-erişimi) routing-guard seviyesi
 | **13 vs 14 odak crop sayımı — Berkin doğruladı (2026-07-30)** | M3'te otonom bırakılan açık soru kapandı: "13" Berkin'in kendi aritmetik hatasıydı, doğru sayı 14. `P23-Mobile.md` ve `DB-Schema.md` buna göre güncellendi. |
 | **P23-M4 a/b'ye bölündü (2026-07-30)** | Public tarif yüzeyi (a) ile Talep Et akışı + admin heatmap + Gap #9 (b) ayrı turlarda yapılacak — tek PR'da üç yeni yüzeyin review yükünü büyütmemek için. Görev metni zaten bu ayrımı tanımlıyordu, burada sadece roadmap'e yansıtıldı. |
 | **P23-M4-a tamamlandı (2026-07-30)** | `/tarifler` + `/tarifler/$slug` (SSR, misafire açık), malzeme kartı 3 durumu, `recipe_views` ölçümleme + `v_kpi_recipe_funnel_by_recipe`. `crop_requests.quantity`/`.unit` migration gerekmediği (zaten vardı) ve yeni view'a varsayılan olarak düşen anon/authenticated grant'i bulunup düzeltildi. Gerçek RLS simülasyonu + gerçek `min_order` yuvarlama testleriyle doğrulandı; canlı tarayıcı testi bu oturumun ağ kısıtı yüzünden Berkin'e kaldı. |
+| **P23-M4 (b+c) tamamen kapandı — `_Context.md`'ye yansıtıldı (2026-07-30)** | M4-b (Talep Et + admin heatmap + Gap #9) ve M4-c (`cook_minutes` semantik düzeltmesi + SEO) daha önce ayrı turlarda tamamlanmıştı ama `_Context.md`'nin "Açık işler" satırı hâlâ "M4-b sırada" yazıyordu — M5-a turunda fark edilip düzeltildi. |
+| **`SYNC_TOKEN` kapsamı `hasat-mobile`'a genişletildi — Berkin (2026-07-30)** | `hasat-core`'un ikinci subtree hedefi (`hasat-mobile`) için PAT'ın kapsamına eklendi; dual-target `sync-to-web.yml`/`drift-check.yml` artık her iki repoda da çalışabilir durumda. |
+| **P23-M5-a tamamlandı (2026-07-30)** | `hasat-mobile` iskeleti (Expo 57 + Router + Nativewind + API 36) + `hasat-core`'un ikinci subtree hedefi (dual-target Action'lar + drift kör noktası kapandı) + tesisat (storage adapter + OTP + TanStack Query). Nohut Falafel `rest_minutes` içerik düzeltmesi + süre filtresi bulgusu/düzeltmesi ayrı iş olarak yapıldı. Statik doğrulama (bundle, API36 config, manifest hash, drift kasıtlı bozma) tamamlandı; canlı OTP girişi (web + mobil) bu oturumun ağ kısıtı Supabase host'unu engellediği için doğrulanamadı — Berkin'e kaldı. `hasat-core/db/types.ts`'te `rest_minutes` eksik olduğu (M4-c'den beri tip üretimi yenilenmemiş) bulundu, kapsam dışı bırakıldı. |
 
 ---
 
@@ -606,7 +609,8 @@ P22 serisi (A/B/C/D/E/F) + P22-F'nin yan etki düzeltmeleri + P22-G (tarih/filtr
 | M3 | İçerik (18 tarif) + culinary seed + görsel altyapı | 18 Ağu – 1 Eyl | ✅ TAMAMLANDI (2026-07-30), tarayıcı QA (S21) bekliyor |
 | M3-D | Mobil UI görsel şartnamesi (paralel iş kolu) | — | ✅ TAMAMLANDI (2026-07-30) — `Build/P23-Mobile-Visual-Spec.md` |
 | M4 | Web tarif yüzeyi + Gap #9 | 1 – 13 Eyl | ✅ TAMAMLANDI (2026-07-30, a+b+c) |
-| M5 | Mobil iskelet + offline | 14 – 27 Eyl | ⬜ |
+| M5-a | Mobil iskelet + `hasat-core` ikinci hedefi + tesisat | 14 – 27 Eyl | ✅ TAMAMLANDI (2026-07-30) |
+| M5-b | Ekran yazma (tarif listesi/detayı, pişirme modu, AI import, offline önbellek) | 14 – 27 Eyl | ⬜ |
 | M6 | Native yetenekler + push | 28 Eyl – 11 Eki | ⬜ — ⚠️ **açık madde var, bkz. altta "M6 açık maddeleri"** |
 | M7 | Köprü + store varlıkları | 12 – 18 Eki | ⬜ |
 | M8 | Store submit | 19 – 31 Eki | ⬜ |
@@ -1249,3 +1253,110 @@ koşmadı — Lovable/Berkin'in ortamında doğrulanmalı.
 **M4 tamamen kapandı** (a: public tarif yüzeyi · b: Talep Et + admin
 heatmap + Gap #9 · c: cook_minutes düzeltmesi + SEO). Sıradaki taş: M5
 (mobil iskelet).
+
+---
+
+### 🟢 P23-M5-a — `hasat-mobile` İskeleti + `hasat-core` İkinci Hedefi + Tesisat — **TAMAMLANDI (2026-07-30, Claude Code doğrudan)**
+
+**Ön iş — Nohut Falafel `rest_minutes` içerik düzeltmesi:** Adım 1 metni zaten
+"Islatılmış çiğ nohutları süzün" diyordu — tarif kuru nohut varsayıyor,
+konserve değil — ama ıslatma adımının kendisi hiç yazılı değildi;
+`rest_minutes=30` yalnızca 3. adımdaki buzdolabı dinlendirmesini (1800 sn)
+yansıtıyordu. Kardeş tarif `Zeytinyağlı Nohut Yemeği`'nin deseni (8 saatlik
+ıslatma adımı → `timer_seconds=28800` → `rest_minutes`'a yansıması) aynen
+uygulandı: yeni adım 1 eklendi ("Kuru nohutları ayıklayıp yıkayın, bol suyla
+örtüp en az 8 saat, tercihen akşamdan sabaha ıslatın.", `timer_seconds=28800`),
+diğer 6 adım kaydırıldı, `rest_minutes` 30 → **510** (480 dk ıslatma + 30 dk
+mevcut dinlendirme). Doğrudan SQL ile uygulandı, DB'den okunarak doğrulandı.
+
+**Ön iş — süre filtresi bulgusu:** `tarifler.index.tsx`'teki M4-a süre
+filtresi `totalRecipeMinutes` (prep+cook+rest) üzerinden süzüyordu; Köme
+(4370 dk/~73 sa) ve Ekşi Mayalı Ekmek (1075 dk/~18 sa) "1 saatten uzun"
+(üst sınırsız) bucket'ında 65 dakikalık bir tarifle ayırt edilemiyordu.
+Bulgu raporlandı, düzeltme **yapılmadı** (görev talimatı böyleydi) — Berkin
+onayladı ve ek talimat verdi: filtre `prep+cook`'a (aktif süre) çekildi,
+`rest_minutes > 120 dk` için liste+detay sayfasında "Önceden başlamak
+gerekir" rozeti eklendi (dördüncü bucket yerine — kavramsal hatayı
+çözmezdi). Ayrı bir commit'te tutuldu, M5-a mobil işiyle karışmadı.
+
+**A — `hasat-mobile` reposu:**
+- Expo SDK 57 + Expo Router (dosya tabanlı) + Nativewind. `tailwind.config.js`
+  `hasat-core/core/design/tokens.ts`'i **doğrudan `require` ediyor** (Node'un
+  bu ortamdaki sürümü TS dosyalarını doğrudan çalıştırabiliyor), sabit bir
+  yedekle — üçüncü bir token kopyası açılmadı.
+- `expo-build-properties` ile Android `compileSdkVersion`/`targetSdkVersion`
+  **36** açıkça set edildi (`app.json` → plugins), varsayılana bırakılmadı.
+- Repo **public**, boş oluşturuldu (Claude Code'un repo oluşturma yetkisi
+  yoktu — GitHub App entegrasyonu 403 verdi, Berkin'in elle oluşturması
+  gerekti, `SYNC_TOKEN` kapsamına da Berkin ekledi).
+
+**B — `hasat-core`'un ikinci hedefi:**
+- `git subtree add --prefix=src/lib/core <hasat-core> core-dist --squash` ile
+  `hasat-mobile`'a indirildi (aynı `core-dist` split-branch deseni, M1'deki
+  weble birebir aynı mekanizma).
+- `sync-to-web.yml` → matrix ile iki hedefe birden (web + mobil) paralel PR
+  açacak şekilde genişletildi (`prepare` job core-dist'i üretir, `sync` job
+  matrix'te her iki hedefe pull+PR yapar).
+- `drift-check.yml` iki hedefi de tarıyor + **yeni üçüncü adım**:
+  `scripts/check-manifest-freshness.mjs` — hedefin manifest'i `hasat-core`'un
+  GÜNCEL `core/.manifest`'inden farklıysa (bekleyen bir sync PR'ı merge
+  edilmediyse) artık exit 1 veriyor. **M5 açık maddesi olan drift kör noktası
+  kapandı** (bkz. `Build/Shared-Architecture.md`).
+- Kasten bozup (elle düzenleme + sürüm-gerisi, iki ayrı senaryo) exit 1
+  verdiği, sonra geri alındığı doğrulandı (aşağıda detay).
+
+**C — Tesisat:**
+- `hasat-core/core/supabase/client.ts` — `createHasatSupabaseClient(url, key,
+  {storage})`, storage opsiyonel parametre (web SSR'da `undefined` geçebilsin
+  diye). Web'in `src/integrations/supabase/client.ts`'i bu factory'yi
+  kullanacak minimal şekilde değiştirildi — **davranış değişmedi**
+  (persistSession/autoRefreshToken/localStorage/SSR-undefined aynen korundu),
+  ayrı bir PR'da (`claude/p23-m5-storage-adapter`).
+- Mobilde storage: `expo-secure-store` + `AsyncStorage` + AES (`LargeSecureStore`
+  — Supabase'in resmi Expo deseni; ham `SecureStore` tek başına ~2048 byte/değer
+  sınırı yüzünden Supabase'in oturum payload'unu tutamıyor).
+- Telefon OTP girişi (`app/login.tsx`) web'deki akışın aynısı: `signInWithOtp`
+  → `verifyOtp` → `profiles` fetch → role'e göre yönlendirme. Format
+  `905XXXXXXXXX` (+ prefix'siz, DB'ye yazılırken).
+- TanStack Query kuruldu (`src/lib/query/client.ts`).
+- **Kapsam tutuldu:** sadece giriş + oturum kalıcılığı; tarif ekranları,
+  çiftçi akışları, checkout — hiçbiri yazılmadı (M5-b/M7).
+
+**D — Kapsam sınırı:** Web reposuna yalnızca C'deki adapter değişikliği için
+dokunuldu (ayrı PR, minimal). Çiftçi akışı yok, checkout yok, tarif ekranı yok.
+
+**E — Doğrulama (kural #96):**
+| Kontrol | Sonuç |
+|---|---|
+| `expo start` bundle (Android, offline mod) | ✅ `1850 modül`, HTTP 200, kendi ekran kodumuz (`"6 haneli kodu girin"`, `createHasatSupabaseClient`) bundle içinde doğrulandı |
+| API 36 hedefi config'den kanıt | ✅ `expo prebuild --platform android` sonrası `android/gradle.properties`: `android.compileSdkVersion=36`, `android.targetSdkVersion=36` (native klasör sonra silindi — CNG deseni, commit edilmiyor) |
+| Subtree hash eşleşmesi | ✅ `diff core/.manifest src/lib/core/.manifest` → birebir aynı (her core güncellemesinden sonra yeniden doğrulandı) |
+| Drift script — kasten bozup exit 1 | ✅ Hem `check-drift.mjs` (mobildeki bir core dosyasını elle düzenleyip) hem `check-manifest-freshness.mjs` (hasat-core'da yeni bir satır ekleyip mobile hiç sync etmeyerek) exit 1 verdiği, geri alınınca exit 0'a döndüğü doğrulandı |
+| Web'de auth'un bozulmadığı | 🟡 **Kısmi** — `tsc --noEmit` + `npm run build` temiz (client.ts değişikliğinden önce/sonra aynı 4 önceden var olan, ilgisiz hata dışında — ayrı bulgu, aşağıda). Gerçek tarayıcıda OTP girişi bu oturumun ağ politikası `efuqpiaavrzimvstpdpm.supabase.co`'yu 403 ile engellediği için **doğrulanamadı** (P24/M4-a'da da aynı kısıt) — Berkin'in kendi tarayıcısında doğrulaması gerekiyor |
+| Mobilde gerçek OTP + oturum kalıcılığı | 🔴 **Doğrulanamadı** — fiziksel cihaz/emülatör yok, ayrıca aynı ağ kısıtı Supabase host'una da uygulanıyor. Kod incelemesiyle doğrulanabilen: `supabase.auth.getSession()` her açılışta storage'dan okunuyor, `LargeSecureStore` senkron değil async ama supabase-js'in storage arayüzüyle uyumlu |
+
+**Bu oturumda bulunan, kapsam dışı bir bulgu:** `src/lib/core/db/types.ts`
+(hem web hem mobil kopyasında) `recipes.rest_minutes` kolonunu içermiyor —
+M4-c'nin eklediği kolon, tip üretimi hiç yeniden çalıştırılmamış. `tsc --noEmit`
+bu yüzden `recipes.ts`'te 4 hata veriyor (benim değişikliklerimden ÖNCE de
+aynı 4 hata vardı, `git stash` ile doğrulandı — ben yaratmadım). Düzeltmedim
+(hasat-core'da DB tiplerini yeniden üretmek bu turun kapsamı dışında, kural
+#107) — Berkin'e bırakılıyor: `supabase gen types typescript --project-id
+efuqpiaavrzimvstpdpm` yeniden çalıştırılıp hasat-core'a commit edilmeli.
+
+**Ortam notu (kural #103):** `npm install` bu oturumda **hem hasat-core hem
+hasat-mobile hem hasat-d2c-marketplace'te** engellenmeden çalıştı (M4-b/c'de
+bulunan `bun install` engeli `bun.lock`'un özel Lovable mirror'ına
+kilitlenmesinden kaynaklanıyordu; `npm install` public npm registry'sine
+gidiyor ve bu turda açıktı). Bu, M4-b/c'deki "vite build hiç koşmadı" notunun
+tersine, bu turda **gerçek `npm run build` çalıştırılıp temiz sonuç alındığı**
+anlamına geliyor — ama `bun.lock` ile birebir aynı sürüm kilidini yeniden
+üretmez, o yüzden Lovable'ın kendi ortamında bağımsız doğrulama hâlâ değerli.
+
+**Kapsam kuralı tutuldu:** Çiftçi akışı yok, checkout yok, tarif ekranı yazılmadı.
+Web reposuna dokunma yalnızca C'deki adapter (ayrı PR) ve süre filtresi
+düzeltmesiyle (ayrı commit, Berkin'in ek talimatıyla) sınırlı kaldı.
+
+Tam ayrıntı: `Build/Shared-Architecture.md` (ikinci hedef, dual-target
+Action'lar, kör nokta kapanışı). Tarayıcı QA / mobil QA: `Build/E2E-QA.md` →
+S25.

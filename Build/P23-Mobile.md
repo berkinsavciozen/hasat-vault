@@ -263,9 +263,14 @@ doğruluk kaynağı riski).
 - Detay: `Build/DB-Schema.md` → "P23-M4-c", `Build/E2E-QA.md` → S24
 - **M4 (a+b+c) tamamen kapandı.**
 
-### M5 — Mobil iskelet
-- Expo + Expo Router + Nativewind, telefon OTP (mevcut akışın aynısı), tarif listesi/detayı
-- **Offline önbellek** (expo-sqlite)
+### M5-a — Mobil iskelet + paylaşılan çekirdeğin ikinci hedefi + tesisat — ✅ **TAMAMLANDI (2026-07-30)**
+- Expo SDK 57 + Expo Router + Nativewind (marka renkleri `hasat-core/core/design/tokens.ts`'e bağlı) + `expo-build-properties` ile Android API 36
+- `hasat-core` → `hasat-mobile` git subtree'si + `sync-to-web.yml`/`drift-check.yml` dual-target + drift'in sürüm-gerisi kör noktası kapandı (bkz. `Shared-Architecture.md`)
+- Supabase client (storage adapter parametreli, mobil: `expo-secure-store` tabanlı `LargeSecureStore`) + telefon OTP girişi (mevcut akışın aynısı) + TanStack Query
+- Detay + doğrulama tablosu: `TODO.md` → "P23-M5-a" build log
+
+### M5-b — Ekran yazma
+- Tarif listesi/detayı, pişirme modu, AI import, **offline önbellek** (expo-sqlite)
 - Play hesap tipi kararı (personal $25 şimdi mi, organizasyon mu) burada verilir
 - **Çıkış:** Uçak modunda app açılıyor ve tarifler görünüyor — *Apple 4.2'nin asıl testi*
 
