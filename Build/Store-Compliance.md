@@ -1,6 +1,6 @@
 ---
 title: Hasat — App Store & Play Store Uyumluluk
-updated: 2026-07-28
+updated: 2026-07-31
 tags:
   - hasat
   - mobile
@@ -18,6 +18,17 @@ tags:
 
 ## 1. Hesap stratejisi
 
+> ⚠️ **Tekrar vurgulanıyor (2026-07-31) — bu proje boyunca İKİ KEZ karıştırıldı:**
+> **Apple Developer bireysel hesabı şirket tescilinden tamamen bağımsızdır.**
+> Bu iki karar birbirine bağlı DEĞİL: (1) şirket kuruluşu (şahıs şirketi vs.
+> Ltd. Şti., hâlâ açık, mali müşavir bekleniyor), (2) Apple Developer hesabı
+> (bireysel, $99, D-U-N-S gerekmiyor, **2026-07-30/31'de başvuruldu** —
+> başvuru şirket tescilini beklemedi ve beklemiyor). Şirket tescili gecikse
+> bile Apple hesabı süreci etkilenmez; App Store'da satıcı adı sadece
+> kişisel görünür (bkz. aşağıdaki tablo). Bu ayrımı her okuyan netleştirmeli
+> — aşağıdaki bölümler bunu tekrar tekrar detaylandırıyor çünkü konu daha
+> önce iki kez karıştı.
+
 ### Karar (2026-07-28): Apple bireysel hesap, ŞİMDİ
 
 **Gerekçe:** Bireysel kayıt **D-U-N-S gerektirmiyor** ve şirket tescilinden tamamen bağımsız. Bu tek hamle Apple'ı kritik yoldan çıkarıyor.
@@ -31,6 +42,11 @@ tags:
 | Ekip üyesi davet | Hayır | Evet |
 
 **Hedef tarih:** 7–10 gün içinde açılmış olmak. **Güvenli son tarih: 15 Eylül 2026** (gerçek ihtiyaç ~28 Eylül, M6'da iOS push için APNs anahtarı).
+
+**Durum (2026-07-31):** Başvuru yapıldı (Berkin, 2026-07-30/31) — şirketten
+bağımsız olarak. Onay bekleniyor. Onay gelene kadar mobil doğrulama gerçek
+cihaz yerine iOS Simulator + Appetize.io ile yapılıyor (bkz. `P23-Mobile.md`
+→ "M5-a-ek" ve `Build/E2E-QA.md` → S25).
 
 **Pratik notlar:**
 - Kayıt **iPhone üzerinden** (Apple Developer uygulaması, kimlik doğrulama süreç boyunca aynı cihazda kalmalı). Mac şirket bilgisayarı olduğu için telefon en temiz yol.

@@ -1,6 +1,6 @@
 ---
 title: Hasat — AI Context
-updated: 2026-07-30
+updated: 2026-07-31
 tags: [hasat, ai-context]
 ---
 
@@ -96,7 +96,7 @@ Platform hiçbir crop'a özel muamele göstermez — domates/elma/safran/lavanta
 | Rekabet hukuku danışmanlığı | 🔴 Yapılmadı |
 | Glossary insan gözden geçirmesi | 🟡 P22-C içeriği AI üretimi, bölgesel doğrulama yapılmadı |
 | `useSetDefaultAddress` diğer adresleri `false`'a çekmiyor | 🟡 Düşük öncelik (P23-M1'de kapanacak) |
-| **P23 — Buyer Mobile & Recipe App** | 🟡 M0 + M1 kapandı; M2 uygulandı (tarayıcı QA S20-B bekliyor); M3 + M3-D tamamlandı (tarayıcı QA S21 bekliyor); **M4 (a+b+c — public tarif yüzeyi, Talep Et, admin heatmap, Gap #9, `cook_minutes` düzeltmesi) tamamen kapandı (2026-07-30, tarayıcı QA S22-S24 bekliyor)**; **M5-a (hasat-mobile iskeleti + hasat-core ikinci hedefi + tesisat) tamamlandı (2026-07-30)** — M5-b (ekran yazma) sırada → `Build/Roadmap.md` |
+| **P23 — Buyer Mobile & Recipe App** | 🟡 M0 + M1 kapandı; M2 uygulandı (tarayıcı QA S20-B bekliyor); M3 + M3-D tamamlandı (tarayıcı QA S21 bekliyor); **M4 (a+b+c — public tarif yüzeyi, Talep Et, admin heatmap, Gap #9, `cook_minutes` düzeltmesi) tamamen kapandı (2026-07-30, tarayıcı QA S22-S24 bekliyor)**; **M5-a (hasat-mobile iskeleti + hasat-core ikinci hedefi + tesisat) tamamlandı (2026-07-30)**; **M5-a-ek (test altyapısı + bayat tip düzeltmesi + `.env` bekçisi) tamamlandı (2026-07-31)** — M5-b (ekran yazma) sırada → `Build/Roadmap.md` |
 
 ### BENCHMARK Gap durumu
 Kapandı: #2 teslim/ihtilaf · #3 değerlendirme · #5 tekrar sipariş · #6 RFQ · #7 hal fiyat bandı · #8 lojistik · #10 bildirimler
@@ -152,6 +152,7 @@ Bu sayılar ürün kararlarını doğrudan etkiliyor — özellikle tarif/tüket
 - Oturum: `expo-secure-store` (web'de `localStorage`) — adapter sınırı
 - Push: `device_tokens` + APNs (iOS) / FCM (Android); `notif_channel` enum'unda `push` **zaten mevcut**
 - **Mobil v1'de checkout YOK** — akış "Talep Et"te biter, ödeme web'de
+- **Mobil test yolu (2026-07-31, Apple hesap onayı gelene kadar):** Gerçek iPhone'a kurulum mümkün değil (ücretli Apple Developer hesabı yok; yerel Xcode şirket Mac'inde yönetilmiyor), elde Android cihaz yok. Doğrulama **iOS Simulator build (`eas.json` → `simulator` profili, `eas build --profile simulator --platform ios`) + tarayıcı tabanlı Appetize.io** ile yapılıyor. Push/gerçek uçak modu/Keychain-SecureStore cihaz davranışı/performans simülatörde doğrulanamıyor — `TODO.md` → "Apple hesabı gelince koşulacak testler" altında birikiyor. Detay: `Build/P23-Mobile.md` → "M5-a-ek", `Build/E2E-QA.md` → S25.
 
 ### Mimari ilke
 İki client'ın da ihtiyaç duyduğu mantık **veritabanında** (RPC/view) yaşar; monorepo kurulmaz (Lovable sync'ini kırma riski). Detay: `Build/Shared-Architecture.md`.
@@ -210,7 +211,7 @@ OTP test: `123456`
 |---|---|
 | **Şirket tipi** | 🔴 **AÇIK.** "Şahıs şirketi" varsayımı sorgulandı: Apple, organizasyon hesabı için **tüzel kişilik** şartı koyuyor — şahıs şirketi bireysel kaydolmak zorunda (App Store satıcı adı = kişisel ad, "Hasat" değil). Mali müşavir görüşü bekleniyor. Detay: `Build/Store-Compliance.md` |
 | Ödeme | iyzico; onay süresince IBAN köprüsü |
-| Apple Developer hesabı | **Bireysel, şimdi** ($99, D-U-N-S gerekmiyor, şirketten bağımsız) — Apple'ı kritik yoldan çıkarıyor |
+| Apple Developer hesabı | **Bireysel, şimdi** ($99, D-U-N-S gerekmiyor, şirketten bağımsız) — Apple'ı kritik yoldan çıkarıyor. **Başvuru yapıldı (2026-07-30/31), onay bekleniyor** — onay gelene kadar mobil doğrulama iOS Simulator + Appetize.io ile yapılıyor |
 | Play hesap tipi | M5'te karar (personal $25 → 12 tester×14 gün · organization → muaf ama D-U-N-S) |
 | İlk 3 ay | Ücretsiz |
 | Mobil platform | **Expo** (Capacitor değil — şirket Mac'i, local imzalama yok) |

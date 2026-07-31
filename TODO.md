@@ -1,6 +1,6 @@
 ---
 title: Hasat — Master Roadmap & Build Log
-updated: 2026-07-30
+updated: 2026-07-31
 tags:
   - hasat
   - todo
@@ -304,6 +304,7 @@ Son değişikliğin (`buyer.producer.$id` guest-erişimi) routing-guard seviyesi
 108. [2026-07-29'da eklendi] Bir doküman/kural değişikliği "yapıldı" olarak raporlanırken, PR açıklamasında eklenen metnin birebir alıntısı bulunmalıdır. Gerekçe: 2026-07-28'de "kural #107 TODO.md'ye eklendi" raporlandı, Berkin bu iddiaya dayanarak merge etti, ancak kural dosyada yoktu — liste #106'da bitiyordu. Aynı turda ikinci bir yanlış tamamlanma raporu daha vardı. Alıntı zorunluluğu, iddianın diff açılmadan doğrulanabilmesini sağlar.
 109. [2026-07-29'da eklendi] Lovable projesinde `main`'e merge edilmiş kod, **Publish'e basılmadan** yayınlanmış URL'e (`hasat.lovable.app`) inmez — Lovable'ın kendi düzenlemeleri de dahil. Bu yüzden tarayıcı QA'sından ÖNCE Publish yapılmalı, yoksa test edilen build merge edilmiş koddan günler geride olabilir. Gerekçe: 2026-07-29'da P22-G'nin QA'sında üç "defect" bulundu (satırlarda tarih görünmüyor, Bugün/Bu Hafta/Tümü filtresi süzmüyor, "Yaptım" formunda tarih seçici yok); üçü de kodda mevcuttu ve 18 saat önce merge edilmişti — test edilen yayınlanmış build o kadar geriydi. Yanlış teşhis konuldu ve P22-G'nin UI'ının gereksiz yere baştan yazılması riski doğdu. Ayırt edici ipucu: UI'da görülen hesap ile DB view'ının döndürdüğü değer çelişiyorsa (örn. view `is_overdue=false` derken ekran "1 gün gecikti" diyorsa), iki farklı kod sürümü çalışıyor demektir — önce Publish, sonra teşhis.
 110. [2026-07-30'da eklendi] Bu Supabase projesinde yeni oluşturulan view'lar varsayılan olarak `anon` ve `authenticated` rollerine SELECT GRANT'i alıyor — mevcut 20 KPI view'ında bu grant yok, yani konvansiyon "yalnızca service_role". `security_invoker=true` ayarlamak YETERLİ DEĞİLDİR: o alttaki tabloların RLS'ini uygular, ama view'ın kendisine erişim hakkı ayrı bir katmandır. Her yeni view'de grant'ler açıkça REVOKE edilmeli VE `information_schema.role_table_grants` ile doğrulanmalı. P23-M4-a'da yakalandı; fark edilmeseydi tarif funnel verisi tüm kullanıcılara açık olacaktı.
+111. [2026-07-30'da eklendi] `hasat-core/core/db/types.ts` canlı şemadan sessizce geri düşebilir — drift koruması core↔hedef tutarlılığını denetler, DB↔core tutarlılığını denetlemez. M4-c'de `recipes.rest_minutes` eklendi ama tip üretimi yenilenmedi; bayat tipler subtree ile hem web'e hem mobile indi ve drift check yeşil kaldı (üç kopya tutarlı biçimde yanlıştı). Her şema değişikliğinden sonra tip üretimi zorunludur; kalıcı çözüm hasat-core CI'ında `supabase gen types` çıktısını commit'lenmiş dosyayla karşılaştıran bir adımdır.
 ---
 
 ## 📌 Kararlar
@@ -327,6 +328,8 @@ Son değişikliğin (`buyer.producer.$id` guest-erişimi) routing-guard seviyesi
 | **P23-M4 (b+c) tamamen kapandı — `_Context.md`'ye yansıtıldı (2026-07-30)** | M4-b (Talep Et + admin heatmap + Gap #9) ve M4-c (`cook_minutes` semantik düzeltmesi + SEO) daha önce ayrı turlarda tamamlanmıştı ama `_Context.md`'nin "Açık işler" satırı hâlâ "M4-b sırada" yazıyordu — M5-a turunda fark edilip düzeltildi. |
 | **`SYNC_TOKEN` kapsamı `hasat-mobile`'a genişletildi — Berkin (2026-07-30)** | `hasat-core`'un ikinci subtree hedefi (`hasat-mobile`) için PAT'ın kapsamına eklendi; dual-target `sync-to-web.yml`/`drift-check.yml` artık her iki repoda da çalışabilir durumda. |
 | **P23-M5-a tamamlandı (2026-07-30)** | `hasat-mobile` iskeleti (Expo 57 + Router + Nativewind + API 36) + `hasat-core`'un ikinci subtree hedefi (dual-target Action'lar + drift kör noktası kapandı) + tesisat (storage adapter + OTP + TanStack Query). Nohut Falafel `rest_minutes` içerik düzeltmesi + süre filtresi bulgusu/düzeltmesi ayrı iş olarak yapıldı. Statik doğrulama (bundle, API36 config, manifest hash, drift kasıtlı bozma) tamamlandı; canlı OTP girişi (web + mobil) bu oturumun ağ kısıtı Supabase host'unu engellediği için doğrulanamadı — Berkin'e kaldı. `hasat-core/db/types.ts`'te `rest_minutes` eksik olduğu (M4-c'den beri tip üretimi yenilenmemiş) bulundu, kapsam dışı bırakıldı. |
+| **Apple Developer bireysel hesabına başvuruldu (Berkin, 2026-07-30/31)** | $99, şirketten bağımsız. Onay bekleniyor. Onay gelene kadar mobil doğrulama gerçek cihaz yerine iOS Simulator build + Appetize.io ile yapılacak (`eas.json`'daki yeni `simulator` profili) — Android tarafında da elde cihaz yok. Detay: `Build/Store-Compliance.md`, `Build/P23-Mobile.md` → "M5-a-ek". |
+| **P23-M5-a-ek tamamlandı (2026-07-31)** | Ön koşul turu (M5-b öncesi): `hasat-core/core/db/types.ts` canlı şemadan yeniden üretildi (`recipes.rest_minutes` + 2 eksik KPI view eklendi) + kalıcı `types-freshness.yml` CI kontrolü (kural #111); `hasat-mobile/.env` içerik bekçisi (`EXPO_PUBLIC_` prefix + sır-kalıbı reddi) `drift-check.yml`'e eklendi, kasten bozulup geri alındı; `hasat-mobile/eas.json`'a Apple hesabı gerektirmeyen `simulator` build profili eklendi; AES anahtarının `expo-secure-store`'da (doğru yerde) tutulduğu doğrulandı, kod değiştirilmedi; `Build/E2E-QA.md` → S25'in B bölümü gerçek cihaz/Expo Go varsayımından Appetize.io'ya çevrildi. |
 
 ---
 
@@ -1360,3 +1363,112 @@ düzeltmesiyle (ayrı commit, Berkin'in ek talimatıyla) sınırlı kaldı.
 Tam ayrıntı: `Build/Shared-Architecture.md` (ikinci hedef, dual-target
 Action'lar, kör nokta kapanışı). Tarayıcı QA / mobil QA: `Build/E2E-QA.md` →
 S25.
+
+---
+
+### 🟢 P23-M5-a-ek — Test Altyapısı, Bayat Tipler, `.env` Bekçisi — **TAMAMLANDI (2026-07-31, Claude Code doğrudan)**
+
+M5-b'ye (ekran yazma) geçmeden önceki ön koşul turu. M5-a merge edilip
+doğrulandıktan sonra (`hasat-mobile` iskeleti canlı, `hasat-core` dual-target
+sync + drift check çalışıyor, freshness kontrolü ilk gerçek yakalamasını
+yaptı — web geri kalmıştı, PR açıldı, merge edildi) dört madde.
+
+**1 — `eas.json` simulator profili (`hasat-mobile`):**
+
+```json
+{
+  "cli": { "version": ">= 13.0.0", "appVersionSource": "local" },
+  "build": {
+    "simulator": {
+      "distribution": "internal",
+      "ios": { "simulator": true }
+    }
+  }
+}
+```
+
+Bu profil Apple Developer hesabı **gerektirmeden** bulutta bir iOS Simulator
+`.app`'i üretir. Berkin'in çalıştıracağı komut:
+
+```
+eas build --profile simulator --platform ios
+```
+
+**EAS kurulumu (bir kere, terminalden — `hasat-mobile` klasöründe):**
+1. Expo hesabı yoksa: https://expo.dev üzerinden tarayıcıdan ücretsiz hesap oluştur.
+2. `npm install -g eas-cli` (ya da her komutu `npx eas-cli ...` ile çalıştır, global kurulum gerekmez).
+3. `eas login` — terminalde Expo hesap bilgilerini ister (ya da tarayıcıda açılan bir onay akışı).
+4. `eas init` — proje henüz bir EAS projesine bağlı değilse ilk build'de bu adımı kendisi de tetikler; elle çalıştırılırsa "Would you like to create a project for @hesap/hasat-mobile?" sorar → **Yes**. Bu adım `app.json`'a `extra.eas.projectId` ekler (commit'lenmesi gerekir).
+5. `eas build --profile simulator --platform ios` — build bulutta başlar, terminalde ilerleme + bir `expo.dev/accounts/.../builds/...` linki verir.
+6. Build bitince o linkten (tarayıcıdan) `.tar.gz`'i indir, aç, içindeki `.app`'i çıkar.
+7. https://appetize.io/upload adresine tarayıcıdan git, `.app`'i sürükle-bırak yükle (hesap gerekmiyor, ücretsiz plan ~100 dk/ay). Appetize bir simülatör penceresi açar — QA adımları için `Build/E2E-QA.md` → S25 → bölüm B.
+
+**2 — Bayat tipler (kural #111):** `hasat-core/core/db/types.ts` Supabase
+MCP ile canlı şemadan (`efuqpiaavrzimvstpdpm`) doğrudan yeniden üretildi.
+Diff **temiz ve beklenen**: yalnızca `recipes.rest_minutes` kolonu + iki
+eksik KPI view'ının (`v_kpi_crop_demand_heatmap`, `v_kpi_recipe_funnel_by_recipe`)
+FK referansları eklendi — başka hiçbir şey değişmedi. `core/.manifest`
+güncellendi. Bu commit `hasat-core`'a push edilince dual-target
+`sync-to-web.yml` otomatik tetiklenip **hem `hasat-mobile` hem
+`hasat-d2c-marketplace`'e** birer "hasat-core sync" PR'ı açacak — bu PR'ların
+sonucu ayrıca raporlanacak (bkz. bu turun PR listesi).
+
+Kalıcı çözüm: yeni `hasat-core/.github/workflows/types-freshness.yml` +
+`scripts/check-types-freshness.mjs` — `supabase gen types typescript
+--project-id efuqpiaavrzimvstpdpm` çıktısını commit'lenmiş `core/db/types.ts`
+ile günlük (+ `core/db/types.ts` her değiştiğinde) karşılaştırıp farklıysa
+exit 1. Doğrulama: hem güncel tipe karşı yeşil hem eski (M5-a'daki bayat)
+sürüme karşı kasıtlı olarak kırmızı verdiği test edildi.
+
+**Gereken secret:** `SUPABASE_ACCESS_TOKEN` — Berkin'in Supabase hesabından:
+https://supabase.com/dashboard/account/tokens → "Generate new token" (salt-okunur
+kapsam yeterli) → `hasat-core` reposunda Settings → Secrets and variables →
+Actions → New repository secret → isim tam olarak `SUPABASE_ACCESS_TOKEN`.
+
+**3 — `.env` içerik bekçisi (`hasat-core/drift-check.yml`, yalnızca
+`hasat-mobile` hedefinde):** Yeni `scripts/check-env-guard.mjs` — her satır
+`EXPO_PUBLIC_` ile başlamalı, ayrıca `service_role`/`SECRET`/`PRIVATE`/`TOKEN`/`PASSWORD`
+kalıpları geçen bir isim (prefix doğru olsa bile) reddediliyor. Üç senaryoda
+test edildi: temiz `.env` → geçti; `EXPO_PUBLIC_` öneki olmayan bir satır
+eklendi → reddetti; `EXPO_PUBLIC_SERVICE_ROLE_KEY` gibi literal `service_role`
+kalıbı taşıyan bir isim eklendi → reddetti. Sonrasında `hasat-mobile/.env`
+orijinal haline geri alındı (`git status` ile iz kalmadığı doğrulandı).
+
+⚠️ **Bulunan bir sınır:** Görev metninde örnek verilen `EXPO_PUBLIC_SERVICE_KEY`
+ismi istenen 5 literal kalıbın (`service_role`, `SECRET`, `PRIVATE`, `TOKEN`,
+`PASSWORD`) hiçbirini içermiyor — bu spesifik ismi bekçi yakalamaz. `KEY`
+kelimesini kalıba eklemek çözüm değil: `.env`'deki meşru
+`EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY` satırı da `KEY` içeriyor, `KEY`'i
+yasaklamak o meşru satırı da reddederdi. Bekçi tam olarak istenen 5 kalıple
+kuruldu; isim-kalıbı denetimi bir savunma katmanıdır, tam garanti değil —
+asıl garanti gerçek sırların hiç `.env`'ye yazılmamasıdır.
+
+**4 — AES anahtarı (rapor, değişiklik yok):** `hasat-mobile/src/lib/supabase/large-secure-store.ts`
+incelendi. Şifreleme anahtarı `expo-secure-store`'da tutuluyor
+(`SecureStore.setItemAsync`/`getItemAsync`) — kodda gömülü değil, deterministik
+türetilmiyor; her `setItem` çağrısında `crypto.getRandomValues` ile yeniden
+üretiliyor ve eşleşen şifreli veriyle birlikte yazılıyor. Bu, Supabase'in
+resmi Expo deseniyle birebir aynı. **Sonuç: doğru** — oturum token'ı gerçekten
+AES ile şifreli `AsyncStorage`'da, anahtarın kendisi Keychain/Keystore'da.
+Kod değiştirilmedi.
+
+**5 — S25 (`Build/E2E-QA.md`) yeniden yazıldı:** Eski B bölümü gerçek
+cihaz/Expo Go varsayıyordu — yeni B bölümü Simulator+Appetize akışını
+kullanıyor: marka renklerinin görsel kanıtı, OTP girişi, kapat-aç sonrası
+oturum kalıcılığı, çıkış sonrası oturumun gerçekten temizlendiği. Push/gerçek
+uçak modu/Keychain-SecureStore cihaz davranışı/performans açıkça
+"simülatörde doğrulanamaz" işaretlendi (aşağıdaki listeye taşındı).
+
+**Kapsam kuralı tutuldu:** Şema/mimari değişikliği yok — sadece CI/test
+altyapısı + bir bayat-veri düzeltmesi + doküman güncellemesi. `unit_type`
+enum'una, `offers`/`orders`/`listings` akışlarına dokunulmadı.
+
+#### 🍎 Apple hesabı gelince koşulacak testler
+
+Bu dördü simülatör/Appetize.io yoluyla **doğrulanamaz** — Apple Developer
+hesabı onaylanıp gerçek cihaza kurulum mümkün olunca tek turda koşulacak:
+
+- [ ] **Push bildirimleri** — Appetize/iOS Simulator gerçek APNs/FCM teslimatını simüle etmiyor
+- [ ] **Gerçek uçak modu** — offline-önbellek testinin asıl hali (Apple 4.2'nin gerçek testi); simülatörün "ağ yok" hali bir cihazın radyosunu kapatmasıyla aynı değil
+- [ ] **Keychain/SecureStore'un cihazdaki gerçek davranışı** — iOS Simulator'ın Keychain'i cihazın Secure Enclave'ine dayanmıyor
+- [ ] **Performans** — Appetize bulutta çalışan bir simülatörün ekran akışı; gerçek cihazın CPU/GPU/pil davranışını yansıtmıyor

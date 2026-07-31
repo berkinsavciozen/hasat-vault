@@ -1,6 +1,6 @@
 ---
 title: Hasat — P23 Buyer Mobile & Recipe App
-updated: 2026-07-30
+updated: 2026-07-31
 tags:
   - hasat
   - p23
@@ -268,6 +268,75 @@ doğruluk kaynağı riski).
 - `hasat-core` → `hasat-mobile` git subtree'si + `sync-to-web.yml`/`drift-check.yml` dual-target + drift'in sürüm-gerisi kör noktası kapandı (bkz. `Shared-Architecture.md`)
 - Supabase client (storage adapter parametreli, mobil: `expo-secure-store` tabanlı `LargeSecureStore`) + telefon OTP girişi (mevcut akışın aynısı) + TanStack Query
 - Detay + doğrulama tablosu: `TODO.md` → "P23-M5-a" build log
+
+### M5-a-ek — Test altyapısı, bayat tipler, `.env` bekçisi — ✅ **TAMAMLANDI (2026-07-31)**
+
+M5-b'ye (ekran yazma) geçmeden önceki ön koşul turu — M5-a merge edilip
+doğrulandıktan sonra bulunan/karara bağlanan dört madde.
+
+#### Test stratejisi kararı — neden gerçek cihaz/Expo Go değil
+
+**Durum (2026-07-31):** Apple Developer bireysel hesabına başvuruldu ($99,
+şirketten bağımsız — bkz. `Store-Compliance.md`). Onay 7-10 gün sürmesi
+bekleniyor. Onay gelene kadar:
+
+- **Gerçek iPhone'a kurulum mümkün değil.** Bir Expo/React Native app'i
+  gerçek bir iOS cihazına kurmak (Expo Go'nun desteklemediği native modüller
+  — `expo-secure-store`, `expo-build-properties` vb. kullanıldığı için dev
+  client gerekiyor) ya ücretli Apple Developer hesabıyla EAS üzerinden
+  provisioning ister ya da **yerel Xcode + manuel imzalama** gerektirir.
+  İkinci yol da kapalı: Berkin'in kullanabildiği tek Mac şirket bilgisayarı,
+  bu proje için o makinede Xcode/imzalama süreci yönetilmiyor (aynı kısıt
+  `Build/Roadmap.md`'de Capacitor'ı eleyen kısıtın aynısı).
+- **Elde Android cihaz yok** — Android tarafında da gerçek cihaz testi
+  şimdilik mümkün değil.
+
+**Karar (Berkin, 2026-07-30/31):** Onay gelene kadar mobil doğrulama **iOS
+Simulator build (EAS, `eas.json`'daki yeni `simulator` profili) + tarayıcı
+tabanlı bulut simülatörü (Appetize.io)** ile yapılacak. Bu yol hiçbir Apple
+Developer hesabı ya da yerel Mac/Xcode gerektirmiyor — build bulutta
+derleniyor, çalıştırma tarayıcıda. Detaylı adım adım QA prosedürü:
+`Build/E2E-QA.md` → S25 bölüm B. Simülatörde doğrulanamayan dört şey (push,
+gerçek uçak modu, Keychain/SecureStore'un cihazdaki gerçek davranışı,
+performans) `TODO.md` → "Apple hesabı gelince koşulacak testler" altında
+birikiyor.
+
+#### Bayat tipler bulgusu — kural #111
+
+`hasat-core/core/db/types.ts`'te `recipes.rest_minutes` eksikti — M4-c'de
+kolon eklenmiş ama tip üretimi hiç yenilenmemişti. Bayat tipler subtree ile
+hem web'e hem mobile inmiş, drift check yeşil kalmıştı çünkü üç kopya
+(hasat-core, web, mobil) tutarlı biçimde yanlıştı — drift kontrolü core↔hedef
+tutarlılığını denetliyor, DB↔core tutarlılığını denetlemiyordu. Bu turda
+canlı şemadan (Supabase MCP ile doğrudan) yeniden üretildi, `hasat-core`'a
+commit edildi (dual-target sync PR'ları açacak). Kalıcı çözüm: `hasat-core`
+CI'ına `types-freshness.yml` eklendi — `supabase gen types` çıktısını
+commit'lenmiş dosyayla günlük karşılaştırıp farklıysa fail ediyor. Detay:
+`TODO.md` → kural #111, `hasat-core/README.md` → "Tip tazeliği".
+
+#### `.env` içerik bekçisi
+
+`hasat-mobile/.env` public repoda **bilinçli olarak** takip ediliyor —
+içindeki iki değer (Supabase URL + anon publishable key) tasarım gereği
+public, silinmesi/gitignore'lanması her klonda uygulamayı çalışmaz hale
+getirirdi, hiçbir güvenlik kazancı olmadan. Bunun yerine `hasat-core`'un
+drift Action'ına bir içerik denetimi eklendi: her satır `EXPO_PUBLIC_` ile
+başlamalı, ayrıca `service_role`/`SECRET`/`PRIVATE`/`TOKEN`/`PASSWORD`
+kalıpları geçen bir isim (prefix doğru olsa bile) reddediliyor. Gerekçe:
+`Shared-Architecture.md`. Kasten bozulup exit 1 verdiği, sonra geri alındığı
+doğrulandı — detay ve bulunan bir sınır (isim-kalıbı denetiminin
+tam garanti olmadığı): `Build/E2E-QA.md` → S25.
+
+#### AES anahtarı — doğrulandı, değiştirilmedi
+
+`LargeSecureStore` (`hasat-mobile/src/lib/supabase/large-secure-store.ts`)
+şifreleme anahtarı **`expo-secure-store`'da** tutuluyor (`SecureStore.setItemAsync`/`getItemAsync`,
+satır 20/25) — Supabase'in resmi Expo deseniyle birebir. Anahtar ne kodda
+gömülü ne deterministik türetiliyor (`crypto.getRandomValues` ile her
+`setItem`'da yeniden üretiliyor, aynı anahtarla eşleşen şifreli veri
+`AsyncStorage`'a yazılıyor). Yani şifreleme dekoratif değil — oturum token'ı
+gerçekten AES ile şifreli, anahtarın kendisi Keychain/Keystore'da. Bulgu
+raporlandı, kod değiştirilmedi (görev talebi buydu).
 
 ### M5-b — Ekran yazma
 - Tarif listesi/detayı, pişirme modu, AI import, **offline önbellek** (expo-sqlite)
