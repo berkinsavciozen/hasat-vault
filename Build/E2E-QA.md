@@ -1,6 +1,6 @@
 ---
 title: Hasat — E2E QA Test Dokümanı
-updated: 2026-07-30
+updated: 2026-07-31
 tags:
   - hasat
   - qa
@@ -501,34 +501,61 @@ yeni hata. Gerçek `vite build` **yine yapılamadı** — M4'ün üç turunda da
 
 ### S25 — P23-M5-a Mobil İskelet + `hasat-core` İkinci Hedefi + Tesisat
 
-**Arka plan:** `Build/P23-Mobile.md` → M5-a, `TODO.md` → "P23-M5-a" build log,
-`Build/Shared-Architecture.md` → ikinci hedef + drift kör noktasının kapanışı.
-Bu tur **üç ayrı repo, dört ayrı PR** üretti — hepsinin merge edilmesi
-gerekiyor, tek bir "Publish" yeterli değil:
+> **M5-a-ek güncellemesi (2026-07-31):** M5-a `main`'e merge edilip
+> doğrulandı (Berkin, 2026-07-30). Bu turda S25'in B bölümü **yeniden
+> yazıldı** — eski hali gerçek cihaz + Expo Go varsayıyordu, ama Apple
+> Developer hesabı henüz onaylanmadı ve elde Android cihaz yok. Yeni B
+> bölümü Berkin'in kararına göre **iOS Simulator build + tarayıcı tabanlı
+> Appetize.io** yoluyla koşuluyor. A ve C bölümleri M5-a turunun tarihi kaydı
+> olarak korunuyor (zaten merge edilip doğrulandı); bu turun kendi PR'ları
+> (types tazeliği düzeltmesi, `.env` bekçisi, `eas.json`) için ayrı bir merge
+> listesi aşağıda "M5-a-ek merge listesi" başlığında.
 
-| Repo | Branch/PR | İçerik |
-|---|---|---|
-| `hasat-core` | `claude/p23-m5a-mobile-scaffold-7mh19f` | `core/supabase/client.ts`, dual-target `sync-to-web.yml`/`drift-check.yml`, `check-manifest-freshness.mjs`, README güncellemesi |
-| `hasat-mobile` | `claude/p23-m5a-mobile-scaffold-7mh19f` | Expo iskelet, `src/lib/core` subtree'si, `app/login.tsx`/`app/home.tsx`, storage adapter |
-| `hasat-d2c-marketplace` | `claude/p23-m5a-mobile-scaffold-7mh19f` | Süre filtresi düzeltmesi (`activeRecipeMinutes` + "Önceden başlamak gerekir" rozeti) — **ayrı commit** |
-| `hasat-d2c-marketplace` | `claude/p23-m5-storage-adapter` | `src/integrations/supabase/client.ts` → paylaşılan factory (canlı auth'a dokunan tek nokta) — **ayrı PR** |
+**Arka plan:** `Build/P23-Mobile.md` → M5-a, `TODO.md` → "P23-M5-a" +
+"P23-M5-a-ek" build logları, `Build/Shared-Architecture.md` → ikinci hedef +
+drift kör noktasının kapanışı.
 
-Claude Code'un bu turda **doğrudan doğrulayabildiği** (statik, bu oturumda —
-kural #96): `expo start` ile Android bundle'ı gerçekten derlendi (1850 modül,
-kendi ekran kodumuz bundle içinde bulundu); `expo prebuild` sonrası
-`android/gradle.properties`'te `compileSdkVersion`/`targetSdkVersion=36`
-gerçekten göründü; `hasat-core` ↔ `hasat-mobile` manifest hash'leri birebir
-eşleşiyor; drift script'i (hem eski MODİFİYE kontrolü hem yeni sürüm-gerisi
-kontrolü) kasten bozulup exit 1 verdiği, geri alınınca exit 0'a döndüğü
-doğrulandı; web'de `tsc --noEmit` + `npm run build` temiz.
+#### M5-a-ek merge listesi
+| Repo | İçerik |
+|---|---|
+| `hasat-core` | `core/db/types.ts` yeniden üretildi (`recipes.rest_minutes` + iki eksik KPI view eklendi), `core/.manifest` güncellendi, yeni `types-freshness.yml` (DB↔core tazelik CI'ı) + `check-types-freshness.mjs`, `drift-check.yml`'e `.env` bekçisi adımı + `check-env-guard.mjs` |
+| `hasat-mobile` | `eas.json` (yeni `simulator` build profili) |
+| `hasat-vault` | Bu doküman + `TODO.md` (kural #111 + build log) + `P23-Mobile.md` + `Store-Compliance.md` + `_Context.md` |
 
-**Claude Code'un doğrulayamadığı** (bu oturumun ağ politikası
-`efuqpiaavrzimvstpdpm.supabase.co`'yu 403 ile engelliyor — P24/M4-a'da da
-aynı kısıt yaşanmıştı): gerçek tarayıcıda/cihazda OTP girişi, oturumun
-cihaz/tarayıcı kapatılıp açıldığında kalıcı olduğu. **Bu yüzden aşağıdaki
-adımlar QA'nın asıl ağırlığını taşıyor.**
+`hasat-core`'daki `core/db/types.ts` değişikliği **dual-target sync
+Action'ını tetikleyecek** — `hasat-core` PR'ı merge edilince
+`hasat-mobile` ve `hasat-d2c-marketplace`'e otomatik birer "hasat-core sync"
+PR'ı açılacak (bkz. A bölümündeki 6 adımlık merge sırası, aynı prosedür
+geçerli). **Bu sync PR'ları da merge edilmeden tip düzeltmesi hedeflere
+inmez.**
 
-#### A. `hasat-core` + `hasat-mobile` PR'larını merge et (sıra önemli)
+Claude Code'un bu turda **doğrudan doğrulayabildiği** (statik): canlı
+Supabase şemasından (`efuqpiaavrzimvstpdpm`, Supabase MCP ile doğrudan
+erişildi) `supabase gen types` yeniden üretildi, committed dosyayla diff
+**yalnızca** `rest_minutes` kolonu + iki KPI view'ının FK referanslarını
+ekliyor (beklenen, temiz bir diff); `check-types-freshness.mjs` hem güncel
+tipe karşı yeşil hem eski (bayat) sürüme karşı kasıtlı olarak kırmızı
+verdiği doğrulandı; `.env` bekçisi üç senaryoda test edildi (temiz dosya →
+geçti, `EXPO_PUBLIC_` öneki olmayan satır eklendi → reddetti, `service_role`
+kalıbı taşıyan bir isim eklendi → reddetti), sonra `hasat-mobile/.env` orijinal
+haline geri alındı (`git status` ile doğrulandı, iz kalmadı).
+
+⚠️ **Bulunan bir sınır (dürüstçe raporlanıyor):** İstenen 5 kalıp
+(`service_role`, `SECRET`, `PRIVATE`, `TOKEN`, `PASSWORD`) literal alt dize
+eşleşmesiyle uygulandı. Görev metninde örnek olarak verilen
+`EXPO_PUBLIC_SERVICE_KEY` ismi bu 5 kalıbın **hiçbirini** literal olarak
+içermiyor (`SERVICE_KEY` ≠ `service_role`) — yani bu spesifik örnek isim
+bekçiyi geçebilir. `KEY` kelimesini kalıba eklemek de çözüm değil: mevcut
+`.env`'deki meşru `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY` satırı da `KEY`
+içeriyor, bu yüzden `KEY`'i yasaklamak gerçek/meşru satırı da reddederdi.
+Bekçi tam olarak istenen 5 kalıple kuruldu ve literal `service_role` gibi
+isimleri doğru yakalıyor (test edildi) — ama isim-kalıbı denetimi bir
+**savunma katmanı**dır, tam garanti değil; asıl garanti gerçek sırların hiç
+`.env`'ye yazılmamasıdır (EAS Environment Variables kullanılır, bkz.
+`Shared-Architecture.md`). Kural #107 gereği bu sınır burada açıkça
+işaretleniyor, sessizce "KEY" eklenip mevcut satır kırılmadı.
+
+#### A. `hasat-core` + `hasat-mobile` PR'larını merge et (M5-a turu — tarihi kayıt, zaten yapıldı)
 1. Önce `hasat-core`'daki PR'ı merge et.
 2. `hasat-core`'un `sync-to-web.yml` Action'ı otomatik tetiklenip
    `hasat-mobile`'a (ve `hasat-d2c-marketplace`'e) bir "hasat-core sync" PR'ı
@@ -546,17 +573,67 @@ adımlar QA'nın asıl ağırlığını taşıyor.**
 | 5 | `drift-check.yml`'i elle tetikle (workflow_dispatch) | İki hedefte de "Sapma yok" + "Sürüm gerisi yok" — yeşil |
 | 6 | `hasat-mobile` scaffold PR'ını merge et | Expo app + login ekranı `main`'e iner |
 
-#### B. Mobilde gerçek OTP girişi + oturum kalıcılığı (Berkin'in kendi cihazında)
+#### B. Simülatörde marka + OTP + oturum kalıcılığı — **yeniden yazıldı (M5-a-ek, Appetize.io yoluyla)**
+
+**Neden değişti:** Eski B bölümü Expo Go/gerçek cihaz varsayıyordu — Apple
+Developer bireysel hesabı henüz onaylanmadı (başvuru yapıldı, 2026-07-30/31
+kararı) ve elde Android cihaz yok. Onay gelene kadar mobil doğrulama **iOS
+Simulator build + tarayıcı tabanlı Appetize.io** ile yapılacak — Berkin'in
+kendi tarayıcısından, hiçbir hesap/kurulum gerekmeden.
+
+**Ön koşul (bir kere, terminalden — `hasat-mobile` klasöründe):**
+1. `npx eas-cli build --profile simulator --platform ios` — `eas.json`'daki
+   yeni `simulator` profiliyle (internal distribution, `ios.simulator: true`)
+   bulutta bir iOS Simulator `.app`'i derler; Apple Developer hesabı
+   **gerekmez**. İlk çalıştırmada proje EAS'a bağlı değilse `eas init`
+   akışını kendisi başlatır (bkz. `TODO.md` → "EAS kurulumu" adım adım
+   talimat).
+2. Build bitince expo.dev'deki build sayfası bir indirme linki verir —
+   tarayıcıdan `.tar.gz`'i indir, aç, içindeki `.app`'i çıkar.
+3. https://appetize.io/upload adresine tarayıcıdan git, `.app`'i sürükle-bırak
+   yükle (hesap açmaya gerek yok, ücretsiz plan aylık ~100 dk sunuyor).
+4. Appetize bir simülatör penceresi açar — bu, telefon ekranının tarayıcıda
+   çalışan bir kopyası.
+
+**Test adımları (kural #104 — kullanıcı-akışı dilinde):**
+
 | # | Adım | Beklenen |
 |---|---|---|
-| 1 | `hasat-mobile`'ı klonla, `npm install`, `npx expo start` | Metro açılır, QR kod çıkar |
-| 2 | Expo Go (ya da dev client) ile telefonda tara | Uygulama açılır, `/login` ekranı gösterir |
-| 3 | Test hesabı telefonunu gir: `5001234567` (farmer, 905001234567) ya da `5009876543` (buyer, 905009876543) | "Kod Gönder" aktif olur |
-| 4 | Kod Gönder'e bas, OTP ekranına geç, `123456` gir | "Giriş Yap ✓" aktif olur |
-| 5 | Giriş Yap'a bas | `/home`'a yönlenir, telefon numarası + rol doğru görünür |
-| 6 | Uygulamayı tamamen kapat (task switcher'dan sil), tekrar aç | **Tekrar `/login` istemiyor** — direkt `/home`'a düşüyor (oturum `expo-secure-store`'da kalıcı) |
-| 7 | `/home`'daki "Çıkış yap"a bas | `/login`'e döner |
-| 8 | Uygulamayı tekrar kapat/aç | Bu sefer `/login` gösteriyor (çıkış gerçekten oturumu temizlemiş) |
+| 1 | Appetize penceresinde "Tap to play"a bas, uygulamanın açılmasını bekle | Splash sonrası `/login` ekranı açılıyor |
+| 2 | **Login ekranının renklerine bak** (arka plan, buton, başlık rengi) | Expo'nun varsayılan mavi/beyaz teması **DEĞİL** — `hasat-core/core/design/tokens.ts`'teki Hasat marka renkleri görünüyor. Bu, design token bağlantısının somut görsel kanıtı — "kodda doğru" ile "ekranda doğru" arasındaki fark burada kapanıyor. |
+| 3 | Telefon alanına test hesabını gir: `5001234567` (çiftçi) ya da `5009876543` (alıcı) | "Kod Gönder" aktifleşiyor |
+| 4 | Kod Gönder'e bas, OTP ekranına geç, `123456` yaz, Giriş Yap'a bas | `/home`'a yönleniyor, telefon numarası + rol doğru görünüyor |
+| 5 | **Asıl test:** Appetize'ın üst menüsünden uygulamayı sonlandır (Restart App / uygulamayı kapat, simülatör session'ını kapatmadan), tekrar başlat | **Tekrar `/login` istemiyor** — direkt `/home`'a düşüyor. Oturum `expo-secure-store` (AES anahtarı) + AES-şifreli `AsyncStorage`'da kalıcı olduğunu kanıtlıyor. |
+| 6 | `/home`'daki "Çıkış yap"a bas | `/login`'e dönüyor |
+| 7 | **Asıl test:** Uygulamayı adım 5'teki gibi tekrar kapat/aç | Bu sefer `/login` gösteriyor — çıkış gerçekten oturumu temizlemiş (SecureStore + AsyncStorage'daki anahtar/şifreli veri silinmiş) |
+
+> **Appetize'da "kapat/aç" netliği:** Appetize'da gerçek bir telefonun task
+> switcher'ından silme hareketi yok; en yakın karşılığı üst menüdeki "Restart
+> App" (uygulamayı sonlandırıp aynı session içinde yeniden başlatır).
+> Session'ın kendisi tamamen kapatılıp yeniden açılırsa (sayfa yenilenip
+> yeni bir "Tap to play"e basılırsa) bazı durumlarda sıfır cihaz gibi
+> davranabilir — adım 5/7'de **hangisinin kullanıldığı QA notuna
+> yazılmalı**, çünkü ikisi farklı şeyi test eder (uygulama kapat/aç vs.
+> cihaz sıfırlama).
+
+⚠️ Appetize'ın ücretsiz planı dakika sınırlı — testi art arda, gereksiz
+beklemeden yap.
+
+#### Simülatörde DOĞRULANAMAYACAKLAR — açıkça işaretli
+
+Bu dördü **gerçek cihaz** ve/veya ücretli Apple Developer hesabı gerektirir;
+Appetize/Simulator yoluyla test edilmiş sayılmaz:
+
+| Ne | Neden simülatörde olmuyor |
+|---|---|
+| **Push bildirimleri** | Appetize/iOS Simulator gerçek APNs/FCM teslimatını simüle etmiyor |
+| **Gerçek uçak modu** | Simülatörün "ağ yok" hali bir cihazın radyosunu kapatmasıyla aynı değil — offline-önbellek testinin **asıl hali** (Apple 4.2'nin gerçek testi, `Build/Store-Compliance.md` → madde 6) gerçek cihazda yapılmalı |
+| **Keychain/SecureStore'un cihazdaki gerçek davranışı** | iOS Simulator'ın Keychain'i cihazın Secure Enclave'ine dayanmıyor; AES anahtarının gerçek cihazda kalıcılığı/güvenliği ayrı doğrulanmalı |
+| **Performans** | Appetize bulutta çalışan bir simülatörün ekran akışını gösteriyor — gerçek cihazın CPU/GPU/pil davranışını yansıtmıyor |
+
+Bu dördü `TODO.md` → **"Apple hesabı gelince koşulacak testler"** başlığı
+altında birikiyor, Apple Developer hesabı onaylanıp gerçek cihaza kurulum
+mümkün olunca tek turda koşulacak.
 
 #### C. Web'de auth regresyonu yok (canlı auth'a dokunan tek nokta)
 | # | Adım | Beklenen |
@@ -566,19 +643,21 @@ adımlar QA'nın asıl ağırlığını taşıyor.**
 | 3 | Tarayıcıyı tamamen kapat, tekrar aç, `hasat.lovable.app`'e git | Hâlâ giriş yapılmış durumda (localStorage korunmuş) |
 | 4 | DevTools → Application → Local Storage'da Supabase'in oturum anahtarını kontrol et | Değer var, önceki formatla aynı görünüyor |
 
-**Beklenen sonuç: A (6/6) + B (8/8) + C (4/4) geçiyor.** B ve C bu turda
-Claude Code tarafından **doğrulanamadı** (ağ kısıtı) — bu QA'nın asıl amacı
-tam da bu iki bölüm.
+**Beklenen sonuç: A (6/6, tarihi — zaten yapıldı) + B (7/7, yeni Appetize
+yolu) + C (4/4) geçiyor.** B ve C Claude Code tarafından **doğrulanamadı**
+(bu oturumun ağ kısıtı + gerçek tarayıcı/simülatör erişimi yok) — bu QA'nın
+asıl amacı tam da bu iki bölüm.
 
 #### D. Ayrıca kontrol edilecek (kapsam dışı bulgular)
-- `hasat-core/db/types.ts`'te `recipes.rest_minutes` eksik (M4-c'den beri tip
-  üretimi yenilenmemiş) — bu turda bulundu, düzeltilmedi (kapsam dışı, kural
-  #107). Fırsat varsa `supabase gen types typescript --project-id
-  efuqpiaavrzimvstpdpm` yeniden çalıştırılıp `hasat-core`'a commit edilmeli.
+- ✅ **Çözüldü (bu turda):** `hasat-core/db/types.ts`'te `recipes.rest_minutes`
+  eksikti (M4-c'den beri tip üretimi yenilenmemişti) — canlı şemadan yeniden
+  üretildi, `hasat-core`'a commit edildi, dual-target sync PR'ları açılacak
+  (merge listesine bkz. yukarıda). Kalıcı çözüm olarak `types-freshness.yml`
+  CI kontrolü eklendi (kural #111).
 - Süre filtresi düzeltmesi (`hasat.lovable.app/tarifler`, "Süre" filtresi):
   Ekşi Mayalı Ekmek/Köme artık "1 saatten uzun" filtresine düşmüyor (aktif
   süreleri düşük), ama kartlarında/detay sayfasında turuncu "Önceden başlamak
-  gerekir" rozeti görünmeli.
+  gerekir" rozeti görünmeli. (Bu turun kapsamı dışında, hâlâ açık.)
 
 ---
 
@@ -616,3 +695,4 @@ tam da bu iki bölüm.
 - **2026-07-30:** **S22 eklendi (P23-M4-a public tarif yüzeyi).** Bu, S18/S19'dan farklı olarak **gerçekten yeni bir ekran** açıyor (`/tarifler`, `/tarifler/$slug`) — kural #109 gereği QA'nın ilk adımı Lovable'da Publish'e basmak. Malzeme kartının 3 durumu (eşleşti/nötr/platform-dışı) ve `min_order` yuvarlaması gerçek veriyle doğrulandı; `recipe_views` + yeni `v_kpi_recipe_funnel_by_recipe` gerçek `anon`/`authenticated` RLS simülasyonuyla test edildi. Bu oturumun ağ politikası Supabase'e canlı SSR sırasında erişimi engellediği için (P24'teki aynı kısıt), tam tarayıcı testi + detay sayfasının dinamik JSON-LD'sinin view-source kanıtı Berkin'e kaldı.
 - **2026-07-30:** **S23 eklendi (P23-M4-b Talep Et + admin talep ısı haritası + Gap #9).** Eşleşmeyen malzemede baskın-durum "Talep Et" CTA'sı + guest niyet takibi (`localStorage` + `/login`'in `next` param'ı), mevcut `crop_request_match`/`dispatch_sms` deseni yeniden kullanılarak "haber ver" (yeni bir trigger, yeni tablo yok), `/admin/kpi`'ye talep ısı haritası sekmesi, Gap #9 mevcut `/batch/$listingId` sayfasına link olarak kapandı. Uçtan uca gerçek RLS simülasyonuyla doğrulandı: talep+huni atfı, "haber ver"in bölge eşleşmesine göre doğru tetiklenip/atlandığı, gerçek SMS gönderilmediği. Ayrıca M4-a'nın 3 bulgusu (malzeme büyük harf, 13/18 tarifte eksik `totalTime`, `image` alanının temsili görselle karışması) düzeltildi. **Yeni bulgu:** bu oturumda `bun install` de org egress politikasıyla engellendi (Lovable'ın özel paket mirror'ı) — `tsc`/`eslint`/`prettier` kısmi kurulumla temiz sonuç verdi ama gerçek `vite build` yapılamadı, Lovable/Berkin'in ortamında doğrulanmalı.
 - **2026-07-30:** **S24 eklendi (P23-M4-c `cook_minutes` düzeltmesi + SEO — M4'ün kapanışı).** S23'te sessizce yapılan bir kural #107 ihlali (bekleme süresi tutacak kolon olmadığı için `cook_minutes`'a eklenmişti, muhammara "45 dk pişirme" gösteriyordu, gerçeği 15 dk) bulunup düzeltildi: yeni `recipes.rest_minutes` kolonu, 18 tarifin tamamı adım metninden yeniden sınıflandırıldı (`cook_minutes` en yükseği artık 60 dk). `totalTime` = prep+cook+rest türetilmiş değeri; üç süre detay sayfasında ayrı gösteriliyor. SEO: `sitemap.xml` dinamikleştirildi (18 tarif + public vitrinler), `robots.txt` zaten doğruydu, aynı ana malzemeyi paylaşan tariflere SSR'da (client-side değil) iç link eklendi — hepsi gerçek `<a href>`. `bun install` bu turda da engellendi, gerçek `vite build` M4'ün üç turunda da (a hariç) hiç koşmadı.
+- **2026-07-31:** **S25'in B bölümü yeniden yazıldı (P23-M5-a-ek — test altyapısı, bayat tipler, `.env` bekçisi).** Apple Developer bireysel hesabı onay bekliyor, elde Android cihaz yok, gerçek iPhone'a kurulum ücretli hesap olmadan mümkün değil — bu yüzden eski B bölümünün Expo Go/gerçek cihaz varsayımı iOS Simulator build (`eas.json`'a yeni `simulator` profili) + tarayıcı tabanlı Appetize.io yoluyla değiştirildi. Yeni B: marka renklerinin görsel kanıtı (Expo varsayılanı değil), OTP girişi, uygulama kapat/aç sonrası oturum kalıcılığı, çıkış sonrası oturumun gerçekten temizlendiği. Push/gerçek uçak modu/Keychain-SecureStore cihaz davranışı/performans simülatörde doğrulanamayacağı açıkça işaretlendi (`TODO.md` → "Apple hesabı gelince koşulacak testler"). Ayrıca bu turda `hasat-core/db/types.ts`'teki bayat `recipes.rest_minutes` eksikliği (M4-c'den beri tip üretimi yenilenmemişti — drift check yeşil kaldı çünkü core↔hedef tutarlıydı, DB↔core değildi) canlı şemadan yeniden üretilerek düzeltildi, kalıcı çözüm olarak `types-freshness.yml` CI kontrolü eklendi (kural #111); `hasat-mobile/.env`'e içerik bekçisi eklendi (her satır `EXPO_PUBLIC_` ile başlamalı + `service_role`/`SECRET`/`PRIVATE`/`TOKEN`/`PASSWORD` kalıpları reddedilir), kasten bozulup exit 1 verdiği doğrulanıp geri alındı — bir sınır bulundu ve raporlandı: görev metnindeki `EXPO_PUBLIC_SERVICE_KEY` örneği bu 5 literal kalıbın hiçbirini içermiyor, `KEY` kalıbı da eklenemez çünkü meşru `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY` satırını kırar.
