@@ -1388,20 +1388,50 @@ yaptı — web geri kalmıştı, PR açıldı, merge edildi) dört madde.
 ```
 
 Bu profil Apple Developer hesabı **gerektirmeden** bulutta bir iOS Simulator
-`.app`'i üretir. Berkin'in çalıştıracağı komut:
+`.app`'i üretir.
 
-```
-eas build --profile simulator --platform ios
-```
+**⚠️ [2026-08-03 düzeltme] Aşağıdaki eski talimat (`eas login`/`eas init`/
+`eas build` terminalden) yanlış varsayımdan yola çıkıyordu: Berkin şirket
+Mac'inde bu yerel araç zincirini yönetemiyor, ve o dönemin Claude Code
+oturumunun ağ politikası `expo.dev`'e erişemediği için bu adımlar hiçbir
+zaman terminalden çalıştırılamadı — build'i kimse tetikleyemiyordu. Yerine
+tamamen tarayıcı tabanlı akış geçti (bkz. `Build/P23-Mobile.md` →
+"bootstrap bulgusu"): Expo'nun kendi dokümantasyonu GitHub App/CI yolu için
+"önce yerelden bir build çalıştır" der, ama bunun sağladığı üç şey
+(`eas.json` build profili, `projectId`, `bundleIdentifier`) zaten terminale
+bağlı değil — üçü de doğrudan kurulabiliyor. Güncel akış:**
 
-**EAS kurulumu (bir kere, terminalden — `hasat-mobile` klasöründe):**
-1. Expo hesabı yoksa: https://expo.dev üzerinden tarayıcıdan ücretsiz hesap oluştur.
-2. `npm install -g eas-cli` (ya da her komutu `npx eas-cli ...` ile çalıştır, global kurulum gerekmez).
-3. `eas login` — terminalde Expo hesap bilgilerini ister (ya da tarayıcıda açılan bir onay akışı).
-4. `eas init` — proje henüz bir EAS projesine bağlı değilse ilk build'de bu adımı kendisi de tetikler; elle çalıştırılırsa "Would you like to create a project for @hesap/hasat-mobile?" sorar → **Yes**. Bu adım `app.json`'a `extra.eas.projectId` ekler (commit'lenmesi gerekir).
-5. `eas build --profile simulator --platform ios` — build bulutta başlar, terminalde ilerleme + bir `expo.dev/accounts/.../builds/...` linki verir.
-6. Build bitince o linkten (tarayıcıdan) `.tar.gz`'i indir, aç, içindeki `.app`'i çıkar.
-7. https://appetize.io/upload adresine tarayıcıdan git, `.app`'i sürükle-bırak yükle (hesap gerekmiyor, ücretsiz plan ~100 dk/ay). Appetize bir simülatör penceresi açar — QA adımları için `Build/E2E-QA.md` → S25 → bölüm B.
+1. Expo panosunda (tarayıcıdan, https://expo.dev) proje zaten oluşturuldu —
+   proje ID'si panodan alınıp `app.json` → `expo.extra.eas.projectId`'ye
+   yazıldı: `bff1a47c-41d5-42fa-bddc-83320c079253`.
+2. `bundleIdentifier`/`android.package` elle `com.hasat.app` olarak
+   `app.json`'a yazıldı (Berkin onayı — bkz. `Build/P23-Mobile.md`, yayından
+   sonra değiştirilemez).
+3. Expo panosunda bir erişim token'ı oluşturulup GitHub'a
+   `hasat-mobile` reposu → Settings → Secrets and variables → Actions →
+   `EXPO_TOKEN` adıyla eklenmesi gerekiyor (Berkin'in yapması gereken tek
+   manuel adım).
+4. GitHub Actions sekmesinde **"EAS Simulator Build (iOS)"** workflow'u
+   (`.github/workflows/eas-build-simulator.yml`) bulunup **Run workflow**'a
+   tıklanır — build bulutta, `expo/expo-github-action@v8` üzerinden
+   non-interactive olarak tetiklenir. Terminal, `eas login`, `eas init`
+   gerekmiyor.
+5. Build bitince workflow'un özet sayfasında (`$GITHUB_STEP_SUMMARY`)
+   artifact indirme linki (ya da çıkarılamazsa Expo panosunun builds linki)
+   görünür.
+6. O linkten `.tar.gz`'i tarayıcıdan indir, aç, içindeki `.app`'i çıkar.
+7. https://appetize.io/upload adresine tarayıcıdan git, `.app`'i
+   sürükle-bırak yükle (hesap gerekmiyor, ücretsiz plan ~100 dk/ay).
+   Appetize bir simülatör penceresi açar — QA adımları için
+   `Build/E2E-QA.md` → S25 → bölüm B.
+
+**⚠️ Kota koruması:** Expo'nun ücretsiz katmanı ayda 30 build'e izin veriyor
+(iOS için bunların en fazla 15'i), kuyrukta bekleme süresi 90 dakikayı
+aşabiliyor, ve her **başarısız** deneme de kotadan düşüyor. Bu yüzden
+workflow'da otomatik tetikleyici yok — yalnızca `workflow_dispatch` (elle
+"Run workflow"). Gerçek build'i çalıştırmak ağ politikası engeli nedeniyle
+bu oturumda doğrulanamadı — **Berkin'in kendi GitHub oturumunda
+tetiklemesi gerekiyor.**
 
 **2 — Bayat tipler (kural #111):** `hasat-core/core/db/types.ts` Supabase
 MCP ile canlı şemadan (`efuqpiaavrzimvstpdpm`) doğrudan yeniden üretildi.
