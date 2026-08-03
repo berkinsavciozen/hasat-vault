@@ -330,6 +330,7 @@ Son değişikliğin (`buyer.producer.$id` guest-erişimi) routing-guard seviyesi
 | **P23-M5-a tamamlandı (2026-07-30)** | `hasat-mobile` iskeleti (Expo 57 + Router + Nativewind + API 36) + `hasat-core`'un ikinci subtree hedefi (dual-target Action'lar + drift kör noktası kapandı) + tesisat (storage adapter + OTP + TanStack Query). Nohut Falafel `rest_minutes` içerik düzeltmesi + süre filtresi bulgusu/düzeltmesi ayrı iş olarak yapıldı. Statik doğrulama (bundle, API36 config, manifest hash, drift kasıtlı bozma) tamamlandı; canlı OTP girişi (web + mobil) bu oturumun ağ kısıtı Supabase host'unu engellediği için doğrulanamadı — Berkin'e kaldı. `hasat-core/db/types.ts`'te `rest_minutes` eksik olduğu (M4-c'den beri tip üretimi yenilenmemiş) bulundu, kapsam dışı bırakıldı. |
 | **Apple Developer bireysel hesabına başvuruldu (Berkin, 2026-07-30/31)** | $99, şirketten bağımsız. Onay bekleniyor. Onay gelene kadar mobil doğrulama gerçek cihaz yerine iOS Simulator build + Appetize.io ile yapılacak (`eas.json`'daki yeni `simulator` profili) — Android tarafında da elde cihaz yok. Detay: `Build/Store-Compliance.md`, `Build/P23-Mobile.md` → "M5-a-ek". |
 | **P23-M5-a-ek tamamlandı (2026-07-31)** | Ön koşul turu (M5-b öncesi): `hasat-core/core/db/types.ts` canlı şemadan yeniden üretildi (`recipes.rest_minutes` + 2 eksik KPI view eklendi) + kalıcı `types-freshness.yml` CI kontrolü (kural #111); `hasat-mobile/.env` içerik bekçisi (`EXPO_PUBLIC_` prefix + sır-kalıbı reddi) `drift-check.yml`'e eklendi, kasten bozulup geri alındı; `hasat-mobile/eas.json`'a Apple hesabı gerektirmeyen `simulator` build profili eklendi; AES anahtarının `expo-secure-store`'da (doğru yerde) tutulduğu doğrulandı, kod değiştirilmedi; `Build/E2E-QA.md` → S25'in B bölümü gerçek cihaz/Expo Go varsayımından Appetize.io'ya çevrildi. |
+| **P23-M5-b-ek tamamlandı (2026-08-03)** | Offline detay boşluğu (Apple 4.2 riski) kapatıldı — liste ağdan çekilince 18 tarifin tamamının detayı arka planda önbelleğe alınıyor (`prefetchAllRecipeDetails`); `formatIngredientName` ile malzeme adı artık `rpc_recipe_availability.crop_display_name`'i tercih ediyor (M4-b'nin küçük-harf kararına uyarak), yoksa slug'a düşüyor; `cacheRecipeList` artık yetim `cached_recipe_steps`/`cached_recipe_ingredients` satırlarını temizliyor. **Berkin kararı — test giriş yolu: Seçenek C (gerçek SMS)**, Supabase Auth ayarına dokunulmadı; `__DEV__` tabanlı Seçenek B'nin simulator build'inde (release-config, `developmentClient` yok) hiç devreye girmeyeceği ayrıca doğrulandı. **Berkin kararı — çiftçi girişi: Seçenek 3** (tarifler herkese açık kalıyor, rol kontrolü M6/M7'de alıcı akışları eklenince yapılacak — bkz. "M6 açık maddeleri"). SQL seviyesinde doğrulandı (18 tarif, ~36 KB ham detay verisi); gerçek çalışma zamanı davranışı (sqlite prefetch) simülatör/cihaz yokluğunda doğrulanamadı, `Build/E2E-QA.md` → S26'ya uçak modu adımı eklendi. |
 
 ---
 
@@ -622,6 +623,7 @@ P22 serisi (A/B/C/D/E/F) + P22-F'nin yan etki düzeltmeleri + P22-G (tarih/filtr
 #### ⚠️ M6 açık maddeleri — M6 prompt'u yazılırken buraya BAKILACAK
 
 - 🔴 **`device_tokens` UNIQUE(token):** aynı cihazda ikinci kullanıcı giriş yaparsa token kaydı düşer. Push M6'da devreye girene kadar kimseyi etkilemiyor. Çözüm yönü: çakışmada token yeni kullanıcıya devredilir (cihaz kimde açıksa onundur). M2-ek'te bilinçli olarak ertelendi.
+- 🔴 **Çiftçi rol kontrolü (mobil tarif ekranları):** M5-b-ek'te Berkin kararı Seçenek 3 — `farmer` rolüyle giriş yapan hesap bugün buyer ile birebir aynı tarif ekranlarını görüyor, kod değişikliği yapılmadı (tarifler zaten public+SEO'ya açık, gizlenecek gerçek bir alıcı akışı yoktu). M6/M7'de "Talep Et"/siparişler gibi alıcıya özel akışlar eklendiğinde bu üç seçenek (engelle / yönlendirme mesajı / gizle) yeniden değerlendirilmeli — o noktada çiftçiye "bu bölüm alıcılar için, çiftçi paneli web'de" yönlendirmesi gösterilecek (bkz. `TODO.md` → "P23-M5-b-ek" madde 5).
 
 #### Eski P23 kodlarının eşlemesi
 
@@ -1499,7 +1501,7 @@ Bu dördü simülatör/Appetize.io yoluyla **doğrulanamaz** — Apple Developer
 hesabı onaylanıp gerçek cihaza kurulum mümkün olunca tek turda koşulacak:
 
 - [ ] **Push bildirimleri** — Appetize/iOS Simulator gerçek APNs/FCM teslimatını simüle etmiyor
-- [ ] **Gerçek uçak modu** — offline-önbellek testinin asıl hali (Apple 4.2'nin gerçek testi); simülatörün "ağ yok" hali bir cihazın radyosunu kapatmasıyla aynı değil. **M5-b'de expo-sqlite önbelleği bu yüzden gerçek cihazda henüz doğrulanamadı — bkz. aşağıdaki M5-b build log'u.**
+- [ ] **Gerçek uçak modu** — offline-önbellek testinin asıl hali (Apple 4.2'nin gerçek testi); simülatörün "ağ yok" hali bir cihazın radyosunu kapatmasıyla aynı değil. **M5-b'de expo-sqlite önbelleği bu yüzden gerçek cihazda henüz doğrulanamadı — bkz. aşağıdaki M5-b build log'u.** M5-b-ek'ten sonra bu testin somut adımı: uçak moduna al → uygulamayı yeniden başlat → liste görünüyor → **daha önce hiç açılmamış bir tarife dokun** → adımlar+malzemeler görünüyor (bulk detay prefetch'in asıl kanıtı — bkz. `Build/E2E-QA.md` → S26 adım 11).
 - [ ] **Keychain/SecureStore'un cihazdaki gerçek davranışı** — iOS Simulator'ın Keychain'i cihazın Secure Enclave'ine dayanmıyor
 - [ ] **Performans** — Appetize bulutta çalışan bir simülatörün ekran akışı; gerçek cihazın CPU/GPU/pil davranışını yansıtmıyor
 
@@ -1781,3 +1783,133 @@ import eklenmedi, pişirme modu eklenmedi (adım listesi var ama timer'lı
 (`hasat-d2c-marketplace`) dokunulmadı, Supabase şemasına (yeni
 tablo/kolon) dokunulmadı — yalnızca `execute_sql`/`pg_policies` ile
 salt-okunur doğrulama yapıldı.
+
+---
+
+### 🟢 P23-M5-b-ek — Offline Önbellek Tamlığı + İki Karar — **TAMAMLANDI (2026-08-03, Claude Code doğrudan)**
+
+M5-b'nin üç PR'ı (`hasat-mobile#4`, `hasat-core#6`, `hasat-vault#20`) merge
+edildikten sonraki ön koşul turu. Branch güncel `main`'den başlatıldı,
+`src/lib/offline/recipeCache.ts` + `src/lib/hasat/recipes.ts` M5-b halini
+içerdiği doğrulandı (`cacheRecipeDetail` yalnızca detay ekranı açıldığında
+çağrılıyordu — görev metninin tarif ettiği tam boşluk). Görev metni 5
+maddeydi; 1-2-3 uygulandı, 4-5 Berkin'in daha önce verdiği kararların
+kayda geçirilmesiydi (kural #107 — bu turda yeni bir otonom karar
+alınmadı).
+
+#### 1 — Offline detay boşluğu (Apple 4.2 riski) — **UYGULANDI**
+
+`src/lib/hasat/recipes.ts` → `useRecipeList`: liste ağdan başarıyla
+çekilip `cacheRecipeList` tamamlanır tamamlanmaz, yeni
+`prefetchAllRecipeDetails()` 18 tarifin tamamının detayını (adım +
+malzeme) da arka planda önbelleğe alıyor — `await` edilmiyor, liste
+sonucunu döndürmeyi bloklamıyor. 5'li gruplar halinde
+(`Promise.allSettled`) çekiliyor, `detailPrefetchInFlight` bayrağı ardışık
+refetch'lerin (staleTime 60 sn sonrası) üst üste binmesini önlüyor. Tek
+bir tarifin ağ hatası tüm taramayı düşürmüyor (`allSettled` + reddedilen
+promise'lar `console.warn` ile loglanıyor, sayaçtan düşülüyor).
+
+**Kaç tarif / ne kadar boyut — SQL seviyesinde kanıtlandı, çalışma
+zamanında doğrulanamadı (kural #103):** Supabase MCP ile doğrudan
+`efuqpiaavrzimvstpdpm` üzerinde `pg_column_size` sorgusu: 18/18 public+
+published tarif, 99 adım satırı (~15 KB ham), 117 malzeme satırı (~13 KB
+ham), tarif satırlarının kendisi ~8 KB — toplam ~36 KB ham sütun boyutu.
+Bu, kodun her başarılı liste çekişinde sqlite'a yazacağı üst sınır
+("metin verisi küçük" öngörüsü doğrulandı — 18 tarifin tamamı birkaç on
+KB). **Doğrulanamayan kısım:** gerçek cihazda/simülatörde kaç tarifin
+fiilen önbelleklendiği ve `JSON.stringify` üzerinden ölçülen gerçek
+`totalBytes` (kod bunu `console.log("[recipeCache] N/18 tarif detayı
+önbelleklendi (~X KB)")` ile loglar) — bu oturumda simülatör/cihaz erişimi
+yok, `tsc --noEmit` (temiz) dışında çalışma zamanı testi yapılamadı.
+`Build/E2E-QA.md` → S26'ya bu yüzden ayrı bir uçak modu adımı eklendi
+(aşağıya bkz.).
+
+#### 2 — `crop_display_name` kullanımı — **UYGULANDI**
+
+`src/lib/hasat/format.ts` → yeni `formatIngredientName(crop,
+cropDisplayName, freeTextName)`: `rpc_recipe_availability.crop_display_name`
+(kanonik gösterim adı) mevcutsa M4-b'nin küçük-harf kararına uyarak küçük
+harfe çevrilip kullanılıyor; yoksa `crop` slug'ından `formatCropIngredient`
+ile türetilen isme, o da yoksa `free_text_name`'e düşülüyor.
+`app/recipe/[slug].tsx` → `IngredientCard` bu yeni fonksiyonu
+`avail?.crop_display_name` ile çağırıyor. `availability` canlı veri
+olduğundan offline'da hiç çağrılmıyor (bkz. `offline/db.ts` başlık
+yorumu) — o durumda `cropDisplayName` her zaman `undefined` gelir ve slug
+fallback'i otomatik devreye girer, görev metninin istediği gibi.
+**Bilinçli fark web'den:** web'in kendi `tarifler.$slug.tsx`'i şu an bile
+`crop_display_name`'i ingredient adı için kullanmıyor (yalnızca foto/eşleşme
+için) — bu, M4-b'nin DB-Schema.md'de kayıtlı kararının mobile taşınan yeni
+bir uygulaması, web'e dokunulmadı (dokunulmayacaklar listesi).
+
+#### 3 — Yetim önbellek satırları — **UYGULANDI**
+
+`src/lib/offline/recipeCache.ts` → `cacheRecipeList`: aynı transaction
+içinde, `cached_recipes` yeniden yazıldıktan hemen sonra
+`DELETE FROM cached_recipe_steps/cached_recipe_ingredients WHERE recipe_id
+NOT IN (SELECT id FROM cached_recipes)` ekliyor. Önceden `cached_recipes`
+siliniyordu ama steps/ingredients tabloları `recipe_id` bazlı olduğu için
+listeden düşen (silinen/gizlenen) bir tarifin adım+malzeme satırları
+sonsuza dek sqlite'ta kalıyordu — DB'de FK/cascade yok (`db.ts` şema
+tanımı), bu yüzden elle temizlik gerekiyordu.
+
+#### 4 — Test giriş yolu — **Berkin kararı: Seçenek C (gerçek SMS)**
+
+M5-b'nin araştırma turunda sunulan üç seçenekten (A/B/C, yukarıdaki M5-b
+bölümü) **C — gerçek SMS ile devam** seçildi. Supabase Auth ayarına
+dokunulmadı (canlı web lansmanına 3 hafta kala `SMS_TEST_OTP` gibi bir
+ayarı TEK canlı projede açmanın riski — public bilinen iki test hesabına
+kapı açması — kabul edilmedi).
+
+**Seçenek B'nin (`__DEV__` koşullu dev-only giriş yolu) simülatörde
+çalışmayacağı bu turda ayrıca doğrulandı:** `hasat-mobile/eas.json`'daki
+`simulator` build profili (`Build/P23-Mobile.md` → M5-a-ek) hiçbir
+`developmentClient` alanı taşımıyor — yani EAS bunu bir **release**
+konfigürasyonu olarak paketliyor (Expo'nun `developmentClient: true`
+olmayan build profilleri için varsayılan davranışı). React Native'de
+`__DEV__` global'i native "Debug"/"Release" şemasına değil, JS bundle'ın
+hangi modda paketlendiğine bakar; release-modda paketlenen bir bundle'da
+`__DEV__` her zaman `false`'dur. Sonuç: `__DEV__` dallanması içeren bir
+dev-only giriş yolu, Appetize'a yüklenen bu simulator build'inde **hiç
+devreye girmez** — kodun kendisi çalışır ama koşul hiç `true` olmaz, yani
+B zaten bu build stratejisiyle test edilemeyecek bir seçenekti (M5-b'nin
+araştırmasında B için işaretlenen "canlı sisteme etki" riski A ile aynı
+mertebedeydi; bu ek bulgu B'yi ayrıca pratik olarak da devre dışı
+bırakıyor). `grep` ile doğrulandı: repoda hiçbir yerde `developmentClient`
+veya `__DEV__` kullanımı yok — B hiç uygulanmamıştı, bu yalnızca "uygulansa
+da işe yaramazdı" tespiti.
+
+**Kayıt:** mobil test girişi gerçek SMS ile yapılır.
+
+#### 5 — Çiftçi girişi — **Berkin kararı: Seçenek 3**
+
+M5-b'nin araştırma turunda sunulan üç seçenekten (1/2/3, yukarıdaki M5-b
+bölümü) **3 — tarifleri tüm rollere göster, alıcı akışlarını gizle**
+seçildi. Gerekçe (Berkin'in kararı, kayda geçiriliyor): tarifler zaten
+public + SEO'ya açık, bu turun kapsamı tamamen okuma yüzeyi — rol kontrolü
+alıcıya özel akışlar (Talep Et, siparişler) eklenmeden anlamlı bir ayrım
+noktası oluşturmuyor. Kod değişikliği yapılmadı (görev metninin de
+belirttiği gibi bu turda gerekmiyor) — `farmer` rolüyle giriş yapan bir
+hesap bugün de bu turdan sonra da buyer ile birebir aynı tarif ekranlarını
+görüyor. M6/M7 açık maddesi olarak "⚠️ M6 açık maddeleri" tablosuna
+eklendi (aşağıya bkz.): rol kontrolü M6/M7'de "Talep Et"/siparişler
+eklenirken yapılacak, o noktada çiftçiye "bu bölüm alıcılar için, çiftçi
+paneli web'de" yönlendirmesi gösterilecek.
+
+#### 6 — Doğrulama (kural #96/#103)
+
+| Kontrol | Sonuç |
+|---|---|
+| `tsc --noEmit` | ✅ Temiz (`npm install` ile bağımlılıklar kuruldu, sıfır hata) |
+| 18 tarifin tamamı public+published mı | ✅ Supabase MCP, doğrudan SQL: `recipe_count=18` |
+| Adım/malzeme satır sayısı + ham boyut | ✅ Supabase MCP: 99 adım (~15 KB), 117 malzeme (~13 KB), tarifler ~8 KB — toplam ~36 KB |
+| Bulk detail prefetch gerçek çalışma zamanı davranışı | 🔴 **Doğrulanamadı** — native `expo-sqlite` modülü, bu oturumda simülatör/cihaz yok (kural #103); `Build/E2E-QA.md` → S26'ya uçak modu adımı eklendi, gerçek cihaz geldiğinde koşulacak |
+| `formatIngredientName` fallback zinciri | ✅ Kod okuma ile doğrulandı: `cropDisplayName` → `formatCropIngredient(crop)` → `free_text_name` → `""`; offline'da `avail` hiç set edilmediği için ilk dal hiç tetiklenmiyor |
+| Yetim satır temizliği | ✅ Kod okuma ile doğrulandı (`NOT IN` alt sorgusu aynı transaction içinde, `cached_recipes` yeniden yazıldıktan sonra çalışıyor) — gerçek sqlite üzerinde çalışma zamanı testi yapılamadı (aynı kural #103 kısıtı) |
+| `src/lib/core/`, web reposu, Supabase şeması, checkout, push/AI import/pişirme modu | ✅ Hiçbiri değişmedi |
+
+#### Kapsam kuralı tutuldu
+
+`src/lib/core/` elle düzenlenmedi, web reposuna (`hasat-d2c-marketplace`)
+dokunulmadı, Supabase şemasına dokunulmadı (yalnızca `execute_sql` ile
+salt-okunur doğrulama), checkout/push/AI import/pişirme modu (M6)
+eklenmedi.

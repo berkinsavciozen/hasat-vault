@@ -695,6 +695,7 @@ ekranlarını içermiyor.
 | 8 | Detay ekranından çık, "Çıkış ✕" ile çıkış yap, tekrar gir | Rol/oturum davranışı M5-a'dakiyle aynı — regresyon yok |
 | 9 | **Offline (kısmi doğrulama):** cihazın/simülatörün Wi-Fi'ını kapat (tam uçak modu değil — bkz. not), listeye dön | Üstte "📶✕ Çevrimdışısınız · görünen tarifler önbellekten" şeridi + liste **normal render** (ayrı bir offline ekranı yok) |
 | 10 | Wi-Fi kapalıyken daha önce açılmamış bir tarife git (varsa) | Önbellekte olmadığı için "Bu tarif önbellekte yok — internete bağlanıp bir kez açtıktan sonra çevrimdışı da görünür" mesajı |
+| 11 | **Uçak modu (P23-M5-b-ek — bulk detay prefetch):** Wi-Fi'ı tekrar aç, listeye dönüp birkaç saniye bekle (arka planda 18 tarifin tamamı önbelleklensin), sonra **uçak moduna al → uygulamayı yeniden başlat** ("Restart App", session'ı kapatma) → liste görünüyor → **daha önce hiç açılmamış** bir tarife tıkla | Liste önbellekten normal render oluyor; tıklanan tarifte "Bu tarif önbellekte yok" mesajı YERİNE **adımlar ve malzemeler** görünüyor — çünkü artık yalnızca daha önce açılmış tarifler değil, listenin tamamı arka planda önbelleklendi |
 
 > **Appetize'da oturum testi netliği (S25'teki notla aynı, burada da
 > geçerli):** Adım 8-10 arası **sayfayı yenileme** (yeni bir "Tap to
@@ -704,18 +705,24 @@ ekranlarını içermiyor.
 > menüsündeki **"Restart App"** kullanılmalı (uygulamayı sonlandırıp aynı
 > session içinde yeniden başlatır), session'ın kendisi kapatılmamalı.
 
-⚠️ **Adım 9-10 gerçek uçak modu YERİNE geçmez** — yalnızca ağ isteklerinin
-başarısız olduğu bir yaklaşık durum. Apple 4.2'nin asıl testi (cihazın
-radyosu tamamen kapalıyken) yalnızca gerçek cihazda yapılabilir; bu madde
-`TODO.md` → "Apple hesabı gelince koşulacak testler" listesinde zaten
-duruyordu, sqlite önbelleği eklendiği için önemi arttı ama liste
-değişmedi.
+⚠️ **Adım 9-11 gerçek uçak modu YERİNE geçmez** — Appetize/iOS Simulator'da
+"uçak modu" seçeneği cihazın radyosunu kapatmaz, olsa olsa Wi-Fi'ı kapatan
+adım 9-10 gibi bir yaklaşık durumdur (adım 11'deki "uçak moduna al" da bu
+sınır içinde okunmalı — simülatörün kendi ayarları üzerinden en yakın
+yaklaşımdır, gerçek radyo kapatma değildir). Apple 4.2'nin asıl testi
+(cihazın radyosu tamamen kapalıyken, App Review reviewer'ının yapacağı
+tam senaryo) yalnızca gerçek cihazda yapılabilir; bu madde `TODO.md` →
+"Apple hesabı gelince koşulacak testler" listesinde zaten duruyordu,
+P23-M5-b-ek'in bulk detay prefetch'i eklendiği için önemi arttı — aynı
+listeye "gerçek uçak modunda bir tarife dokunup adım+malzeme görünüyor mu"
+adımı da eklendi, liste maddesi değişmedi ama kapsamı genişledi.
 
-**Beklenen sonuç: 10/10.** Bu S26'nın tamamı Claude Code tarafından
+**Beklenen sonuç: 11/11.** Bu S26'nın tamamı Claude Code tarafından
 **doğrulanamadı** (bu oturumda simülatör/cihaz erişimi yok, kural #103) —
 RPC/veri doğruluğu Supabase MCP ile SQL üzerinden ayrıca kanıtlandı (bkz.
-`TODO.md` → "P23-M5-b" madde 6), ama ekranda gerçekten doğru
-render olduğu, gerçek `recipe_views` ağ yazımı ve sqlite'ın gerçek
+`TODO.md` → "P23-M5-b" madde 6, "P23-M5-b-ek" madde 1 ve 6), ama ekranda
+gerçekten doğru render olduğu, gerçek `recipe_views` ağ yazımı, bulk
+detay prefetch'in gerçek çalışma zamanı davranışı ve sqlite'ın gerçek
 çalışma zamanı davranışı yalnızca Berkin'in bu QA'sıyla kanıtlanabilir.
 
 ---
@@ -756,3 +763,4 @@ render olduğu, gerçek `recipe_views` ağ yazımı ve sqlite'ın gerçek
 - **2026-07-30:** **S24 eklendi (P23-M4-c `cook_minutes` düzeltmesi + SEO — M4'ün kapanışı).** S23'te sessizce yapılan bir kural #107 ihlali (bekleme süresi tutacak kolon olmadığı için `cook_minutes`'a eklenmişti, muhammara "45 dk pişirme" gösteriyordu, gerçeği 15 dk) bulunup düzeltildi: yeni `recipes.rest_minutes` kolonu, 18 tarifin tamamı adım metninden yeniden sınıflandırıldı (`cook_minutes` en yükseği artık 60 dk). `totalTime` = prep+cook+rest türetilmiş değeri; üç süre detay sayfasında ayrı gösteriliyor. SEO: `sitemap.xml` dinamikleştirildi (18 tarif + public vitrinler), `robots.txt` zaten doğruydu, aynı ana malzemeyi paylaşan tariflere SSR'da (client-side değil) iç link eklendi — hepsi gerçek `<a href>`. `bun install` bu turda da engellendi, gerçek `vite build` M4'ün üç turunda da (a hariç) hiç koşmadı.
 - **2026-07-31:** **S25'in B bölümü yeniden yazıldı (P23-M5-a-ek — test altyapısı, bayat tipler, `.env` bekçisi).** Apple Developer bireysel hesabı onay bekliyor, elde Android cihaz yok, gerçek iPhone'a kurulum ücretli hesap olmadan mümkün değil — bu yüzden eski B bölümünün Expo Go/gerçek cihaz varsayımı iOS Simulator build (`eas.json`'a yeni `simulator` profili) + tarayıcı tabanlı Appetize.io yoluyla değiştirildi. Yeni B: marka renklerinin görsel kanıtı (Expo varsayılanı değil), OTP girişi, uygulama kapat/aç sonrası oturum kalıcılığı, çıkış sonrası oturumun gerçekten temizlendiği. Push/gerçek uçak modu/Keychain-SecureStore cihaz davranışı/performans simülatörde doğrulanamayacağı açıkça işaretlendi (`TODO.md` → "Apple hesabı gelince koşulacak testler"). Ayrıca bu turda `hasat-core/db/types.ts`'teki bayat `recipes.rest_minutes` eksikliği (M4-c'den beri tip üretimi yenilenmemişti — drift check yeşil kaldı çünkü core↔hedef tutarlıydı, DB↔core değildi) canlı şemadan yeniden üretilerek düzeltildi, kalıcı çözüm olarak `types-freshness.yml` CI kontrolü eklendi (kural #111); `hasat-mobile/.env`'e içerik bekçisi eklendi (her satır `EXPO_PUBLIC_` ile başlamalı + `service_role`/`SECRET`/`PRIVATE`/`TOKEN`/`PASSWORD` kalıpları reddedilir), kasten bozulup exit 1 verdiği doğrulanıp geri alındı — bir sınır bulundu ve raporlandı: görev metnindeki `EXPO_PUBLIC_SERVICE_KEY` örneği bu 5 literal kalıbın hiçbirini içermiyor, `KEY` kalıbı da eklenemez çünkü meşru `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY` satırını kırar.
 - **2026-08-03:** **S26 eklendi (P23-M5-b tarif ekranları + `expo-sqlite` offline önbellek).** Yeni bir simülatör build'i gerektiriyor (S25'in build'i eski yer tutucu ekranı taşıyor). RPC/veri doğruluğu Supabase MCP ile SQL üzerinden doğrudan doğrulandı (`TODO.md` → "P23-M5-b" madde 6); ekranda render, gerçek ağ `recipe_views` yazımı ve sqlite'ın çalışma zamanı davranışı bu oturumda test edilemedi (simülatör/cihaz yok) — Berkin'in QA'sına kaldı. Kural #107 gereği iki madde (mobil test giriş yolu, çiftçi girişi) yalnızca araştırılıp sunuldu, karar verilmedi.
+- **2026-08-03:** **S26'ya adım 11 eklendi (P23-M5-b-ek — bulk detay prefetch + uçak modu).** Liste ağdan çekilince artık 18 tarifin tamamının detayı arka planda önbelleklendiği için, yeni adım özellikle **daha önce hiç açılmamış bir tarife** uçak modundayken dokunmayı test ediyor (eski adım 9-10 yalnızca Wi-Fi kapatmayı test ediyordu, bu da hâlâ gerçek uçak modu değil — bkz. adım 11'in üstündeki not). Berkin kararı gereği (madde 4/5, `TODO.md` → "P23-M5-b-ek") test girişi gerçek SMS ile, çiftçi rolüyle de tüm ekranlar erişilebilir kaldığı için bu S26 senaryosu değişmedi.
