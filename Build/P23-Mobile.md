@@ -424,10 +424,58 @@ tamamen CI/build-tetikleme altyapısı; tek karar niteliğindeki değişiklik
 (bundle identifier) zaten Berkin onaylıydı (görev talimatı), otonom
 alınmadı.
 
-### M5-b — Ekran yazma
-- Tarif listesi/detayı, pişirme modu, AI import, **offline önbellek** (expo-sqlite)
-- Play hesap tipi kararı (personal $25 şimdi mi, organizasyon mu) burada verilir
-- **Çıkış:** Uçak modunda app açılıyor ve tarifler görünüyor — *Apple 4.2'nin asıl testi*
+### M5-b — Ekran yazma — 🟡 **UYGULANDI (2026-08-03, Claude Code doğrudan), simülatör/cihaz QA bekliyor**
+
+Kapsam bölündü: **tarif listesi/detayı + offline önbellek bu turda**;
+**pişirme modu + AI import M6'ya kaldı** (görev metninin kendi kapsamı da
+böyleydi — "'Talep Et' bu turda YOK, M6 veya sonrası"). Play hesap tipi
+kararı henüz verilmedi, açık madde olarak kalıyor.
+
+**Tarif ekranları** (`app/home.tsx` liste, `app/recipe/[slug].tsx` detay):
+`recipes`(public+published) + web'deki kapak-fallback zincirinin
+(kapak → ana malzemenin crop görseli → nötr placeholder) birebir portu;
+`prep_minutes`/`cook_minutes`/`rest_minutes` her zaman ayrı gösteriliyor
+(P23-M4-c kararı korunuyor), `rest_minutes > 120` dk → "Önceden başlamak
+gerekir" rozeti. `rpc_recipe_availability`/`rpc_recipe_shopping_list`
+doğrudan çağrılıyor (kural #106 — eşleştirme/dönüşüm client'ta yeniden
+yazılmadı). Malzeme kartının 3 durumu (eşleşti/platform crop ama
+eşleşmiyor/platform-dışı) web'in birebir portu; eşleşen durumda web'in
+"Ürüne Git" linki mobilde **yok** (hedef ekran — Keşfet — M7'ye kadar
+yok, kırık bağlantı bırakılmadı), eşleşmeyen durumda "Talep Et" **yok**
+(bu turun kapsamı değil). `recipe_views` yazımı taşındı;
+`session_id` mobilde `AsyncStorage`'da kalıcı bir UUIDv4 (web'in
+`localStorage` + `crypto.randomUUID()`'ının karşılığı, mevcut
+`react-native-get-random-values` polyfill'i üzerinden, yeni bağımlılık
+yok). Detay: `TODO.md` → "P23-M5-b" build log.
+
+**Offline önbellek (Apple 4.2'nin çekirdeği) — `expo-sqlite`:**
+Yalnızca editoryal/durağan veri önbelleklendi (tarif metni, adımlar,
+malzeme listesi) — `rpc_recipe_availability`/`rpc_recipe_shopping_list`
+(fiyat/stok/min. sipariş) **hiçbir zaman** sqlite'a yazılmıyor ve
+cihaz offline'ken bu RPC'ler hiç çağrılmıyor. Karar: bayat fiyat
+göstermek yerine hiç göstermemek — "son güncelleme: X" damgası yerine
+"çevrimdışı, fiyat/stok bilgisi yok" nötr metni (görev metninin sunduğu
+iki seçenekten biri; gerekçe ve alternatif `TODO.md`'de). Tazeleme:
+cache-aside (ağ başarılıysa göster + yaz, başarısızsa/offline'sa oku).
+Görsel şartnamenin (`P23-Mobile-Visual-Spec.md` → "2. Offline Durumu")
+Durum A (önbellek var + offline → üst şerit) ve Durum B (önbellek yok +
+offline → tam ekran "Bağlantı yok") birebir uygulandı.
+
+**⚠️ Doğrulanamadı (kural #103):** `expo-sqlite` native bir modül —
+bu oturumda simülatör/cihaz erişimi yok, yalnızca `tsc --noEmit` (temiz)
+doğrulandı. Gerçek uçak modu testi zaten `TODO.md` →
+"Apple hesabı gelince koşulacak testler" altında device-only işaretliydi;
+sqlite doğrulaması da oraya eklendi. Detay + tam doğrulama tablosu:
+`TODO.md` → "P23-M5-b", `Build/E2E-QA.md` → S26.
+
+**Kural #107 gereği kararı Berkin'e bırakılan iki madde (uygulanmadı):**
+mobil test giriş yolu (`123456` OTP web'de çalışıyor, mobilde gerçek
+Supabase Auth'a çarpıyor) ve çiftçi rolüyle mobil girişin nasıl
+ele alınacağı — üç seçenek + etki analizi `TODO.md`'de.
+
+- **Çıkış:** Uçak modunda app açılıyor ve tarifler görünüyor — *Apple
+  4.2'nin asıl testi* — kod tarafı hazır, **gerçek cihaz doğrulaması
+  Berkin'e kalıyor.**
 
 ### M6 — Native yetenekler
 - **Pişirme modu:** adım adım, timer'lar, ekranı uyanık tutma
