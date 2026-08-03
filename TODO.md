@@ -305,6 +305,7 @@ Son değişikliğin (`buyer.producer.$id` guest-erişimi) routing-guard seviyesi
 109. [2026-07-29'da eklendi] Lovable projesinde `main`'e merge edilmiş kod, **Publish'e basılmadan** yayınlanmış URL'e (`hasat.lovable.app`) inmez — Lovable'ın kendi düzenlemeleri de dahil. Bu yüzden tarayıcı QA'sından ÖNCE Publish yapılmalı, yoksa test edilen build merge edilmiş koddan günler geride olabilir. Gerekçe: 2026-07-29'da P22-G'nin QA'sında üç "defect" bulundu (satırlarda tarih görünmüyor, Bugün/Bu Hafta/Tümü filtresi süzmüyor, "Yaptım" formunda tarih seçici yok); üçü de kodda mevcuttu ve 18 saat önce merge edilmişti — test edilen yayınlanmış build o kadar geriydi. Yanlış teşhis konuldu ve P22-G'nin UI'ının gereksiz yere baştan yazılması riski doğdu. Ayırt edici ipucu: UI'da görülen hesap ile DB view'ının döndürdüğü değer çelişiyorsa (örn. view `is_overdue=false` derken ekran "1 gün gecikti" diyorsa), iki farklı kod sürümü çalışıyor demektir — önce Publish, sonra teşhis.
 110. [2026-07-30'da eklendi] Bu Supabase projesinde yeni oluşturulan view'lar varsayılan olarak `anon` ve `authenticated` rollerine SELECT GRANT'i alıyor — mevcut 20 KPI view'ında bu grant yok, yani konvansiyon "yalnızca service_role". `security_invoker=true` ayarlamak YETERLİ DEĞİLDİR: o alttaki tabloların RLS'ini uygular, ama view'ın kendisine erişim hakkı ayrı bir katmandır. Her yeni view'de grant'ler açıkça REVOKE edilmeli VE `information_schema.role_table_grants` ile doğrulanmalı. P23-M4-a'da yakalandı; fark edilmeseydi tarif funnel verisi tüm kullanıcılara açık olacaktı.
 111. [2026-07-30'da eklendi] `hasat-core/core/db/types.ts` canlı şemadan sessizce geri düşebilir — drift koruması core↔hedef tutarlılığını denetler, DB↔core tutarlılığını denetlemez. M4-c'de `recipes.rest_minutes` eklendi ama tip üretimi yenilenmedi; bayat tipler subtree ile hem web'e hem mobile indi ve drift check yeşil kaldı (üç kopya tutarlı biçimde yanlıştı). Her şema değişikliğinden sonra tip üretimi zorunludur; kalıcı çözüm hasat-core CI'ında `supabase gen types` çıktısını commit'lenmiş dosyayla karşılaştıran bir adımdır.
+112. [2026-08-03'te eklendi] **Katı RLS altında (`USING user_id = auth.uid()`) `INSERT ... ON CONFLICT DO UPDATE`, çakışan satır BAŞKA bir kullanıcıya aitse sessizce değil, `42501 new row violates row-level security policy (USING expression)` ile düşer — ve "sahiplik devri" gerektiren her upsert bu yüzden client'tan değil `SECURITY DEFINER` bir RPC'den yapılmalıdır.** P23-M6'da `device_tokens` (UNIQUE(token), aynı cihazda ikinci kullanıcı) tam olarak buydu. İki genel ders: (a) bir upsert'in "çakışmada güncelle" dalı, UPDATE politikasının USING kısmına takılır — WITH CHECK doğru olsa bile yetmez, çünkü USING mevcut satırı hiç görmez; (b) çözüm olarak politikayı `USING (true)`'ya çekmek tabloyu satır-bazlı korumasız bırakır, doğru çözüm devri tek bir atomik fonksiyona hapsetmektir (kural #106 ile de tutarlı: iki client'ın da ihtiyaç duyacağı mantık DB'de yaşar). Not: bu, `orders`'ta bulunan "UPDATE politikası hiç yok, tüm mutasyonlar sessizce sıfır satır döndürüyor" hatasının kardeşi ama aynısı değil — orada politika YOKTU ve sessizdi, burada politika VAR ve gürültülü patlıyor; ikisi de gerçek insert/update ile test edilmeden fark edilmez.
 ---
 
 ## 📌 Kararlar
@@ -331,6 +332,8 @@ Son değişikliğin (`buyer.producer.$id` guest-erişimi) routing-guard seviyesi
 | **Apple Developer bireysel hesabına başvuruldu (Berkin, 2026-07-30/31)** | $99, şirketten bağımsız. Onay bekleniyor. Onay gelene kadar mobil doğrulama gerçek cihaz yerine iOS Simulator build + Appetize.io ile yapılacak (`eas.json`'daki yeni `simulator` profili) — Android tarafında da elde cihaz yok. Detay: `Build/Store-Compliance.md`, `Build/P23-Mobile.md` → "M5-a-ek". |
 | **P23-M5-a-ek tamamlandı (2026-07-31)** | Ön koşul turu (M5-b öncesi): `hasat-core/core/db/types.ts` canlı şemadan yeniden üretildi (`recipes.rest_minutes` + 2 eksik KPI view eklendi) + kalıcı `types-freshness.yml` CI kontrolü (kural #111); `hasat-mobile/.env` içerik bekçisi (`EXPO_PUBLIC_` prefix + sır-kalıbı reddi) `drift-check.yml`'e eklendi, kasten bozulup geri alındı; `hasat-mobile/eas.json`'a Apple hesabı gerektirmeyen `simulator` build profili eklendi; AES anahtarının `expo-secure-store`'da (doğru yerde) tutulduğu doğrulandı, kod değiştirilmedi; `Build/E2E-QA.md` → S25'in B bölümü gerçek cihaz/Expo Go varsayımından Appetize.io'ya çevrildi. |
 | **P23-M5-b-ek tamamlandı (2026-08-03)** | Offline detay boşluğu (Apple 4.2 riski) kapatıldı — liste ağdan çekilince 18 tarifin tamamının detayı arka planda önbelleğe alınıyor (`prefetchAllRecipeDetails`); `formatIngredientName` ile malzeme adı artık `rpc_recipe_availability.crop_display_name`'i tercih ediyor (M4-b'nin küçük-harf kararına uyarak), yoksa slug'a düşüyor; `cacheRecipeList` artık yetim `cached_recipe_steps`/`cached_recipe_ingredients` satırlarını temizliyor. **Berkin kararı — test giriş yolu: Seçenek C (gerçek SMS)**, Supabase Auth ayarına dokunulmadı; `__DEV__` tabanlı Seçenek B'nin simulator build'inde (release-config, `developmentClient` yok) hiç devreye girmeyeceği ayrıca doğrulandı. **Berkin kararı — çiftçi girişi: Seçenek 3** (tarifler herkese açık kalıyor, rol kontrolü M6/M7'de alıcı akışları eklenince yapılacak — bkz. "M6 açık maddeleri"). SQL seviyesinde doğrulandı (18 tarif, ~36 KB ham detay verisi); gerçek çalışma zamanı davranışı (sqlite prefetch) simülatör/cihaz yokluğunda doğrulanamadı, `Build/E2E-QA.md` → S26'ya uçak modu adımı eklendi. |
+
+| **P23-M6 tamamlandı (2026-08-03)** | Native yetenekler: **pişirme modu** (tam ekran adım adım, `expo-keep-awake`, **zaman-damgası tabanlı timer** — tick sayılmıyor, arka planda ve uygulama kapatılıp açıldıktan sonra da doğru; süre dolunca yerel bildirim, ön planda ek titreşim), **AI import** (metin + yazılı tarif fotoğrafı; mevcut `extract-recipe` çağrılıyor, yeni çıkarım mantığı yazılmadı; çıkarım sonucu tamamen düzenlenebilir; `extraction_confidence < 0.6` uyarısı; kota aşımı anlaşılır mesaja çevrildi; kullanıcı tarifleri ayrı "Defterim" sekmesinde, public korpusa asla karışmıyor), **push token kaydı** (`expo-notifications`, izin öncesi bağlam kartı, Android önce/iOS sona). **`device_tokens` UNIQUE(token) açık maddesi kapandı** — devir `rpc_register_device_token` (SECURITY DEFINER) ile; arıza ve çözüm gerçek SQL ile test edildi (kural #112 buradan doğdu). Prefetch gereksiz tekrarı da düzeltildi (önbellek tamsa + 24 saatten yeniyse atlanıyor). Gerçek `extract-recipe` çağrısı `pg_net` üzerinden gerçek kullanıcı JWT'siyle yapıldı; `visibility='private'` + `author_type='kullanici'` SQL ile kanıtlandı, sunucunun client'ın gönderdiği `visibility`'yi yok saydığı ayrıca gösterildi, test verisi temizlendi. **Timer/keep-awake/kamera/gerçek push simülatör-cihaz yokluğunda doğrulanamadı (kural #103), S27'ye yazıldı.** Android push için FCM kredansiyeli, iOS için APNs anahtarı hâlâ Berkin'de. |
 
 ---
 
@@ -614,15 +617,15 @@ P22 serisi (A/B/C/D/E/F) + P22-F'nin yan etki düzeltmeleri + P22-G (tarih/filtr
 | M3-D | Mobil UI görsel şartnamesi (paralel iş kolu) | — | ✅ TAMAMLANDI (2026-07-30) — `Build/P23-Mobile-Visual-Spec.md` |
 | M4 | Web tarif yüzeyi + Gap #9 | 1 – 13 Eyl | ✅ TAMAMLANDI (2026-07-30, a+b+c) |
 | M5-a | Mobil iskelet + `hasat-core` ikinci hedefi + tesisat | 14 – 27 Eyl | ✅ TAMAMLANDI (2026-07-30) |
-| M5-b | Ekran yazma (tarif listesi/detayı, pişirme modu, AI import, offline önbellek) | 14 – 27 Eyl | ⬜ |
-| M6 | Native yetenekler + push | 28 Eyl – 11 Eki | ⬜ — ⚠️ **açık madde var, bkz. altta "M6 açık maddeleri"** |
+| M5-b | Ekran yazma (tarif listesi/detayı, offline önbellek) | 14 – 27 Eyl | 🟡 Uygulandı (2026-08-03) + M5-b-ek, simülatör/cihaz QA (S26) bekliyor |
+| M6 | Native yetenekler + push | 28 Eyl – 11 Eki | 🟡 Uygulandı (2026-08-03) — pişirme modu + AI import + push token kaydı; `device_tokens` açık maddesi kapandı; simülatör/cihaz QA (S27) bekliyor |
 | M7 | Köprü + store varlıkları | 12 – 18 Eki | ⬜ |
 | M8 | Store submit | 19 – 31 Eki | ⬜ |
 | M9 | Sıraya alındı (silinmedi) | Kasım+ | ⬜ |
 
 #### ⚠️ M6 açık maddeleri — M6 prompt'u yazılırken buraya BAKILACAK
 
-- 🔴 **`device_tokens` UNIQUE(token):** aynı cihazda ikinci kullanıcı giriş yaparsa token kaydı düşer. Push M6'da devreye girene kadar kimseyi etkilemiyor. Çözüm yönü: çakışmada token yeni kullanıcıya devredilir (cihaz kimde açıksa onundur). M2-ek'te bilinçli olarak ertelendi.
+- ✅ **`device_tokens` UNIQUE(token) — KAPANDI (2026-08-03, P23-M6).** Arıza gerçek SQL ile birebir üretildi (client'ın düz upsert'ü `new row violates row-level security policy (USING expression)` ile düşüyordu), sonra `rpc_register_device_token` (SECURITY DEFINER, `ON CONFLICT (token) DO UPDATE SET user_id = EXCLUDED.user_id`) ile çözüldü: çakışmada token yeni kullanıcıya devrediliyor — cihaz kimde açıksa onundur. Devir + eski sahibin görünürlüğünü kaybetmesi + `anon`'un fonksiyonu çağıramaması + çıkışta kendi token'ını silebilmesi gerçek insert/update/delete ile test edildi. Detay: `TODO.md` → "P23-M6" build log, madde 3 ve doğrulama tablosu (6-10).
 - 🔴 **Çiftçi rol kontrolü (mobil tarif ekranları):** M5-b-ek'te Berkin kararı Seçenek 3 — `farmer` rolüyle giriş yapan hesap bugün buyer ile birebir aynı tarif ekranlarını görüyor, kod değişikliği yapılmadı (tarifler zaten public+SEO'ya açık, gizlenecek gerçek bir alıcı akışı yoktu). M6/M7'de "Talep Et"/siparişler gibi alıcıya özel akışlar eklendiğinde bu üç seçenek (engelle / yönlendirme mesajı / gizle) yeniden değerlendirilmeli — o noktada çiftçiye "bu bölüm alıcılar için, çiftçi paneli web'de" yönlendirmesi gösterilecek (bkz. `TODO.md` → "P23-M5-b-ek" madde 5).
 
 #### Eski P23 kodlarının eşlemesi
@@ -1504,6 +1507,10 @@ hesabı onaylanıp gerçek cihaza kurulum mümkün olunca tek turda koşulacak:
 - [ ] **Gerçek uçak modu** — offline-önbellek testinin asıl hali (Apple 4.2'nin gerçek testi); simülatörün "ağ yok" hali bir cihazın radyosunu kapatmasıyla aynı değil. **M5-b'de expo-sqlite önbelleği bu yüzden gerçek cihazda henüz doğrulanamadı — bkz. aşağıdaki M5-b build log'u.** M5-b-ek'ten sonra bu testin somut adımı: uçak moduna al → uygulamayı yeniden başlat → liste görünüyor → **daha önce hiç açılmamış bir tarife dokun** → adımlar+malzemeler görünüyor (bulk detay prefetch'in asıl kanıtı — bkz. `Build/E2E-QA.md` → S26 adım 11).
 - [ ] **Keychain/SecureStore'un cihazdaki gerçek davranışı** — iOS Simulator'ın Keychain'i cihazın Secure Enclave'ine dayanmıyor
 - [ ] **Performans** — Appetize bulutta çalışan bir simülatörün ekran akışı; gerçek cihazın CPU/GPU/pil davranışını yansıtmıyor
+- [ ] **(P23-M6) Kamera ile AI import** — `expo-image-picker` kamera akışı simülatörde gerçek bir fotoğraf üretmiyor; `mode='photo'` uçtan uca yalnızca gerçek cihazda kanıtlanabilir (`mode='text'` M6'da gerçek çağrıyla test edildi)
+- [ ] **(P23-M6) Yerel bildirimin gerçekten teslim edilmesi** — pişirme modu timer'ı dolduğunda uygulama arka plandayken/kapalıyken bildirimin geldiği
+- [ ] **(P23-M6) Ekranı uyanık tutma** — pişirme modunda ekranın kararmadığı VE çıkışta normal davranışa döndüğü (pil tüketimi riski)
+- [ ] **(P23-M6) Timer'ın arka plan doğruluğu** — uygulamayı kapatıp birkaç dakika sonra dönünce kalan sürenin doğru olduğu (zaman-damgası yaklaşımının asıl testi)
 
 ---
 
@@ -1913,3 +1920,299 @@ paneli web'de" yönlendirmesi gösterilecek.
 dokunulmadı, Supabase şemasına dokunulmadı (yalnızca `execute_sql` ile
 salt-okunur doğrulama), checkout/push/AI import/pişirme modu (M6)
 eklenmedi.
+
+---
+
+### 🟢 P23-M6 — Native Yetenekler (Pişirme Modu · AI Import · Push) — **UYGULANDI (2026-08-03, Claude Code doğrudan), SİMÜLATÖR/CİHAZ QA BEKLİYOR**
+
+Apple Guideline 4.2 savunmasının çekirdeği (`Build/Store-Compliance.md` →
+"Hasat'ın 4.2 savunması"): M5-b offline erişimi getirmişti, bu tur cihaz
+donanımına dayanan üç yeteneği ekliyor.
+
+**Ön kontrol (görev metni şartı):** M5-b (`hasat-mobile#4`) ve M5-b-ek
+(`hasat-mobile#5`) merge edilmiş durumda; branch güncel `main`'den
+başlatıldı; `src/lib/hasat/recipes.ts`'te `prefetchAllRecipeDetails`'in
+mevcut olduğu doğrulandı (satır 120) — dur-ve-bildir koşulu oluşmadı.
+
+#### 1 — Pişirme modu — **UYGULANDI**
+
+Yeni: `app/cook/[slug].tsx`, `src/lib/native/cookTimer.ts`,
+`src/lib/native/notifications.ts`. Yeni bağımlılıklar: `expo-keep-awake`
+(~57.0.1), `expo-notifications` (~57.0.8) — ikisi de SDK 57 ile eşleşen
+resmi Expo paketleri.
+
+Tarif detayındaki "Hazırlanışı" bölümünün başına **"👨‍🍳 Pişirmeye Başla"**
+CTA'sı eklendi (kural #102: özelliğin var olması, kullanıcının ona
+ulaşabilmesiyle aynı şey değil). Tam ekran mod, şartnamenin
+(`Build/P23-Mobile-Visual-Spec.md` → "1. Pişirme Modu") Durum A/B'sini
+birebir uyguluyor: ✕ + adım sayacı, ilerleme çubuğu, adım fotoğrafı (yoksa
+tarifin kapak/temsili görseli), 22px adım metni (şartname min. 20sp),
+tam genişlikli büyük "← Önceki / Sonraki →" hedefleri.
+
+**Timer — ZAMAN DAMGASI TABANLI (görev metninin çekirdek şartı):** Kalan
+süre hiçbir zaman tick sayarak tutulmuyor; `setInterval` yalnızca yeniden
+render tetikliyor, gerçek değer her render'da `endsAt - Date.now()`.
+Gerekçe: React Native'in JS timer'ları uygulama arka plana alındığında
+kısılır/durur — 45 dakikalık bir timer'ı tick sayarak izlemek, kullanıcı
+uygulamadan çıkıp döndüğünde dakikalarca yanlış sonuç verir. Ek olarak
+`endsAt` AsyncStorage'a yazılıyor: uygulama tamamen kapatılıp açılsa bile
+geri sayım kaldığı yerden doğru görünüyor, uygulama kapalıyken süre
+dolduysa dönüşte "Süre doldu" durumunda açılıyor. `AppState` "active"
+olayında ekstra bir yeniden render tetikleniyor (arka planda kısılmış
+interval'in gecikmesini beklememek için).
+
+**Uç durumlar (şartname):** `timer_seconds > 3600` → geri sayım/bildirim
+YOK, "Tahmini süre: 3 gün" açıklama metni (`Cevizli Üzümlü Köme` adım 6,
+259.200 sn). `timer_seconds = NULL` → timer kartı hiç render edilmiyor
+(boş/gri kart yok). Adım geçişinde timer otomatik sıfırlanmıyor —
+durum adım kimliğine göre saklanıyor.
+
+**Ekranı uyanık tutma:** `expo-keep-awake`'in `useKeepAwake()` hook'u
+pişirme modu ekranında; mount'ta aktifleşiyor, **unmount'ta otomatik
+bırakılıyor** — ✕ ile çıkış ya da geri gidiş ekranın normal kararma
+davranışını geri getiriyor (görev metni: "çıkışta bırakılmalı, yoksa pil
+tüketir"). ⚠️ **Otonom karar (kural #107 — Berkin onayı YOK):** şartname
+keep-awake'i "timer `Başlat`a basılınca" tetikliyor, görev metni ise
+"yalnızca pişirme modunda aktif" diyor. İkincisi uygulandı, yani kapsam
+şartnamenin tarif ettiğinin üst kümesi: timer'sız adımlarda da ekran
+kararmıyor. Gerekçe: elleri hamurlu kullanıcı timer'sız adımda da ekrana
+dokunmak zorunda kalmamalı; ayrıca "adımdan çıkınca bırak" kuralı bu
+kapsamın içinde zaten sağlanıyor. Bedeli: timer'sız bir adımda oyalanan
+kullanıcıda ekran daha uzun açık kalır — pişirme modu tam ekran ve
+bilinçli açılan bir mod olduğu için kabul edildi.
+
+**Timer bitişinde YEREL BİLDİRİM (gerekçe, görev metni istedi):** Ses ya da
+`Vibration.vibrate()` uygulama askıya alındığında **tetiklenmez** — oysa
+şartnamenin zorunlu tuttuğu senaryo tam olarak "kullanıcı telefonu bırakıp
+mutfaktan ayrıldı" senaryosu. OS'e önceden kaydedilen bir yerel bildirim
+uygulama kapalıyken de teslim edilir. Bu yüzden **birincil mekanizma yerel
+bildirim** (`expo-notifications`, `SchedulableTriggerInputTypes.DATE`,
+`endsAt` anına kurulur; duraklat/sıfırla akışında iptal edilir).
+Ses+titreşim elenmedi, **tamamlayıcı** olarak duruyor: Android kanalı
+`vibrationPattern` ile kuruluyor, `setNotificationHandler` bildirimi
+uygulama ön plandayken de gösteriyor, ve pişirme ekranı ayrıca
+`Vibration.vibrate` + ekran içi "⏰ Süre doldu" uyarısı basıyor. Yani arka
+plan = bildirim, ön plan = bildirim + titreşim + görsel uyarı.
+
+**Offline:** Pişirme modu `useRecipeDetail` üzerinden adımları alıyor —
+ağ yoksa M5-b'nin `expo-sqlite` önbelleğinden geliyor; timer, keep-awake
+ve yerel bildirim tamamen cihaz üzerinde. Şartnamenin offline kapsam
+tablosundaki "Pişirme modu (önbellekteki bir tarifte) ✅ tamamen" satırı
+karşılanıyor.
+
+#### 2 — AI import (metin + yazılı tarif fotoğrafı) — **UYGULANDI**
+
+Yeni: `app/import.tsx`, `src/lib/hasat/import.ts`,
+`src/lib/hasat/myRecipes.ts`. Yeni bağımlılık: `expo-image-picker`
+(~57.0.7).
+
+**Yeni çıkarım mantığı YAZILMADI (görev metni şartı):** çıkarımın tamamı
+M2'de deploy edilmiş `extract-recipe` edge function'ında; client yalnızca
+`supabase.functions.invoke("extract-recipe", { body })` çağırıyor, hataları
+kullanıcı diline çeviriyor ve sonucu düzenlenebilir hale getiriyor.
+
+**Akış** (şartname → "3. AI Import Akışı", dört ekran tek rotada dört
+aşama olarak — çıkarılan taslağın kimliği rotalar arası taşınmasın diye;
+kullanıcı açısından her aşama tam ekran):
+`3a` kaynak seçimi (📷 Fotoğraf Çek · 🖼 Galeriden Seç · ✍️ Metin Yapıştır)
+→ `3b` belirsiz spinner ("Tarif okunuyor…", sabit ilerleme çubuğu
+bilinçli olarak YOK) + gönderilen fotoğrafın küçük önizlemesi → `3c`
+Düzelt/Onayla → `3d` "Defterine kaydedildi".
+
+**`3c` düzenlenebilirlik (görev metninin altını çizdiği nokta):** başlık,
+porsiyon, hazırlık/pişirme dakikası, her malzeme (ad/miktar/birim, satır
+silme, satır ekleme) ve her adım (metin, opsiyonel süre — dakika girilirse
+pişirme modunda geri sayıma dönüşüyor) düzenlenebilir. `extraction_confidence
+< 0.6` ise üstte "⚠️ Bu tarifi okurken pek emin olamadık" rozeti — alan
+BLOKLANMIYOR (şartname). Malzeme satırlarında crop rozeti yok: bu akışta
+`recipe_ingredients.crop` daima NULL (eşleştirme editoryal iş), nötr
+görünüm tasarlanmış davranış.
+
+**"Önce kaydediliyor, sonra düzeltiliyor" — bilinçli ve şeffaf:**
+`extract-recipe` kontratı gereği çıkarım sonucunu doğrudan DB'ye yazıyor
+(`status='draft'`, `visibility='private'`). Fonksiyona dokunmadan (görev
+metni: "yeni bir çıkarım mantığı yazma") bunu "önce göster, sonra yaz"a
+çevirmek mümkün değildi. Kullanıcı açısından sonuç aynı: kaydedilen şey
+yalnızca kendisine görünen bir taslak; "Kaydet" düzeltmeleri yazıyor,
+✕/Vazgeç taslağı **siliyor** (`discardDraft`, FK cascade ile adım+malzeme
+de gider) — yarım/bozuk kayıt defterde birikmiyor.
+
+**Sunucu tarafı zorlamanın doğrulanması (görev metni şartı):** gerçek bir
+`extract-recipe` çağrısında body'ye kasten `visibility:'public'`,
+`status:'published'`, `author_type:'hasat'` ve **başka bir kullanıcının**
+`owner_id`'si konuldu; kaydedilen satır yine `visibility='private'`,
+`status='draft'`, `author_type='kullanici'`, `owner_id=JWT'nin sahibi`
+oldu. Ayrıca RLS, **sahibinin bile** kendi importunu public'e çevirmesini
+reddediyor (`recipes auth update own private` WITH CHECK) — gerçek
+`UPDATE` denemesi `new row violates row-level security policy` ile düştü.
+Detay: aşağıdaki doğrulama tablosu.
+
+**Kota (`ai_usage_tracking`):** 429 `quota_exceeded` gerçek çağrıyla
+tetiklendi ve kullanıcıya "Bu ayki AI tarif çıkarma hakkın doldu. Hakkın
+ayın başında yenilenir; o zamana kadar tarifi elle de ekleyebilirsin."
+mesajına çevriliyor. Diğer hata kodları (`not_a_recipe`, `text_too_short`,
+`image_too_large`, `credits_exhausted`, `rate_limited`, `ai_unreachable`…)
+de tek tek Türkçeleştirildi — çıplak kod hiçbir zaman kullanıcıya
+gösterilmiyor.
+
+**"Defterim" sekmesi:** Ana ekran iki sekmeye ayrıldı — **Hasat Tarifleri**
+(public+published korpus) ve **Defterim** (`owner_id = auth.uid()`).
+İkisi hiçbir zaman aynı listede birleşmiyor. Kişisel taslaklar
+`expo-sqlite` önbelleğine **yazılmıyor**: o önbellek public korpusun
+deposu, oraya bir private taslak yazmak `getCachedRecipeList()` üzerinden
+onu offline listede gösterirdi — "kullanıcı importu asla public korpusa
+karışmaz" kuralının önbellek tarafındaki ihlali olurdu. Defterim sekmesi
+çevrimdışıyken bunu açıklayan nötr bir metin gösteriyor.
+
+**Kapsam dışı tutuldu (M9, hukuki kontrol şartlı):** YouTube/link importu
+ve bitmiş yemek fotoğrafından tahmin — ekranda böyle bir giriş yok, edge
+function da `mode` olarak yalnızca `text`/`photo` kabul ediyor.
+
+#### 3 — Push — **KOD HAZIR; ANDROID KREDANSİYELİ VE iOS DOĞRULAMASI BERKİN'DE**
+
+Yeni: `src/lib/native/push.ts`,
+`src/components/hasat/PushPermissionCard.tsx`.
+
+**İzin akışı (görev metni: "çıplak sistem dialogu göstermeden önce bağlam
+ver"):** Ana ekranda, izin durumu `undetermined` ise önce bir kart çıkıyor
+— "Talep ettiğin ürün Hasat'a geldiğinde, teklifin yanıtlandığında ve
+pişirme modundaki süren dolduğunda sana bildirim göndeririz… istemezsen
+uygulama aynı şekilde çalışmaya devam eder." Sistem dialogu **yalnızca**
+bu karttaki butondan sonra açılıyor. Gerekçe: iOS'ta bildirim izni dialogu
+ömür boyu bir kez gösterilebiliyor; bağlamsız gösterilip reddedilirse geriye
+kullanıcıyı Ayarlar'a göndermekten başka yol kalmıyor. Pişirme modundaki
+timer için de aynı desen ayrı bir kartla uygulandı ("Süre dolunca haber
+verelim mi?").
+
+**`device_tokens` UNIQUE(token) — "M6 açık maddeleri" KAPANDI.** Migration
+`p23_m6_device_token_takeover`: (a) `device_tokens.updated_at` kolonu
+(ekleyici, `NOT NULL DEFAULT now()` — devir anını `created_at`'i bozmadan
+kaydediyor; ⚠️ bu kolon otonom bir alt karardır, kural #107 gereği
+etiketleniyor: görev metni devir davranışını istemişti, kolon o kararın
+uygulanma detayı), (b) `rpc_register_device_token(p_token, p_platform)`
+— SECURITY DEFINER, `ON CONFLICT (token) DO UPDATE SET user_id =
+EXCLUDED.user_id`, yani **çakışmada token yeni kullanıcıya devrediliyor:
+cihaz kimde açıksa onundur.**
+
+**Neden RLS politikasını gevşetmek yerine RPC:** devir, satırın MEVCUT
+sahibi üzerinde bir UPDATE'tir; katı `device_tokens own update`
+politikasının USING kısmı (`user_id = auth.uid()`) bunu her zaman
+reddeder — client'ın düz `upsert`'ü gerçek testte
+`new row violates row-level security policy (USING expression)` ile düştü.
+Politikayı `USING (true)`'ya çekmek tüm tabloyu satır-bazlı korumasız
+bırakırdı; devir bunun yerine tek bir atomik fonksiyona hapsedildi
+(kural #106: iki client'ın da ihtiyaç duyduğu mantık DB'de yaşar — web
+ileride push eklerse aynı fonksiyonu çağırır). `anon`'a EXECUTE yok
+(gerçek testte `permission denied for function` ile doğrulandı).
+
+**Çıkışta token silme:** "Çıkış ✕" artık cihazın token satırını da siliyor
+(RLS DELETE own ile, gerçek testte doğrulandı) — aksi halde kullanıcı
+çıktıktan sonra da o cihaza kendi bildirimleri gitmeye devam ederdi.
+
+**Android önce / iOS sona (görev metni sırası):** Kod her iki platformu da
+kapsıyor (`Platform.OS` → `device_tokens.platform`; tablo CHECK'i yalnızca
+`ios`/`android` kabul ediyor, `web` guard'landı). ⚠️ **Ne kod tarafında
+eksik, ne Berkin'de:** Expo push token'ı almak için EAS projesine
+kredansiyel yüklenmesi gerekiyor — **Android**: FCM V1 servis hesabı
+anahtarı (Firebase projesi + `google-services.json`); **iOS**: APNs
+anahtarı (ücretli Apple Developer hesabı — henüz onaylanmadı). İkisi de
+repoda YOK ve bu oturumdan yüklenemez. Kod bu durumda sessizce
+çökmüyor: `getExpoPushTokenAsync` hatası yakalanıp
+`{status:'failed'}` dönüyor, uygulamanın geri kalanı etkilenmiyor.
+
+**Push GÖNDERME (sunucu tarafı) bu turun kapsamında değil** — görev metni
+madde 3 token kaydı + izin akışı + UNIQUE devri olarak tanımlıydı. Mevcut
+bildirim kanalları hâlâ SMS (`dispatch_sms`/`send-sms`); `notif_channel`
+enum'unda `push` zaten var. Token'ları gerçekten kullanan bir gönderim
+yolu (edge function) M7/M9 açık maddesi olarak kalıyor — aşağıdaki "Açık
+maddeler"e yazıldı.
+
+#### 4 — Prefetch gereksiz tekrarı (M5-b'den taşınan) — **UYGULANDI**
+
+`detailPrefetchInFlight` yalnızca EŞZAMANLILIĞI engelliyordu; ardışık
+refetch'lerde (`useRecipeList` `staleTime` 60 sn) 18 tarifin detayı her
+seferinde yeniden indiriliyordu. Artık `prefetchAllRecipeDetails` işe
+başlamadan önce önbellek istatistiğine bakıyor: **önbellekteki detay
+sayısı liste sayısına eşit/büyükse VE en eski detay 24 saatten yeniyse
+tarama hiç başlamıyor** (log: "detay önbelleği tam ve 24 saatten yeni —
+prefetch atlandı").
+
+**Neden yeni bir sqlite tablosu (`cached_recipe_detail_meta`):**
+`cached_recipes.cached_at` LİSTE tazeliğini gösteriyor — `cacheRecipeList`
+her başarılı ağ isteğinde tabloyu silip `now()` ile yeniden yazıyor. Detay
+tazeliğini oradan okumak "her zaman taze" yanlış sonucunu verir ve 24
+saatlik yenileme kuralı hiç tetiklenmezdi. Ayrı tablo `CREATE TABLE IF NOT
+EXISTS` ile geliyor, mevcut kurulumlarda migration gerekmiyor (boş başlar,
+ilk prefetch turunda dolar); yetim satır temizliği (M5-b-ek) bu tabloyu da
+kapsıyor. İstatistik okunamazsa prefetch yine yapılıyor — Apple 4.2'nin
+offline testi tasarruftan önce gelir.
+
+#### 5 — Doğrulama (kural #96 — hepsi gerçek çalıştırma)
+
+> Bu oturumun ağ politikası `efuqpiaavrzimvstpdpm.supabase.co`'ya doğrudan
+> CONNECT'i 403'lüyor (M4-a/M5-a/M5-b'deki aynı kısıt). Uçtan uca gerçek
+> çağrılar bu yüzden **`pg_net` ile sunucu tarafından** yapıldı: geçici bir
+> test kullanıcısı için gerçek bir kullanıcı JWT'si alındı
+> (`/auth/v1/token?grant_type=password`) ve `extract-recipe` bu JWT ile
+> gerçekten çağrıldı. Tüm test verisi tur sonunda silindi.
+
+| # | Kontrol | Sonuç |
+|---|---|---|
+| 1 | `tsc --noEmit` (hasat-mobile) | ✅ Temiz (4 yeni bağımlılık kurulu) |
+| 2 | `tsc --noEmit` (hasat-core) | ✅ Temiz |
+| 3 | `npm run drift` (hasat-core) | ✅ Sapma yok, 5 core dosyası manifest ile birebir |
+| 4 | `app.json` geçerli JSON + config plugin zinciri | ✅ `npx expo config --type prebuild` hatasız çözüldü; `expo-image-picker` + `expo-notifications` plugin'leri tanındı |
+| 5 | Android izinleri (istenmeyen izin sızmıyor mu) | ✅ `microphonePermission: false` ile `RECORD_AUDIO` çıkarıldı — çözülen izin listesi: `READ/WRITE_EXTERNAL_STORAGE`, `INTERNET` (ses kaydı izni istemiyoruz, Play'de gereksiz hassas izin beyanı olurdu) |
+| 6 | `device_tokens` düz client upsert'ü (RPC olmadan) | ✅ Gerçek SQL, `authenticated` rolü + ikinci kullanıcının JWT claim'i: `ERROR 42501: new row violates row-level security policy (USING expression)` — **M6 açık maddesindeki arıza birebir üretildi** |
+| 7 | `rpc_register_device_token` ile devir | ✅ Kullanıcı A token'ı kaydetti → kullanıcı B aynı token'ı RPC ile kaydetti → satır sayısı 1, `user_id`=B, `updated_at > created_at` |
+| 8 | Devirden sonra eski sahibin görünürlüğü (RLS SELECT) | ✅ A için `count=0`, B için `count=1` |
+| 9 | `anon` rolünün RPC'yi çağırması | ✅ `ERROR 42501: permission denied for function rpc_register_device_token` |
+| 10 | Çıkışta kendi token'ını silme (RLS DELETE own) | ✅ Gerçek `DELETE`, `kalan=0` |
+| 11 | Gerçek `extract-recipe` çağrısı (mode='text') | ✅ HTTP 200 — `visibility='private'`, `status='draft'`, `author_type='kullanici'`, `source_type='text'`, `extraction_confidence=1`, 6 malzeme, 4 adım (3'ünde `timer_seconds` dolu), `crop` bağlı malzeme sayısı **0** (editoryal eşleştirme kuralı korunuyor) |
+| 12 | Client'ın gönderdiği `visibility`/`status`/`author_type`/`owner_id`'ye güvenilmediği | ✅ Body'ye kasten `public`/`published`/`hasat`/başka `owner_id` konularak yapılan gerçek çağrı yine `private`/`draft`/`kullanici`/JWT sahibi olarak kaydedildi |
+| 13 | Private tarifin başka kullanıcıya görünmediği (RLS) | ✅ İkinci kullanıcının JWT claim'iyle `count=0` |
+| 14 | Sahibinin kendi importunu public'e çevirememesi | ✅ `UPDATE ... SET visibility='public'` → `new row violates row-level security policy` |
+| 15 | Düzelt/Onayla ekranının yazma yolları (sahip olarak) | ✅ Gerçek RLS altında: tarif `UPDATE`, malzeme `UPDATE`, malzeme `DELETE`, adım `INSERT` — hepsi başarılı |
+| 16 | Kota aşımı yolu (`ai_usage_tracking`) | ✅ Test kullanıcısının aylık sayacı limite çekildi (`can_send_ai_message=false`) → gerçek çağrı **HTTP 429 `quota_exceeded`** döndü |
+| 17 | Test verisi temizliği | ✅ 2 test tarifi + `ai_usage_tracking` satırı + test token'ları + geçici auth kullanıcısı ve profili silindi; kalan `author_type='kullanici'` tarif **0**, `device_tokens` **0** satır, korpus **18/18 public+published** (dokunulmadı) |
+| 18 | `hasat-core` tip tazeliği (kural #111) | ✅ Şema değiştiği için `core/db/types.ts` canlı şemadan yeniden üretildi — diff yalnızca `device_tokens.updated_at` (3 yerde) + `rpc_register_device_token` imzası; `core/.manifest` yenilendi |
+| 19 | Timer / keep-awake / kamera / gerçek push davranışı | 🔴 **DOĞRULANAMADI (kural #103)** — hepsi native modül, bu oturumda simülatör/cihaz yok. Aşağıya bkz. |
+| 20 | Prefetch atlama kuralının çalışma zamanı davranışı | 🔴 **Doğrulanamadı** — `expo-sqlite` native modülü; mantık kod okumasıyla doğrulandı, gerçek davranış S27'de |
+
+#### ⚠️ Bu turda DOĞRULANAMAYANLAR (kural #103 — açıkça işaretleniyor)
+
+- **Timer'ın gerçek arka plan davranışı** — uygulamayı kapatıp dönünce
+  doğru kalan sürenin göründüğü yalnızca gerçek cihazda/simülatörde
+  görülebilir.
+- **Ekranı uyanık tutma** — `expo-keep-awake` native modül; ekranın
+  gerçekten kararmadığı ve çıkışta bırakıldığı ölçülemedi.
+- **Kamera/galeri** — `expo-image-picker` native modül; izin dialogu ve
+  gerçek fotoğraf akışı (dolayısıyla `mode='photo'` uçtan uca) test
+  edilemedi. `mode='text'` uçtan uca gerçek çağrıyla test edildi (yukarıda
+  madde 11).
+- **Gerçek push teslimatı** — hem kredansiyel eksik (FCM/APNs) hem
+  simülatör gerçek token üretmiyor. `TODO.md` → "Apple hesabı gelince
+  koşulacak testler" listesinde zaten duruyordu.
+- **Yerel bildirimin gerçekten teslim edildiği** — planlama kodu doğru
+  tipte (`SchedulableTriggerInputTypes.DATE`), ama teslimat cihaz işi.
+
+#### Açık maddeler (M6'dan sonraya)
+
+| Madde | Nereye |
+|---|---|
+| **Push GÖNDERME yolu** (token'ları kullanan edge function; `notif_channel.push` enum'u hazır, `dispatch_sms` deseninin push eşleniği) | M7/M9 |
+| **FCM V1 servis hesabı anahtarı + `google-services.json`** (Android push'un çalışması için tek eksik; Firebase projesi Berkin'de) | Berkin |
+| **APNs anahtarı** (iOS push — ücretli Apple hesabı onayına bağlı) | Berkin / M8 |
+| Çiftçi rol kontrolü (M5-b-ek'ten devam — alıcıya özel akışlar eklenince) | M7 |
+| Kullanıcı tarifinin offline erişimi (bilinçli olarak kapsam dışı bırakıldı) | M9 |
+
+#### Kapsam kuralı tutuldu
+
+`src/lib/core/` elle düzenlenmedi (kural #105 — değişiklik `hasat-core`
+reposunda yapıldı, iki hedefe sync PR'ıyla inecek), checkout/ödeme
+eklenmedi (Guideline 2.1), "Talep Et" eklenmedi (M7), marketplace köprüsü
+(keşfet/ürün/siparişler) eklenmedi (M7), web reposuna
+(`hasat-d2c-marketplace`) dokunulmadı, `unit_type` enum'una dokunulmadı.
+Supabase şemasında **yalnızca** görev metninin açıkça izin verdiği
+`device_tokens` düzeltmesi yapıldı (bir ekleyici kolon + bir yeni
+fonksiyon); başka hiçbir tablo/enum/politika değiştirilmedi.
