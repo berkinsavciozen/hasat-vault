@@ -727,6 +727,92 @@ detay prefetch'in gerçek çalışma zamanı davranışı ve sqlite'ın gerçek
 
 ---
 
+### S27 — P23-M6 Native Yetenekler (Pişirme Modu · AI Import · Push)
+
+**Arka plan:** `Build/P23-Mobile.md` → M6, `TODO.md` → "P23-M6" build log,
+`Build/P23-Mobile-Visual-Spec.md` → "1. Pişirme Modu" ve "3. AI Import
+Akışı", `Build/Store-Compliance.md` → "Durum tablosu (2026-08-03)".
+
+> ⚠️ **ADIM 0 — ÖNCE YENİ BİR SİMULATOR BUILD AL VE APPETIZE'A YÜKLE.**
+> Actions → **"EAS Simulator Build (iOS)"** → **Run workflow** → bitince
+> özet sayfasındaki linkten `.tar.gz`'i indir → `.app`'i çıkar →
+> https://appetize.io/upload → sürükle-bırak yükle. **S26'nın build'ini
+> tekrar kullanma:** o build'de pişirme modu, AI import ve push kodu YOK,
+> ayrıca bu turda dört yeni native modül eklendi (`expo-keep-awake`,
+> `expo-notifications`, `expo-image-picker`, `expo-device`) — yeni bir
+> derleme olmadan hiçbiri cihazda mevcut olmaz. Kota: ayda 15 iOS build,
+> 2 kullanıldı.
+
+**Merge listesi**
+| Repo | İçerik |
+|---|---|
+| `hasat-core` | `core/db/types.ts` (yeniden üretildi: `device_tokens.updated_at` + `rpc_register_device_token`), `core/.manifest` |
+| `hasat-mobile` | Yeni `app/cook/[slug].tsx`, `app/import.tsx`, `src/lib/native/*`, `src/lib/hasat/{import,myRecipes}.ts`, `src/components/hasat/PushPermissionCard.tsx`; değişen `app/home.tsx`, `app/recipe/[slug].tsx`, `app/_layout.tsx`, `app.json`, `src/lib/hasat/recipes.ts`, `src/lib/offline/*` |
+| `hasat-vault` | Bu doküman + `TODO.md` + `P23-Mobile.md` + `Store-Compliance.md` + `_Context.md` |
+| Supabase | `p23_m6_device_token_takeover` migration'ı **zaten uygulandı** (canlı) — merge gerektirmiyor, bilgi amaçlı |
+
+> **Merge sırası önemli:** önce `hasat-core` → sync PR'ları `hasat-mobile`
+> ve web'e insin → sonra `hasat-mobile`. Aksi halde drift "sürüm-gerisi"
+> kontrolü hedefleri bayat görür (bkz. `Shared-Architecture.md`).
+
+**Test adımları (kural #104 — kullanıcı-akışı dilinde):**
+
+| # | Adım | Beklenen |
+|---|---|---|
+| 1 | Yeni build'i Appetize'a yükle, "Tap to play", test hesabıyla gir (gerçek SMS — Berkin kararı, `TODO.md` → M5-b-ek madde 4) | Tarif listesi açılıyor; üstte **iki sekme**: "Hasat Tarifleri" / "Defterim"; sağ altta **"+ Tarif Ekle"** butonu |
+| 2 | İlk açılışta bildirim izni kartına bak | Sistem dialogu DEĞİL, önce Hasat'ın kendi kartı: "Haberin olsun mu?" + neden istendiğinin açıklaması + "Şimdi değil" / "Bildirimlere izin ver" |
+| 3 | "Bildirimlere izin ver"e dokun | Şimdi sistem dialogu çıkıyor. İzin verilince kart kayboluyor. ⚠️ Simülatörde token alınamaz (gerçek cihaz gerekiyor) — hata görünmemeli, uygulama normal çalışmaya devam etmeli |
+| 4 | "Şimdi değil"i seçtiysen: uygulamayı yeniden başlat | Kart tekrar çıkabilir (izin hâlâ "sorulmamış" durumda) — çökme/boş ekran olmamalı |
+| 5 | Bir tarife gir, "Hazırlanışı" bölümüne in | Adımların üstünde **"👨‍🍳 Pişirmeye Başla"** butonu; süreli adım varsa altında "Süreli adımlarda zamanlayıcı çalışır, ekran kararmaz" notu |
+| 6 | "Pişirmeye Başla"ya dokun | Tam ekran mod: üstte ✕ ve "1 / N", ilerleme çubuğu, büyük punto adım metni, altta tam genişlikli "← Önceki / Sonraki →" |
+| 7 | Süresi olan bir adıma ilerle (örn. `Zeytinyağlı Nohut Yemeği`) | Adım metninin **altında** ayrı timer kartı: büyük `mm:ss`, "▶ Başlat" ve "↺ Sıfırla" |
+| 8 | "Başlat"a dokun | Önce "Süre dolunca haber verelim mi?" açıklama kartı (izin daha önce verilmediyse), ardından geri sayım işlemeye başlıyor. **Geri sayım kartı beklemiyor** — dialog açıkken de sayıyor |
+| 9 | "Durdur" → "Devam et" → "Sıfırla" | Durdurunca sayım duruyor, devam edince kaldığı yerden sürüyor, sıfırlayınca başlangıç değerine dönüyor |
+| 10 | **Timer'ın arka plan doğruluğu:** timer çalışırken uygulamayı arka plana at (Appetize'da ana ekrana dön), ~1 dakika bekle, geri gel | Kalan süre **geçen gerçek süre kadar azalmış** olmalı (donmuş/geride kalmış değil) — zaman-damgası yaklaşımının asıl testi. ⚠️ Appetize'ın arka plan davranışı gerçek cihazdan farklı olabilir; kesin test gerçek cihazda |
+| 11 | `Cevizli Üzümlü Köme` adım 6'ya (3 günlük kurutma) git | Geri sayım **YOK**; "Tahmini süre: 3 gün" + "geri sayım tutulmuyor" açıklaması |
+| 12 | `Kekikli Zeytinyağı Ezmesi` gibi süresiz bir adıma git | Timer kartı **hiç görünmüyor** (boş/gri kart yok) |
+| 13 | ✕ ile pişirme modundan çık, tarife dön | Normal detay ekranı; ekran kararma davranışı normale dönmüş olmalı (gözle doğrulanamaz — bkz. aşağıdaki not) |
+| 14 | "+ Tarif Ekle" → "✍️ Metin Yapıştır" → gerçek bir tarif metni yapıştır → "Tarifi Çıkar" | "⏳ Tarif okunuyor…" (belirsiz spinner, ilerleme çubuğu YOK), ardından **"Kontrol Et"** ekranı |
+| 15 | "Kontrol Et" ekranında başlığı değiştir, bir malzemenin miktarını düzelt, bir malzeme sil, bir adım ekle | Her alan düzenlenebiliyor; malzemelerde crop rozeti YOK (tasarım gereği — eşleştirme editoryal) |
+| 16 | "Kaydet" | "✅ Defterine kaydedildi · Bu tarif yalnızca sana görünür" ekranı |
+| 17 | "Defterime dön" → "Defterim" sekmesi | Yeni tarif listede; "🔒 yalnızca sana görünür · metinden" etiketi |
+| 18 | **"Hasat Tarifleri" sekmesine geç** | Eklediğin tarif **BURADA GÖRÜNMEMELİ** — public korpus 18 tarif olarak kalmalı (kullanıcı importunun korpusa karışmadığının gözle kanıtı) |
+| 19 | Defterim'deki kendi tarifine gir, "Pişirmeye Başla" | Kendi tarifinde de pişirme modu çalışıyor (girdiğin süreler geri sayıma dönmüş olmalı) |
+| 20 | "+ Tarif Ekle" → çok kısa bir metin (<20 karakter) yapıştırmayı dene | "Tarifi Çıkar" butonu pasif — boşuna AI çağrısı yapılmıyor |
+| 21 | "+ Tarif Ekle" → tarif olmayan bir metin (örn. bir haber paragrafı) yapıştır | Anlaşılır Türkçe hata: "Gönderdiğinde bir tarif bulamadık…" — çıplak hata kodu YOK |
+| 22 | Çıkarım ekranından ✕ ile çık (kaydetmeden) | Defterim'de yarım bir taslak **birikmemeli** |
+| 23 | Wi-Fi kapalıyken "+ Tarif Ekle" | "Çevrimdışısın — tarif çıkarma için internet bağlantısı gerekiyor" + üç seçenek de pasif |
+| 24 | Wi-Fi kapalıyken "Defterim" sekmesi | Boş liste değil, açıklayıcı metin: "Defterin çevrimdışı görüntülenemiyor…" |
+| 25 | Wi-Fi kapalıyken bir public tarifte pişirme modu | **Tamamen çalışıyor** — adımlar önbellekten, timer yerel (Apple 4.2 argümanının çekirdeği) |
+| 26 | "Çıkış ✕" → tekrar giriş | Regresyon yok; çıkışta push token'ı da siliniyor (gözle görünmez, DB'den kontrol edilebilir) |
+
+**Beklenen sonuç: 26/26** (adım 0 dahil değil).
+
+#### ⚠️ Appetize/simülatörde TEST EDİLEMEYECEKLER — ayrı tutuluyor
+
+Bu üçü yukarıdaki listeye **bilerek alınmadı**; "geçti" işaretlenemez,
+gerçek cihaz bekliyorlar (`TODO.md` → "Apple hesabı gelince koşulacak
+testler"):
+
+| Ne | Neden simülatörde olmuyor |
+|---|---|
+| **Kamera** (adım 14'ün fotoğraf yolu: "📷 Fotoğraf Çek") | iOS Simulator'da kamera donanımı yok — buton izin dialoguna kadar gidebilir ama gerçek bir kare üretilemez. "🖼 Galeriden Seç" simülatörün örnek fotoğraflarıyla kısmen denenebilir, ama o da yazılı tarif fotoğrafı değildir (OCR yolu gerçek bir tarif sayfası ister) |
+| **Push** (gerçek bildirim teslimatı) | Simülatör gerçek APNs/FCM token'ı üretmez (`Device.isDevice` false); ayrıca Android FCM V1 anahtarı ve iOS APNs anahtarı henüz EAS'a yüklenmedi. Yani hem cihaz hem kredansiyel eksik |
+| **Gerçek uçak modu** (adım 23-25'in tam hali) | Appetize/iOS Simulator'ın "uçak modu"su cihazın radyosunu kapatmaz; Wi-Fi kapatmak en yakın yaklaşımdır. Apple 4.2'nin asıl testi (reviewer'ın yapacağı) yalnızca gerçek cihazda |
+
+Ayrıca **ekranı uyanık tutma** (adım 13) gözle doğrulanamaz: bulut
+simülatörünün ekran kararma zamanlayıcısı gerçek cihazınkiyle aynı değil.
+Pil etkisi de yalnızca gerçek cihazda ölçülebilir.
+
+**Bu S27'nin tamamı Claude Code tarafından doğrulanamadı** (kural #103 —
+oturumda simülatör/cihaz yok). Sunucu tarafı ayrıca ve gerçekten
+doğrulandı: `device_tokens` devri gerçek insert/update ile,
+`extract-recipe` gerçek bir kullanıcı JWT'siyle gerçek çağrıyla
+(`visibility='private'`, `author_type='kullanici'`, kota 429 dahil) —
+detay ve tam tablo: `TODO.md` → "P23-M6" madde 5.
+
+---
+
 ## Feature Sonrası Süreç
 
 1. Yeni prompt tamamlanınca yeni S-numarası eklenir
@@ -764,3 +850,4 @@ detay prefetch'in gerçek çalışma zamanı davranışı ve sqlite'ın gerçek
 - **2026-07-31:** **S25'in B bölümü yeniden yazıldı (P23-M5-a-ek — test altyapısı, bayat tipler, `.env` bekçisi).** Apple Developer bireysel hesabı onay bekliyor, elde Android cihaz yok, gerçek iPhone'a kurulum ücretli hesap olmadan mümkün değil — bu yüzden eski B bölümünün Expo Go/gerçek cihaz varsayımı iOS Simulator build (`eas.json`'a yeni `simulator` profili) + tarayıcı tabanlı Appetize.io yoluyla değiştirildi. Yeni B: marka renklerinin görsel kanıtı (Expo varsayılanı değil), OTP girişi, uygulama kapat/aç sonrası oturum kalıcılığı, çıkış sonrası oturumun gerçekten temizlendiği. Push/gerçek uçak modu/Keychain-SecureStore cihaz davranışı/performans simülatörde doğrulanamayacağı açıkça işaretlendi (`TODO.md` → "Apple hesabı gelince koşulacak testler"). Ayrıca bu turda `hasat-core/db/types.ts`'teki bayat `recipes.rest_minutes` eksikliği (M4-c'den beri tip üretimi yenilenmemişti — drift check yeşil kaldı çünkü core↔hedef tutarlıydı, DB↔core değildi) canlı şemadan yeniden üretilerek düzeltildi, kalıcı çözüm olarak `types-freshness.yml` CI kontrolü eklendi (kural #111); `hasat-mobile/.env`'e içerik bekçisi eklendi (her satır `EXPO_PUBLIC_` ile başlamalı + `service_role`/`SECRET`/`PRIVATE`/`TOKEN`/`PASSWORD` kalıpları reddedilir), kasten bozulup exit 1 verdiği doğrulanıp geri alındı — bir sınır bulundu ve raporlandı: görev metnindeki `EXPO_PUBLIC_SERVICE_KEY` örneği bu 5 literal kalıbın hiçbirini içermiyor, `KEY` kalıbı da eklenemez çünkü meşru `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY` satırını kırar.
 - **2026-08-03:** **S26 eklendi (P23-M5-b tarif ekranları + `expo-sqlite` offline önbellek).** Yeni bir simülatör build'i gerektiriyor (S25'in build'i eski yer tutucu ekranı taşıyor). RPC/veri doğruluğu Supabase MCP ile SQL üzerinden doğrudan doğrulandı (`TODO.md` → "P23-M5-b" madde 6); ekranda render, gerçek ağ `recipe_views` yazımı ve sqlite'ın çalışma zamanı davranışı bu oturumda test edilemedi (simülatör/cihaz yok) — Berkin'in QA'sına kaldı. Kural #107 gereği iki madde (mobil test giriş yolu, çiftçi girişi) yalnızca araştırılıp sunuldu, karar verilmedi.
 - **2026-08-03:** **S26'ya adım 11 eklendi (P23-M5-b-ek — bulk detay prefetch + uçak modu).** Liste ağdan çekilince artık 18 tarifin tamamının detayı arka planda önbelleklendiği için, yeni adım özellikle **daha önce hiç açılmamış bir tarife** uçak modundayken dokunmayı test ediyor (eski adım 9-10 yalnızca Wi-Fi kapatmayı test ediyordu, bu da hâlâ gerçek uçak modu değil — bkz. adım 11'in üstündeki not). Berkin kararı gereği (madde 4/5, `TODO.md` → "P23-M5-b-ek") test girişi gerçek SMS ile, çiftçi rolüyle de tüm ekranlar erişilebilir kaldığı için bu S26 senaryosu değişmedi.
+- **2026-08-03:** **S27 eklendi (P23-M6 native yetenekler — pişirme modu, AI import, push).** İlk adım yeni bir simulator build alıp Appetize'a yüklemek (S26'nın build'inde bu turun kodu ve dört yeni native modül yok). Sunucu tarafı bu turda gerçekten doğrulandı: `device_tokens` UNIQUE(token) devri gerçek insert/update ile (önce arıza birebir üretildi: client'ın düz upsert'ü RLS USING'e takılıp `42501` veriyor), `extract-recipe` gerçek bir kullanıcı JWT'siyle `pg_net` üzerinden çağrıldı ve kaydın `visibility='private'`/`author_type='kullanici'` olduğu, client'ın gönderdiği `public` değerinin yok sayıldığı, kota aşımında 429 döndüğü kanıtlandı; test verisi temizlendi. Kamera, push teslimatı ve gerçek uçak modu ayrı bir tabloda "simülatörde test edilemez" olarak tutuluyor — S27'nin 26 adımına dahil değil.

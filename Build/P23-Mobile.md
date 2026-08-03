@@ -1,6 +1,6 @@
 ---
 title: Hasat — P23 Buyer Mobile & Recipe App
-updated: 2026-07-31
+updated: 2026-08-03
 tags:
   - hasat
   - p23
@@ -477,11 +477,55 @@ ele alınacağı — üç seçenek + etki analizi `TODO.md`'de.
   4.2'nin asıl testi* — kod tarafı hazır, **gerçek cihaz doğrulaması
   Berkin'e kalıyor.**
 
-### M6 — Native yetenekler
-- **Pişirme modu:** adım adım, timer'lar, ekranı uyanık tutma
-- **AI import:** metin + yazılı tarif fotoğrafı → private tarif
-- **Push:** Android FCM (bağımsız) · iOS APNs (Apple hesabına bağlı, ~1 saatlik iş)
-- **Çıkış:** Gerçek cihazda doğrulandı
+### M6 — Native yetenekler — 🟡 **UYGULANDI (2026-08-03, Claude Code doğrudan), simülatör/cihaz QA bekliyor**
+
+- **Pişirme modu:** `app/cook/[slug].tsx` — tam ekran adım adım, ilerleme
+  çubuğu, büyük punto adım metni, büyük dokunma hedefleri; `expo-keep-awake`
+  ile ekran uyanık; `timer_seconds` olan adımlarda geri sayım + yerel bildirim.
+- **AI import:** `app/import.tsx` — kamera/galeri (`expo-image-picker`) +
+  metin yapıştırma; mevcut `extract-recipe` çağrılıyor (yeni çıkarım mantığı
+  YAZILMADI); çıkarım sonucu tamamen düzenlenebilir; `extraction_confidence`
+  düşükse uyarı; kota aşımı anlaşılır mesaja çevrildi. Kullanıcı tarifleri
+  ana ekranda **ayrı "Defterim" sekmesinde** — public korpusla aynı listede
+  hiç birleşmiyor.
+- **Push:** `expo-notifications` + `device_tokens`; izin öncesi bağlam kartı;
+  Android önce, iOS sona. **`device_tokens` UNIQUE(token) açık maddesi
+  kapandı** (`rpc_register_device_token`, SECURITY DEFINER — çakışmada token
+  yeni kullanıcıya devrediliyor). Gerçek push TESLİMATI için kredansiyel
+  gerekiyor (Android: FCM V1 servis hesabı + `google-services.json`; iOS:
+  APNs anahtarı, ücretli Apple hesabına bağlı) — ikisi de Berkin'de.
+  Token'ları kullanan **gönderim yolu (edge function) bu turun kapsamında
+  değildi**, M7/M9'a yazıldı.
+- **Çıkış kriteri:** Gerçek cihazda doğrulandı — **henüz sağlanmadı.** Kod
+  tarafı hazır; timer/keep-awake/kamera/push davranışı bu oturumda
+  doğrulanamadı (kural #103), QA senaryosu: `Build/E2E-QA.md` → S27.
+
+#### Karar — timer ZAMAN DAMGASI tabanlıdır (tick sayımı değil)
+
+Kalan süre hiçbir zaman "her saniye bir azalt" mantığıyla tutulmuyor;
+`setInterval` yalnızca yeniden render tetikliyor, gösterilen değer her
+render'da `endsAt - Date.now()` olarak yeniden hesaplanıyor. Bitiş anı
+(`endsAt`) ayrıca cihaz depolamasına yazılıyor.
+
+**Gerekçe:** React Native'in JS timer'ları uygulama arka plana alındığında
+kısılır ya da tamamen durur. Şartnamenin zorunlu tuttuğu senaryo
+(`P23-Mobile-Visual-Spec.md` → "1. Pişirme Modu": 40 dakikalık haşlamada
+kullanıcının telefonu bırakıp mutfaktan ayrılması) tam olarak bu durumu
+kapsıyor — tick sayan bir timer o dönüşte dakikalarca yanlış gösterirdi.
+Zaman damgası yaklaşımında arka planda hiç tick olmasa bile geri dönüşte
+doğru değer okunur; uygulama tamamen kapatılıp açılsa da geri sayım kaldığı
+yerden devam eder, kapalıyken süre dolduysa "Süre doldu" durumunda açılır.
+
+**Bildirim seçimi (aynı gerekçenin devamı):** Süre dolduğunda birincil
+uyarı **yerel bildirim**; ses/titreşim uygulama askıya alınmışken
+tetiklenemez, OS'e önceden kaydedilen bildirim ise teslim edilir.
+Ses+titreşim tamamlayıcı olarak duruyor (Android bildirim kanalı
+`vibrationPattern` ile kuruluyor; uygulama ön plandayken ekran ayrıca
+titreşim + "⏰ Süre doldu" uyarısı gösteriyor).
+
+**Uç durum korunuyor:** `timer_seconds > 3600` adımlarda geri sayım da
+bildirim de yok — şartnamedeki gibi "Tahmini süre: 3 gün" açıklamasına
+dönülüyor.
 
 ### M7 — Mobilde marketplace köprüsü + store varlıkları
 - Keşfet, ürün detayı, Talep Et, Siparişlerim (**checkout yok**)

@@ -1,6 +1,6 @@
 ---
 title: Hasat — AI Context
-updated: 2026-07-31
+updated: 2026-08-03
 tags: [hasat, ai-context]
 ---
 
@@ -96,7 +96,7 @@ Platform hiçbir crop'a özel muamele göstermez — domates/elma/safran/lavanta
 | Rekabet hukuku danışmanlığı | 🔴 Yapılmadı |
 | Glossary insan gözden geçirmesi | 🟡 P22-C içeriği AI üretimi, bölgesel doğrulama yapılmadı |
 | `useSetDefaultAddress` diğer adresleri `false`'a çekmiyor | 🟡 Düşük öncelik (P23-M1'de kapanacak) |
-| **P23 — Buyer Mobile & Recipe App** | 🟡 M0 + M1 kapandı; M2 uygulandı (tarayıcı QA S20-B bekliyor); M3 + M3-D tamamlandı (tarayıcı QA S21 bekliyor); **M4 (a+b+c — public tarif yüzeyi, Talep Et, admin heatmap, Gap #9, `cook_minutes` düzeltmesi) tamamen kapandı (2026-07-30, tarayıcı QA S22-S24 bekliyor)**; **M5-a (hasat-mobile iskeleti + hasat-core ikinci hedefi + tesisat) tamamlandı (2026-07-30)**; **M5-a-ek (test altyapısı + bayat tip düzeltmesi + `.env` bekçisi) tamamlandı (2026-07-31)**; M5-a-ek-2 (tarayıcıdan tetiklenebilir EAS simulator build workflow'u) tamamlandı (2026-08-03); **M5-b (tarif ekranları + `expo-sqlite` offline önbellek) uygulandı, simülatör/cihaz QA bekliyor (2026-08-03)** — test giriş yolu ve çiftçi girişi kararları Berkin'e bırakıldı (kural #107, bkz. `TODO.md`) → `Build/Roadmap.md` |
+| **P23 — Buyer Mobile & Recipe App** | 🟡 M0 + M1 kapandı; M2 uygulandı (tarayıcı QA S20-B bekliyor); M3 + M3-D tamamlandı (tarayıcı QA S21 bekliyor); **M4 (a+b+c — public tarif yüzeyi, Talep Et, admin heatmap, Gap #9, `cook_minutes` düzeltmesi) tamamen kapandı (2026-07-30, tarayıcı QA S22-S24 bekliyor)**; **M5-a (hasat-mobile iskeleti + hasat-core ikinci hedefi + tesisat) tamamlandı (2026-07-30)**; **M5-a-ek (test altyapısı + bayat tip düzeltmesi + `.env` bekçisi) tamamlandı (2026-07-31)**; M5-a-ek-2 (tarayıcıdan tetiklenebilir EAS simulator build workflow'u) tamamlandı (2026-08-03); **M5-b + M5-b-ek (tarif ekranları + `expo-sqlite` offline önbellek + bulk detay prefetch) uygulandı, simülatör/cihaz QA (S26) bekliyor (2026-08-03)**; **M6 (native yetenekler: pişirme modu + zaman-damgası tabanlı timer, AI import (metin+fotoğraf) ve ayrı "Defterim" sekmesi, push token kaydı; `device_tokens` UNIQUE(token) açık maddesi kapandı) uygulandı, simülatör/cihaz QA (S27) bekliyor (2026-08-03)** — timer/keep-awake/kamera/gerçek push davranışı doğrulanamadı (kural #103); Android push için FCM V1 anahtarı, iOS için APNs anahtarı Berkin'de → `Build/Roadmap.md` |
 
 ### BENCHMARK Gap durumu
 Kapandı: #2 teslim/ihtilaf · #3 değerlendirme · #5 tekrar sipariş · #6 RFQ · #7 hal fiyat bandı · #8 lojistik · #10 bildirimler
@@ -173,6 +173,7 @@ Bu sayılar ürün kararlarını doğrudan etkiliyor — özellikle tarif/tüket
 - **`v_kpi_recipe_funnel` uçtan uca SERT JOIN (P23-M2-ek, 2026-07-29).** Beş basamak: `recipe_views` → `recipe_saves` → (`recipe_rfq_links`→`crop_requests` = malzeme yok yolu | `offers.source_recipe_id` = malzeme var yolu) → `orders.offer_id`. **Sezgisel atıf YOK** — önceki sürümdeki "aynı alıcı + aynı crop + talepten sonra" çıkarımı fazla atıf ürettiği için kaldırıldı. `crop_requests` ile `offers`/`orders` arasında hâlâ FK yok; bu yüzden teklif/sipariş atfı `offers.source_recipe_id` üzerinden yürüyor.
 - **`recipe_views`** (P23-M2-ek): görüntüleme olayı. IP/user-agent loglanmaz (KVKK). INSERT anon dahil serbest, SELECT yalnızca service_role.
 - **`offers.source_recipe_id`** (P23-M2-ek): nullable FK → `recipes`. `offers.subscription_id` ile aynı konvansiyon — "bu teklif nereden doğdu".
+- **`device_tokens` (P23-M6, 2026-08-03):** `UNIQUE(token)` çakışması artık `rpc_register_device_token(p_token, p_platform)` (SECURITY DEFINER) ile çözülüyor — aynı cihazda ikinci kullanıcı giriş yaparsa **token yeni kullanıcıya devredilir** (cihaz kimde açıksa onundur). Client düz `upsert` YAPMAMALI: katı RLS UPDATE politikası (`USING user_id = auth.uid()`) başka kullanıcının satırını göremediği için `42501` ile düşer (kural #112). Ekleyici `updated_at` kolonu devir anını tutuyor.
 - **`recipes.author_type`** artık `kullanici` değerini de kabul ediyor — AI ile içe aktarılan tarifler editoryal korpustan böyle ayrılıyor.
 - Parsel konum = `location_label`
 - Community yazar = `author_id`
@@ -201,7 +202,7 @@ OTP test: `123456`
 4. UUID'leri hardcode et — phone lookup ambiguous column hatası verir
 5. **Lovable'ın metnine güvenilmez** — `get_diff` / gerçek SQL / canlı aksiyon ile doğrula. `plan_mode=true` güvenilir şekilde durmuyor.
 6. **`src/lib/core/` altına dokunulmaz** — `hasat-core`'dan gelir (M1'den sonra geçerli)
-> Tam liste (#1–#106): `TODO.md` → "Lovable/Supabase Prompt Yazma Kuralları"
+> Tam liste (#1–#112): `TODO.md` → "Lovable/Supabase Prompt Yazma Kuralları"
 
 ---
 

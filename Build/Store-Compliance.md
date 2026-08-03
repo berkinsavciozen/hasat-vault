@@ -1,6 +1,6 @@
 ---
 title: Hasat — App Store & Play Store Uyumluluk
-updated: 2026-07-31
+updated: 2026-08-03
 tags:
   - hasat
   - mobile
@@ -93,6 +93,54 @@ Tarif katmanı bu testi geçmek için **doğal ve güçlü** özellikler getiriy
 
 > **Not:** Salt marketplace wrapper'ı büyük ihtimalle reddedilirdi. Tarif katmanı native app'i mümkün kılan şeydir.
 
+### Durum tablosu (2026-08-03, M6 sonrası) — kod hazır mı, doğrulandı mı
+
+⚠️ **İki ayrı soru, karıştırılmamalı:** "kod yazıldı mı" ile "gerçek cihazda
+çalıştığı görüldü mü" aynı şey değil. App Review notlarına yalnızca
+**doğrulanmış** özellikler güvenle yazılabilir; aşağıdaki 🟡 satırlar submit
+öncesi gerçek cihazda koşulmadan nota girmemeli.
+
+| Native yetenek | Kod | Gerçek cihazda doğrulandı mı |
+|---|---|---|
+| Offline tarif listesi + detayı (`expo-sqlite`, 18/18 tarif arka planda önbelleğe alınıyor) | ✅ M5-b + M5-b-ek | 🟡 Hayır — simülatörde Wi-Fi kapatma yaklaşık test; **gerçek uçak modu yalnızca cihazda** |
+| Pişirme modu (tam ekran, adım adım) | ✅ M6 | 🟡 Hayır — simülatör/cihaz yok |
+| Timer (zaman-damgası tabanlı, arka planda doğru) | ✅ M6 | 🟡 Hayır — **arka plan doğruluğu tam olarak cihazda ölçülmeli** |
+| Süre dolunca yerel bildirim | ✅ M6 | 🟡 Hayır — planlama kodu doğru, teslimat cihaz işi |
+| Ekranı uyanık tutma (`expo-keep-awake`, yalnızca pişirme modunda) | ✅ M6 | 🟡 Hayır — kararmama VE çıkışta bırakılma (pil) ölçülmedi |
+| AI import — **metin** girdisi | ✅ M6 | ✅ **Evet, uçtan uca gerçek `extract-recipe` çağrısıyla** (sunucu tarafı; ekrandaki akış cihazda koşulmadı) |
+| AI import — **kamera/galeri** (yazılı tarif fotoğrafı) | ✅ M6 | 🔴 Hayır — `expo-image-picker` simülatörde gerçek fotoğraf üretmiyor |
+| Push token kaydı + `device_tokens` devri | ✅ M6 (`rpc_register_device_token`) | ✅ DB tarafı gerçek SQL ile · 🔴 gerçek token/teslimat hayır (kredansiyel + cihaz yok) |
+| Push **teslimatı** (Android FCM / iOS APNs) | 🔴 Kredansiyel yok | 🔴 Hayır |
+
+**Kredansiyel engelleri (kod değil, hesap işi):**
+- **Android:** FCM V1 servis hesabı anahtarı + `google-services.json` — Firebase
+  projesi açılıp EAS'a yüklenmeli. Apple'dan bağımsız, **şimdi yapılabilir.**
+- **iOS:** APNs anahtarı — ücretli Apple Developer hesabı gerekiyor, hesap
+  başvurusu onay bekliyor. **iOS push bu yüzden doğrulanamaz durumda.**
+
+### Submit sırasında App Review notlarına yazılacak liste (M8'de kopyalanacak)
+
+> Aşağıdaki taslak İngilizce yazılacak; buradaki amaç hangi maddelerin
+> gireceğini sabitlemek. **Bir madde ancak yukarıdaki tabloda gerçek cihazda
+> doğrulandıktan sonra bu listeye alınır** — doğrulanmamış bir özelliği
+> reviewer denerken çalışmazsa 4.2 riski azalmaz, artar.
+
+1. **Offline recipe access** — uçak modunda uygulama açılıyor, 18 tarifin
+   listesi VE daha önce hiç açılmamış bir tarifin adım+malzemeleri
+   görünüyor (cihaz üzeri SQLite önbelleği).
+2. **Cooking mode** — tam ekran adım adım pişirme; adım başına geri sayım;
+   timer arka planda ve uygulama kapatılıp açıldıktan sonra da doğru
+   (zaman damgası tabanlı); süre dolunca yerel bildirim.
+3. **Screen keep-awake** — yalnızca pişirme modunda; çıkışta bırakılıyor.
+4. **Camera-based recipe import** — yazılı bir tarifin (kitap sayfası, el
+   yazısı) fotoğrafı çekilip cihazdan gönderiliyor, yapılandırılmış tarife
+   çevriliyor, kullanıcı kaydetmeden önce her alanı düzeltebiliyor.
+5. **Push notifications** — sipariş/talep/sezon bildirimleri.
+6. **Bu uygulamada ödeme/checkout ekranı yoktur** (Guideline 2.1 + IAP
+   tartışmasını baştan kapatan not) — akış "Talep Et"te bitiyor.
+7. **Test hesabı** (telefon + OTP) ve mobil test girişinin gerçek SMS ile
+   yapıldığı notu.
+
 **Submit sırasında:** App Review notlarına bu native özellikleri **açıkça listele.** 4.2 itirazlarında fark yaratıyor.
 
 ---
@@ -129,10 +177,11 @@ Yan fayda: ödeme altyapısı (P17-A/iyzico, şirkete bağlı) gecikirse **uygul
 
 ## 6. Submit öncesi kontrol listesi (M8)
 
-- [ ] Uçak modu testi: uygulama açılıyor, kaydedilmiş tarifler görünüyor
-- [ ] Pişirme modu + timer gerçek cihazda çalışıyor
-- [ ] AI import (metin + fotoğraf) gerçek cihazda çalışıyor
-- [ ] Push bildirimi gerçek cihaza ulaşıyor (iOS + Android)
+- [ ] Uçak modu testi: uygulama açılıyor, kaydedilmiş tarifler görünüyor (**daha önce hiç açılmamış bir tarifin adımları da** — M5-b-ek'in bulk prefetch'i)
+- [ ] Pişirme modu + timer gerçek cihazda çalışıyor (**timer arka planda doğru sayıyor**, ekran kararmıyor, çıkışta keep-awake bırakılıyor)
+- [ ] AI import (metin + fotoğraf) gerçek cihazda çalışıyor (metin yolu M6'da sunucu tarafında doğrulandı; **kamera yolu cihaz bekliyor**)
+- [ ] Push bildirimi gerçek cihaza ulaşıyor (iOS + Android) — **önce FCM V1 anahtarı (Android) ve APNs anahtarı (iOS) EAS'a yüklenmeli**
+- [ ] App Review notları listesi yalnızca gerçek cihazda doğrulanmış maddelerden oluşuyor (bkz. bölüm 2 → "Durum tablosu")
 - [ ] Uygulama içi hesap silme çalışıyor
 - [ ] Hiçbir yerde ödeme/checkout ekranı yok
 - [ ] Gizlilik metni yayında ve uygulamadan erişilebilir
