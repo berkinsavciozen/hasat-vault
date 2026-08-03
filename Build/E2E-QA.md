@@ -661,6 +661,65 @@ asıl amacı tam da bu iki bölüm.
 
 ---
 
+### S26 — P23-M5-b Tarif Ekranları + Offline Önbellek
+
+**Arka plan:** `Build/P23-Mobile.md` → M5-b, `TODO.md` → "P23-M5-b" build
+log, `Build/P23-Mobile-Visual-Spec.md` → "2. Offline Durumu". Bu turda
+gerçek bir simülatör build'i **gerekiyor** — önceki turların (S25) build'i
+`app/home.tsx`'in eski "Giriş yapıldı ✓" yer tutucusunu taşıyor, tarif
+ekranlarını içermiyor.
+
+**Merge listesi**
+| Repo | İçerik |
+|---|---|
+| `hasat-core` | `scripts/check-env-guard.mjs` (kara liste → beyaz liste), `drift-check.yml` yorum güncellemesi |
+| `hasat-mobile` | `app/home.tsx` (tarif listesi), yeni `app/recipe/[slug].tsx`, `src/lib/hasat/*`, `src/lib/offline/*`, `src/lib/net/*`, `src/components/hasat/*`, `package.json` (`expo-sqlite`, `expo-network`), yeni `.github/workflows/env-guard.yml` |
+| `hasat-vault` | Bu doküman + `TODO.md` + `P23-Mobile.md` + `_Context.md` |
+
+> ⚠️ **Önce yeni bir simulator build al:** Actions → **"EAS Simulator Build
+> (iOS)"** → **Run workflow** → bitince özet sayfasındaki linkten `.tar.gz`'i
+> indir → `.app`'i çıkar → https://appetize.io/upload → sürükle-bırak yükle.
+> S25'teki build'i tekrar kullanma — bu turun kodu farklı.
+
+**Test adımları (kural #104 — kullanıcı-akışı dilinde):**
+
+| # | Adım | Beklenen |
+|---|---|---|
+| 1 | Yeni build'i Appetize'a yükle, "Tap to play" | Splash sonrası `/login` |
+| 2 | Test hesabıyla gir (`5001234567` ya da `5009876543`, OTP `123456` — mobilde çalışmıyorsa gerçek SMS gerekir, bkz. `TODO.md` madde 1) | `/home`'a düşüyor, ama artık **tarif listesi** görünüyor — "Giriş yapıldı ✓" yer tutucusu YOK |
+| 3 | Listede en az bir kartın kapak/temsili görselini incele | Fotoğraf varsa görünüyor; yoksa crop görseli + "Temsili görsel" etiketi; o da yoksa nötr placeholder emoji — boş kutu YOK |
+| 4 | "Cevizli Üzümlü Köme" ya da "Ekşi Mayalı Tam Buğday Ekmeği" kartına bak | "⏰ Önceden başlamak gerekir" rozeti görünüyor (rest_minutes 4320/1020 dk, eşik 120 dk) |
+| 5 | Bir tarife dokun, detay ekranına geç | Malzemeler + Hazırlanışı bölümleri, süre satırı "X dk hazırlık · Y dk pişirme · Z dk dinlenme" formatında (tek sayıya toplanmamış) |
+| 6 | Malzeme listesine bak | En az bir "eşleşti" (fiyat/min. sipariş görünür), çoğunluk nötr "Hasat'ta henüz yok" rozeti (buton YOK — "Talep Et" bu turda kapsam dışı), tuz/maydanoz gibi platform-dışı malzemelerde hiçbir rozet yok |
+| 7 | Porsiyon +/− butonlarına dokun | Malzeme miktarları değişiyor (porsiyon ölçekleme çalışıyor) |
+| 8 | Detay ekranından çık, "Çıkış ✕" ile çıkış yap, tekrar gir | Rol/oturum davranışı M5-a'dakiyle aynı — regresyon yok |
+| 9 | **Offline (kısmi doğrulama):** cihazın/simülatörün Wi-Fi'ını kapat (tam uçak modu değil — bkz. not), listeye dön | Üstte "📶✕ Çevrimdışısınız · görünen tarifler önbellekten" şeridi + liste **normal render** (ayrı bir offline ekranı yok) |
+| 10 | Wi-Fi kapalıyken daha önce açılmamış bir tarife git (varsa) | Önbellekte olmadığı için "Bu tarif önbellekte yok — internete bağlanıp bir kez açtıktan sonra çevrimdışı da görünür" mesajı |
+
+> **Appetize'da oturum testi netliği (S25'teki notla aynı, burada da
+> geçerli):** Adım 8-10 arası **sayfayı yenileme** (yeni bir "Tap to
+> play"/yeni session) — session yenilemesi simüle edilen cihazın
+> depolamasını (AsyncStorage + sqlite dosyası dahil) sıfırlayabilir, bu da
+> "önbellek boşmuş gibi" yanlış bir sonuç üretir. Appetize'ın üst
+> menüsündeki **"Restart App"** kullanılmalı (uygulamayı sonlandırıp aynı
+> session içinde yeniden başlatır), session'ın kendisi kapatılmamalı.
+
+⚠️ **Adım 9-10 gerçek uçak modu YERİNE geçmez** — yalnızca ağ isteklerinin
+başarısız olduğu bir yaklaşık durum. Apple 4.2'nin asıl testi (cihazın
+radyosu tamamen kapalıyken) yalnızca gerçek cihazda yapılabilir; bu madde
+`TODO.md` → "Apple hesabı gelince koşulacak testler" listesinde zaten
+duruyordu, sqlite önbelleği eklendiği için önemi arttı ama liste
+değişmedi.
+
+**Beklenen sonuç: 10/10.** Bu S26'nın tamamı Claude Code tarafından
+**doğrulanamadı** (bu oturumda simülatör/cihaz erişimi yok, kural #103) —
+RPC/veri doğruluğu Supabase MCP ile SQL üzerinden ayrıca kanıtlandı (bkz.
+`TODO.md` → "P23-M5-b" madde 6), ama ekranda gerçekten doğru
+render olduğu, gerçek `recipe_views` ağ yazımı ve sqlite'ın gerçek
+çalışma zamanı davranışı yalnızca Berkin'in bu QA'sıyla kanıtlanabilir.
+
+---
+
 ## Feature Sonrası Süreç
 
 1. Yeni prompt tamamlanınca yeni S-numarası eklenir
@@ -696,3 +755,4 @@ asıl amacı tam da bu iki bölüm.
 - **2026-07-30:** **S23 eklendi (P23-M4-b Talep Et + admin talep ısı haritası + Gap #9).** Eşleşmeyen malzemede baskın-durum "Talep Et" CTA'sı + guest niyet takibi (`localStorage` + `/login`'in `next` param'ı), mevcut `crop_request_match`/`dispatch_sms` deseni yeniden kullanılarak "haber ver" (yeni bir trigger, yeni tablo yok), `/admin/kpi`'ye talep ısı haritası sekmesi, Gap #9 mevcut `/batch/$listingId` sayfasına link olarak kapandı. Uçtan uca gerçek RLS simülasyonuyla doğrulandı: talep+huni atfı, "haber ver"in bölge eşleşmesine göre doğru tetiklenip/atlandığı, gerçek SMS gönderilmediği. Ayrıca M4-a'nın 3 bulgusu (malzeme büyük harf, 13/18 tarifte eksik `totalTime`, `image` alanının temsili görselle karışması) düzeltildi. **Yeni bulgu:** bu oturumda `bun install` de org egress politikasıyla engellendi (Lovable'ın özel paket mirror'ı) — `tsc`/`eslint`/`prettier` kısmi kurulumla temiz sonuç verdi ama gerçek `vite build` yapılamadı, Lovable/Berkin'in ortamında doğrulanmalı.
 - **2026-07-30:** **S24 eklendi (P23-M4-c `cook_minutes` düzeltmesi + SEO — M4'ün kapanışı).** S23'te sessizce yapılan bir kural #107 ihlali (bekleme süresi tutacak kolon olmadığı için `cook_minutes`'a eklenmişti, muhammara "45 dk pişirme" gösteriyordu, gerçeği 15 dk) bulunup düzeltildi: yeni `recipes.rest_minutes` kolonu, 18 tarifin tamamı adım metninden yeniden sınıflandırıldı (`cook_minutes` en yükseği artık 60 dk). `totalTime` = prep+cook+rest türetilmiş değeri; üç süre detay sayfasında ayrı gösteriliyor. SEO: `sitemap.xml` dinamikleştirildi (18 tarif + public vitrinler), `robots.txt` zaten doğruydu, aynı ana malzemeyi paylaşan tariflere SSR'da (client-side değil) iç link eklendi — hepsi gerçek `<a href>`. `bun install` bu turda da engellendi, gerçek `vite build` M4'ün üç turunda da (a hariç) hiç koşmadı.
 - **2026-07-31:** **S25'in B bölümü yeniden yazıldı (P23-M5-a-ek — test altyapısı, bayat tipler, `.env` bekçisi).** Apple Developer bireysel hesabı onay bekliyor, elde Android cihaz yok, gerçek iPhone'a kurulum ücretli hesap olmadan mümkün değil — bu yüzden eski B bölümünün Expo Go/gerçek cihaz varsayımı iOS Simulator build (`eas.json`'a yeni `simulator` profili) + tarayıcı tabanlı Appetize.io yoluyla değiştirildi. Yeni B: marka renklerinin görsel kanıtı (Expo varsayılanı değil), OTP girişi, uygulama kapat/aç sonrası oturum kalıcılığı, çıkış sonrası oturumun gerçekten temizlendiği. Push/gerçek uçak modu/Keychain-SecureStore cihaz davranışı/performans simülatörde doğrulanamayacağı açıkça işaretlendi (`TODO.md` → "Apple hesabı gelince koşulacak testler"). Ayrıca bu turda `hasat-core/db/types.ts`'teki bayat `recipes.rest_minutes` eksikliği (M4-c'den beri tip üretimi yenilenmemişti — drift check yeşil kaldı çünkü core↔hedef tutarlıydı, DB↔core değildi) canlı şemadan yeniden üretilerek düzeltildi, kalıcı çözüm olarak `types-freshness.yml` CI kontrolü eklendi (kural #111); `hasat-mobile/.env`'e içerik bekçisi eklendi (her satır `EXPO_PUBLIC_` ile başlamalı + `service_role`/`SECRET`/`PRIVATE`/`TOKEN`/`PASSWORD` kalıpları reddedilir), kasten bozulup exit 1 verdiği doğrulanıp geri alındı — bir sınır bulundu ve raporlandı: görev metnindeki `EXPO_PUBLIC_SERVICE_KEY` örneği bu 5 literal kalıbın hiçbirini içermiyor, `KEY` kalıbı da eklenemez çünkü meşru `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY` satırını kırar.
+- **2026-08-03:** **S26 eklendi (P23-M5-b tarif ekranları + `expo-sqlite` offline önbellek).** Yeni bir simülatör build'i gerektiriyor (S25'in build'i eski yer tutucu ekranı taşıyor). RPC/veri doğruluğu Supabase MCP ile SQL üzerinden doğrudan doğrulandı (`TODO.md` → "P23-M5-b" madde 6); ekranda render, gerçek ağ `recipe_views` yazımı ve sqlite'ın çalışma zamanı davranışı bu oturumda test edilemedi (simülatör/cihaz yok) — Berkin'in QA'sına kaldı. Kural #107 gereği iki madde (mobil test giriş yolu, çiftçi girişi) yalnızca araştırılıp sunuldu, karar verilmedi.

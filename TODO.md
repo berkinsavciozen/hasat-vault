@@ -1499,6 +1499,285 @@ Bu dördü simülatör/Appetize.io yoluyla **doğrulanamaz** — Apple Developer
 hesabı onaylanıp gerçek cihaza kurulum mümkün olunca tek turda koşulacak:
 
 - [ ] **Push bildirimleri** — Appetize/iOS Simulator gerçek APNs/FCM teslimatını simüle etmiyor
-- [ ] **Gerçek uçak modu** — offline-önbellek testinin asıl hali (Apple 4.2'nin gerçek testi); simülatörün "ağ yok" hali bir cihazın radyosunu kapatmasıyla aynı değil
+- [ ] **Gerçek uçak modu** — offline-önbellek testinin asıl hali (Apple 4.2'nin gerçek testi); simülatörün "ağ yok" hali bir cihazın radyosunu kapatmasıyla aynı değil. **M5-b'de expo-sqlite önbelleği bu yüzden gerçek cihazda henüz doğrulanamadı — bkz. aşağıdaki M5-b build log'u.**
 - [ ] **Keychain/SecureStore'un cihazdaki gerçek davranışı** — iOS Simulator'ın Keychain'i cihazın Secure Enclave'ine dayanmıyor
 - [ ] **Performans** — Appetize bulutta çalışan bir simülatörün ekran akışı; gerçek cihazın CPU/GPU/pil davranışını yansıtmıyor
+
+---
+
+### 🟡 P23-M5-b — Tarif Ekranları + Offline Önbellek — **UYGULANDI, SİMÜLATÖR/CİHAZ QA BEKLİYOR (2026-08-03, Claude Code doğrudan)**
+
+M5-a-ek-2'den sonraki tur. Görev metni 8 maddeydi; 1 ve 2 kural #107
+gereği **yalnızca araştırılıp sunuldu, kararı Berkin verecek, uygulanmadı**.
+3-5-7 uygulandı, 6 bu oturumun sınırları içinde doğrulandı.
+
+#### 1 — Test giriş yolu (mobil `123456` OTP çalışmıyor) — **SADECE ARAŞTIRMA, KARAR VERİLMEDİ**
+
+> Kural #107: "bana sun, kendin karar verme" — üç seçenek aşağıda, hiçbiri
+> uygulanmadı. `hasat-mobile`'da login akışına dokunulmadı.
+
+**Seçenek A — Supabase Auth'ta test telefon numarası + sabit OTP (dashboard/`SMS_TEST_OTP`)**
+- Supabase'in GoTrue Auth servisi bunu resmi olarak destekliyor:
+  `SMS_TEST_OTP` belirli telefon numaralarını sabit bir koda eşliyor —
+  eşleşen numara OTP istediğinde gerçek SMS **hiç gönderilmiyor**, yalnızca
+  eşlenen kod kabul ediliyor; eşleşmeyen her numara gerçek SMS akışında
+  kalıyor. Resmi dokümantasyon ayrıca `SMS_TEST_OTP_VALID_UNTIL` (ISO 8601
+  tarih) ile otomatik son kullanma tarihi öneriyor ("remove test OTPs before
+  deploying to production").
+  **Doğrulanamayan kısım (dürüstçe işaretleniyor, kural #103):** Bulduğum
+  resmi dokümantasyon self-hosted Supabase'in (docker-compose + `.env`)
+  konfigürasyonunu gösteriyor; hasat'ın **hosted** Supabase projesinde bu
+  ayarın dashboard'da nerede olduğunu (Authentication → Providers → Phone
+  altında benzer bir alan olması bekleniyor) bu oturumdan göremedim —
+  tarayıcı erişimim yok. Berkin dashboard'da böyle bir alan olup olmadığını
+  kontrol etmeli.
+  **Canlı sisteme etki — ⚠️ yüksek dikkat gerektirir:** Bu proje-genelinde
+  TEK bir Supabase projesi var (staging yok, `efuqpiaavrzimvstpdpm` hem
+  web hem mobil hem de 25 Ağustos lansmanının kendisi). Bu ayar o **tek
+  canlı projeye** yazılır. Etkilenen numaralar `_Context.md`'de zaten
+  **public olarak belgeli** iki test hesabı (`905001234567`,
+  `905009876543`) — yani bu ayar açılırsa, hasat-vault'u okuyan **herhangi
+  biri** bu iki numarayla (sabit kod `123456` ile) canlı üründe "Ahmet
+  Yılmaz" (farmer) ya da "Zeynep Kaya" (buyer) olarak oturum açabilir.
+  `SMS_TEST_OTP_VALID_UNTIL` ile lansmandan (25 Ağustos) önceki bir tarihe
+  otomatik son verilirse bu pencere daralır, ama "unutma riski" (elle
+  kaldırmayı unutmak) bir tarih alanına devredilmiş olur, sıfırlanmaz.
+  **Store review riski:** Yok — bu bir Auth backend ayarı, App
+  Store/Play'e giden binary'de görünmez.
+- **Sonuç:** En az kod, resmi/desteklenen yol, ama **public olarak bilinen
+  iki gerçek hesaba** canlı projede kapı açıyor. Süre sınırı riski azaltır,
+  sıfırlamaz.
+
+**Seçenek B — Mobil app'te `__DEV__` koşullu dev-only giriş yolu**
+- Kritik teknik gerçek: Supabase Auth'un `verifyOtp`'si tamamen
+  sunucu-taraflı — client'ta `__DEV__` kontrolü tek başına geçerli bir
+  session/JWT üretemez. Gerçekçi tek uygulanabilir hali: `__DEV__` ise
+  client bir edge function'ı çağırıp o function'ın (service-role anahtarıyla)
+  test numarası için bir session mint etmesi. `__DEV__` React Native'de
+  yalnızca **client** tarafında var olan bir bayrak — production
+  bundle'ında `false`'a düşer, ama **edge function'a bunun hiçbir
+  yansıması yok**; function'ı `__DEV__` kontrolü olmadan doğrudan
+  `curl`layan biri de aynı şekilde session alabilir. Yani bu seçenek de
+  (A gibi) TEK canlı projeye bir server-taraflı bileşen ekliyor — ekstra
+  güvenlik ancak function'ın kendisi (a) yalnızca 2 bilinen test numarasını
+  kabul ederse VE (b) client'ın gönderdiği paylaşılan bir gizli anahtar/
+  header'la ek olarak korunursa (ki bu da App'in kendi bundle'ına
+  gömülmemeli — yine bir sızıntı riski) sağlanabilir.
+  **Canlı sisteme etki:** A ile aynı mertebede (tek proje, yeni bir
+  server-taraflı yüzey), üstelik daha fazla özel kod = daha fazla bakım +
+  daha fazla "launch öncesi kaldırmayı unutma" riski (fonksiyonun kendisi
+  silinmeli/gate'lenmeli, A'daki gibi tek bir dashboard alanı değil).
+  **Store review riski:** Düşük ama sıfır değil — Apple reviewer'ı
+  `__DEV__` dallanması içeren kodu release build'de göremez (strip
+  edilir), ama fonksiyon ayrı bir uç nokta olarak dursa bile reviewer'ın
+  bunu keşfetme ihtimali pratikte yok; asıl risk kullanıcı/güvenlik
+  tarafında (yukarıda), store review tarafında değil.
+- **Sonuç:** A'dan **daha fazla** kod ve bakım yükü, güvenlik profili en
+  iyi ihtimalle A'ya eşit, kötü ihtimalle daha kötü (ekstra bir uç nokta).
+
+**Seçenek C — Gerçek SMS ile devam (maliyeti kabul et)**
+- **Canlı sisteme etki:** Sıfır — hiçbir değişiklik yok.
+- **Store review riski:** Sıfır.
+- **Gerçek maliyet:** Twilio SMS ücreti (düşük, muhtemelen M5-b/M6 boyunca
+  toplamda birkaç yüz TL mertebesinde) + **döngü hızı**: her test girişi
+  gerçek bir telefonun SMS almasını gerektiriyor. M5-a'nın doğrulaması
+  (Appetize + gerçek SMS) bunun **mümkün** olduğunu kanıtladı, ama M5-b/M6
+  boyunca tarif+offline+pişirme modu ekranlarını tekrar tekrar test etmek
+  için her girişte gerçek bir SMS beklemek iterasyonu ciddi yavaşlatır.
+- **Sonuç:** Sıfır risk, kanıtlanmış yol, ama en yavaş döngü.
+
+**Öneri (karar değil, sadece sıralama gerekçesi):** C bugüne kadar zaten
+çalışıyor ve risksiz — asıl soru "yavaş döngü M5-b/M6'nın geri kalanında ne
+kadar sürtünme yaratacak" sorusu, bunun cevabını yalnızca Berkin (kendi
+zaman bütçesine göre) verebilir. A, C'den daha hızlı ama **public olarak
+bilinen iki hesaba** kapı açıyor — süre sınırıyla (`SMS_TEST_OTP_VALID_UNTIL`)
+birlikte kullanılırsa risk sınırlı ve zamanlanmış olur. B, A'nın tüm riskini
+taşıyıp üstüne kod/bakım yükü ekliyor — üç seçenek arasında en zayıf
+görünüyor ama nihai karar Berkin'in.
+
+#### 2 — Çiftçi girişi — **SADECE ARAŞTIRMA, KARAR VERİLMEDİ**
+
+> Kural #107 — mobil koda hiçbir role-gate eklenmedi; `farmer` rolüyle
+> giriş yapan bir hesap bugün de, bu PR sonrasında da, buyer ile birebir
+> aynı tarif ekranlarını görüyor.
+
+- **Seçenek 1 — Girişi engelle:** En temiz eşleşme "mobil v1 yalnızca
+  tüketici" kararına, ama **Berkin'in kendi test hesabı `farmer` rolüyle
+  kayıtlı** (görev metninde de belirtildiği gibi) — bu seçenek Berkin'in
+  kendi gerçek telefonuyla mobil uygulamayı test etmesini de engeller,
+  yalnızca 2 test hesabından biriyle (buyer, `905009876543`) giriş
+  yapılabilir kalır. Madde 1'deki test-giriş sürtünmesiyle birleşince bu
+  iki kısıt üst üste biner.
+- **Seçenek 2 — Yönlendirme mesajı ("bu uygulama alıcılar için, çiftçi
+  paneli web'de"):** Seçenek 1 ile aynı netlik, daha iyi UX (neden/nereye
+  açıklanıyor) — ama Berkin'in kendi hesabıyla test etme kısıtı **aynen
+  kalıyor** (mesajı görür, ama tarif ekranlarını kendi hesabıyla göremez).
+- **Seçenek 3 — Tarifleri herkese göster, alıcı akışlarını gizle:** Bu
+  turun kapsamı zaten **tamamen okuma yüzeyi** — "Talep Et" yok, checkout
+  yok, malzeme kartında farmer'a özel gizlenecek gerçek bir "alıcı akışı"
+  şu an **yok**. Yani bu seçenek bu tur için fiilen "hiçbir şey değiştirme"
+  ile aynı sonucu veriyor — gerçek ayrım noktası M6'da "Talep Et" (buyer'a
+  özel bir mutasyon) eklendiğinde ortaya çıkacak. Berkin'in kendi
+  hesabıyla test etmeye devam edebilmesinin **tek** sürtünmesiz yolu bu.
+
+**Gözlem (karar değil):** 1 ve 2, bu turun kendi test döngüsünü (Berkin'in
+gerçek telefonu = farmer rolü) kırıyor; 3 kırmıyor çünkü şu an gizlenecek
+gerçek bir akış yok. Bu, 3'ü şimdilik "az riskli" yapıyor ama kalıcı bir
+cevap değil — M6'da "Talep Et" eklendiğinde bu üç seçenek yeniden
+değerlendirilmeli (o zaman 3 de artık "hiçbir şey değiştirmeme" anlamına
+gelmeyecek, gerçek bir alıcı-mutasyonu gizlenecek). Karar Berkin'in.
+
+#### 3 — Tarif ekranları — **UYGULANDI**
+
+`hasat-mobile`'da yeni: `app/home.tsx` (M5-a'nın "Giriş yapıldı ✓" yer
+tutucusunun yerini alan tarif listesi) + `app/recipe/[slug].tsx` (detay) +
+`src/lib/hasat/{recipes,types,format,crop-emoji,session}.ts` +
+`src/components/hasat/{RepresentativePhoto,OfflineBanner}.tsx`.
+
+- **Liste:** `recipes` (public+published) + web'deki `attachCoverFallback`
+  mantığının birebir portu — kapak yoksa (18/18 NULL) ilk ana malzemenin
+  crop görseline, o da yoksa nötr placeholder'a düşüyor.
+- **Detay:** malzemeler + adımlar + `prep_minutes`/`cook_minutes`/`rest_minutes`
+  ayrı ayrı (`formatTimeBreakdown`, hiçbir zaman tek sayıya toplanmıyor,
+  P23-M4-c kararıyla birebir aynı), `rest_minutes > 120` → "Önceden
+  başlamak gerekir" rozeti (`ADVANCE_START_THRESHOLD_MINUTES`, web'deki
+  eşikle birebir aynı).
+- **RPC'ler** — kural #106: `rpc_recipe_availability` ve
+  `rpc_recipe_shopping_list` doğrudan çağrılıyor, eşleştirme/dönüşüm mantığı
+  client'ta yeniden yazılmadı.
+- **Malzeme kartı 3 durum:** eşleşti / platform crop ama eşleşmiyor /
+  platform-dışı — web'deki mantığın portu. **Bilinçli fark:** eşleşen
+  durumda web `/buyer/discover`'a giden bir "Ürüne Git" linki gösteriyor;
+  mobilde o ekran M7'ye kadar yok, bu yüzden mobilde **kırık bir bağlantı
+  yok** — fiyat/stok bilgisi salt-okunur gösteriliyor, tıklanabilir değil.
+  Eşleşmeyen durumda "Talep Et" butonu **yok** (görev tanımı gereği bu tur
+  kapsam dışı) — yalnızca nötr "Hasat'ta henüz yok" rozeti.
+- **Kapsam kısıtlaması (bilinçli, görev metninde istenmemiş):** Web'deki
+  zorluk/süre/diyet/mutfak filtreleri ve "şu an tam alınabilir" checkbox'ı
+  mobile taşınmadı — görev tanımı (madde 3) yalnızca liste+detay+3-durum
+  kartı+RPC'leri istiyor, filtre UI'ı istemiyor; eklemek kapsam
+  genişletmesi olurdu.
+- **Alt navigasyon YOK:** `Build/P23-Mobile-Visual-Spec.md`'nin 5-sekmelik
+  tasarımı Keşfet/Siparişlerim/Hesabım ekranlarını varsayıyor (M7 kapsamı,
+  henüz yok) — bu turda kurulmadı, `app/home.tsx` doğrudan tarif listesi
+  oldu, çıkış butonu küçük bir metin linkine indirgendi (M5-a'nın
+  oturum-kalıcılığı QA'sı hâlâ test edilebilsin diye).
+- **`recipe_views` yazımı:** `useLogRecipeView` web'in birebir portu.
+  **`session_id` kararı (uygulandı, raporlanıyor — bu bir onay maddesi
+  değildi):** `src/lib/hasat/session.ts` — AsyncStorage'da kalıcı bir
+  UUIDv4 (web'in `localStorage` + `crypto.randomUUID()`'ının mobil
+  karşılığı). `crypto.randomUUID()` yerine `crypto.getRandomValues` ile
+  elle üretim: Hermes'te `randomUUID` her yerde yok, ama
+  `react-native-get-random-values` (zaten `large-secure-store.ts`
+  üzerinden bootstrap ediliyor) `getRandomValues`'ı garanti ediyor — yeni
+  bağımlılık gerekmedi. `SecureStore`/`LargeSecureStore` **bilinçli olarak
+  kullanılmadı** — bu id gizli değil, AES/Keychain katmanı gereksiz
+  maliyet olurdu.
+- **Yeni bağımlılık yok — ikon kütüphanesi:** `lucide-react-native`
+  eklenmedi (web `lucide-react` kullanıyor ama bu web-only import, mobile
+  taşınmaz) — proje hiçbir yerde ikon kütüphanesi kullanmıyor
+  (login.tsx/index.tsx emoji/metin deseni), `react-native-svg` native
+  bağımlılığı eklemek EAS build kotası kısıtlıyken (M5-a-ek-2) gereksiz
+  risk. Emoji/metin glifleri kullanıldı.
+
+#### 4 — Offline önbellek (`expo-sqlite`) — **UYGULANDI, GERÇEK CİHAZDA DOĞRULANAMADI**
+
+Yeni: `src/lib/offline/{db,recipeCache}.ts`, `src/lib/net/useIsOffline.ts`
+(`expo-network`'ün resmi `useNetworkState()` hook'u üzerine ince katman —
+`@react-native-community/netinfo` değil, proje her native yeteneği
+`expo-*` paketleriyle karşılıyor, ek native-modül build riski almamak
+için). `package.json`'a iki yeni bağımlılık: `expo-sqlite` (~57.0.1),
+`expo-network` (~57.0.1) — ikisi de SDK 57 ile eşleşen resmi Expo paketleri.
+
+**Ne önbelleklendi (net karar):** Yalnızca EDİTORYAL/DURAĞAN veri —
+`recipes` (başlık, açıklama, kapak/temsili görsel URL'i, süre alanları,
+zorluk, mutfak, diyet etiketleri), `recipe_steps` (adım metni, foto URL'i,
+`timer_seconds`), `recipe_ingredients` (crop, serbest metin, miktar,
+birim, not, ana-malzeme bayrağı).
+
+**Ne önbelleklenmedi — bilinçli (görev metninin uyardığı tam nokta):**
+`rpc_recipe_availability`/`rpc_recipe_shopping_list` (fiyat, stok, min.
+sipariş, aktif ilan sayısı) **hiçbir zaman** sqlite'a yazılmıyor. Bu
+RPC'ler `isOffline` true iken hiç çağrılmıyor bile (`enabled: !isOffline`).
+**Sonuç:** offline'da yanlışlıkla bayat bir fiyat gösterme İMKANSIZ hale
+geliyor — çünkü fiyat baştan hiç saklanmıyor, "ne zaman bayatladığını
+göstermek" için bir zaman damgası mantığı kurmaya gerek kalmadı. Görev
+metninin sunduğu iki seçenekten ("gösterme" ya da "son güncelleme: X ile
+göster") **"gösterme"** seçildi — daha basit, doğrulanması daha kolay ve
+"hızlı teslimat değiliz" güven teziyle daha tutarlı (bir zaman damgası bile
+göstermek "bu fiyata güvenebilirsin, sadece X kadar eski" izlenimi
+verebilirdi). Offline'da malzeme kartı bunun yerine "Çevrimdışı — fiyat ve
+stok bilgisi gösterilmiyor" nötr metnini gösteriyor.
+
+**Tazeleme stratejisi:** Cache-aside. Liste/detay ekranı önce ağı dener;
+başarılı olursa (a) veriyi gösterir (b) aynı anda sqlite'a yazar (tam
+liste için `DELETE`+`INSERT`, tek tarif için `INSERT ... ON CONFLICT
+UPDATE`, 18 satırlık küçük bir tablo için basit tutuldu). Ağ başarısız
+olursa ya da cihaz zaten offline'sa sqlite'tan okunur. **Bayat veri
+göstergesi:** Görsel şartnamenin (`P23-Mobile-Visual-Spec.md` → "2.
+Offline Durumu") Durum A/B'si birebir uygulandı — önbellek varken offline
+→ üstte kapanmayan "📶✕ Çevrimdışısınız · görünen tarifler önbellekten"
+şeridi (`OfflineBanner`), önbellek tamamen boşken offline → ayrı bir "Bağlantı
+yok" tam ekranı + "Yeniden Dene". Fiyat/stok alanları için ayrı bir
+zaman damgası YOK (yukarıdaki karar gereği — hiç gösterilmediği için
+gerekmiyor).
+
+**⚠️ Doğrulanamadı (kural #103, açıkça işaretleniyor):** `expo-sqlite`
+native bir modül — bu oturumda ne bir simülatör ne bir cihaz var, `tsc
+--noEmit` (temiz) dışında çalışma zamanı davranışı test edilemedi. Gerçek
+uçak modu testi zaten `TODO.md` → "Apple hesabı gelince koşulacak testler"
+altında device-only olarak işaretliydi (M5-a-ek'ten beri); bu madde de
+oraya eklendi. **Berkin'in Appetize/simülatör üzerinden yapabileceği en
+yakın test** (tam uçak modu değil, ama sqlite yazma/okuma döngüsünü
+kanıtlar): bir tarifi normal açıp geri dön, uygulamayı Appetize'ın ağ
+kontrolünden (varsa) ya da cihazın Wi-Fi'ını kapatarak yeniden aç — bkz.
+`Build/E2E-QA.md` → S26.
+
+#### 5 — `.env` bekçisi — **UYGULANDI**
+
+**Kara liste → beyaz liste (`hasat-core/scripts/check-env-guard.mjs`):**
+Önceki sürüm `EXPO_PUBLIC_` prefix zorunluluğu + 5 yasaklı kalıp
+(`service_role`/`SECRET`/`PRIVATE`/`TOKEN`/`PASSWORD`) kullanıyordu —
+M5-a-ek'in kendi QA'sında bulunan sınırın (`EXPO_PUBLIC_SERVICE_KEY` bu 5
+kalıbın hiçbirini içermiyor, bekçiyi geçebilirdi) **tam olarak kapatılması
+istendi**. Yeni mantık: `ALLOWED_NAMES` — yalnızca
+`EXPO_PUBLIC_SUPABASE_URL` ve `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY`.
+Listede olmayan **her** isim, kalıp taşısın taşımasın, reddediliyor.
+**Test edildi:** gerçek `.env` → geçti (2/2 satır allowlist'te); `.env`'e
+`EXPO_PUBLIC_APIKEY="..."` satırı eklendi (eski bekçinin YAKALAYAMAYACAĞI,
+5 kalıbın hiçbirini taşımayan bir isim) → yeni bekçi reddetti, tam
+beklenen sonuç. Test dosyası `/tmp` altında ayrı bir kopyada yapıldı,
+gerçek `.env`'e dokunulmadı.
+
+**Yanlış repo sorunu → `hasat-mobile`'da push workflow'u:** Yeni
+`hasat-mobile/.github/workflows/env-guard.yml` — `.env` değiştiğinde
+`push` üzerinde tetikleniyor (+ `workflow_dispatch`). Script'in kendisi
+mobile'a KOPYALANMADI — `hasat-core`'u salt-okunur checkout edip oradan
+çağırıyor (public repo, token gerekmiyor) — tek doğruluk kaynağı
+`hasat-core/scripts/check-env-guard.mjs`'te kalıyor. `hasat-core`'daki
+günlük 06:00 + push-to-core kontrolü **yedek katman** olarak kalıyor (artık
+birincil savunma değil). İki workflow dosyası da PyYAML ile parse edilip
+geçerli syntax olduğu doğrulandı.
+
+#### 6 — Doğrulama (kural #96/#103)
+
+| Kontrol | Sonuç |
+|---|---|
+| `rpc_recipe_availability`/`rpc_recipe_shopping_list` gerçek veriyle | ✅ Supabase MCP ile doğrudan SQL çağrısı yapıldı (`nohut-falafel`, 9 malzeme) — dönen alan isimleri/tipler `pg_proc` imzasıyla ve mobil TypeScript arayüzleriyle birebir eşleşti; `kekik` satırı `is_matched=true`+`rounded_up_to_min_order=true`+`recipes_covered=3333.33` ile UI'daki "min. sipariş yuvarlama" dalını gerçek veriyle doğruladı |
+| `recipe_views` RLS/politika | ✅ `pg_policies` ile doğrudan okundu: `(user_id IS NULL) OR (user_id = auth.uid())`, `anon`+`authenticated` rollerine INSERT — kodun gönderdiği `{recipe_id, user_id: null veya auth.uid(), session_id}` payload'ıyla birebir uyumlu |
+| `recipe_views` gerçek ağ INSERT'i (mobil client'la aynı payload) | 🔴 **Doğrulanamadı** — bu oturumun ağ politikası `efuqpiaavrzimvstpdpm.supabase.co`'ya doğrudan client erişimini engelliyor ("Host not in allowlist"), M5-a/M4-a'da da aynı kısıt yaşanmıştı. RLS-seviyesi doğrulama (yukarıda) gerçek yapıldı, ama uçtan uca ağ çağrısı Berkin'in kendi Appetize/simülatör testinde kanıtlanmalı (bkz. S26) |
+| `tsc --noEmit` | ✅ Temiz (yeni bağımlılıklar `npm install` ile kuruldu, sıfır hata) |
+| Offline sqlite yazma/okuma (gerçek runtime) | 🔴 **Doğrulanamadı** — native modül, bu oturumda simülatör/cihaz yok (kural #103) |
+| `src/lib/core/` dokunulmadı mı | ✅ `git diff --stat -- src/lib/core/` boş |
+| Yeni workflow YAML syntax | ✅ PyYAML ile parse edildi (`env-guard.yml`, `drift-check.yml`, `sync-to-web.yml`) |
+| `.env` guard yeni/eski isim testi | ✅ Yukarıda "madde 5" |
+
+#### Kapsam kuralı tutuldu
+
+`src/lib/core/` elle düzenlenmedi (kural #105 — değişiklik yok, sync
+bekleniyor), checkout/ödeme eklenmedi, push bildirimleri eklenmedi, AI
+import eklenmedi, pişirme modu eklenmedi (adım listesi var ama timer'lı
+"Pişirme Modu" ekranı M6), `unit_type` enum'una dokunulmadı, web reposuna
+(`hasat-d2c-marketplace`) dokunulmadı, Supabase şemasına (yeni
+tablo/kolon) dokunulmadı — yalnızca `execute_sql`/`pg_policies` ile
+salt-okunur doğrulama yapıldı.
