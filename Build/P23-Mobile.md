@@ -338,6 +338,92 @@ gömülü ne deterministik türetiliyor (`crypto.getRandomValues` ile her
 gerçekten AES ile şifreli, anahtarın kendisi Keychain/Keystore'da. Bulgu
 raporlandı, kod değiştirilmedi (görev talebi buydu).
 
+### M5-a-ek-2 — Tarayıcıdan Tetiklenebilir EAS Simulator Build Workflow'u — ✅ **TAMAMLANDI (2026-08-03, Claude Code)**
+
+**Sorun:** M5-a-ek'te yazılan EAS talimatları (`TODO.md` → "P23-M5-a-ek")
+yerel terminal varsayıyordu (`eas login`, `eas init`, `eas build`). Berkin
+şirket Mac'inde bu araç zincirini yönetemiyor, ve talimatı yazan oturumun
+ağ politikası `expo.dev`'e erişemiyordu — yani simulator build'ini
+tetikleyecek hiçbir yol kalmamıştı, ne Berkin'in makinesinden ne bir Claude
+Code oturumundan.
+
+**Bootstrap bulgusu (yeniden kullanılabilir — yerel araç zinciri olmayan bir
+kurucu için):** Expo'nun resmî dokümantasyonu hem GitHub App hem CI (Actions)
+yolu için "önce bilgisayarından başarılı bir build çalıştır" öneriyor. Ama bu
+önerinin sağladığı üç şeyin **hiçbiri terminale bağlı değil**:
+- `eas.json`'daki `simulator` build profili zaten dosya olarak vardı (M5-a-ek).
+- `projectId`, `eas init`'i çalıştırmadan da Expo panosundan (tarayıcı)
+  alınabiliyor — Berkin panoda proje oluşturup ID'yi kopyaladı.
+- `bundleIdentifier`/`android.package` `app.json`'a elle yazılabiliyor,
+  `eas build` bunu ilk çalıştırmada otomatik keşfetmek zorunda değil.
+
+Yani "önce yerelden çalıştır" bir zorunluluk değil, CI'a geçmeden önce bir
+sağlık kontrolü öneriymiş — **non-interactive bir CI build'i doğrudan
+kurulabiliyor.** Sonuç: `TODO.md`'deki talimat terminal varsayımı
+kaldırılarak tarayıcı akışına çevrildi.
+
+**`app.json` değişiklikleri:**
+- `expo.extra.eas.projectId` = `bff1a47c-41d5-42fa-bddc-83320c079253` eklendi.
+- `expo.ios.bundleIdentifier` ve `expo.android.package`: `com.hasat.mobile` →
+  **`com.hasat.app`** (aynı değer her iki platformda — Android tarafı ileride
+  Play submission'ı için hazır bekliyor).
+
+**Bundle identifier kararı — `com.hasat.app` (Berkin onayı):** Hem iOS
+`bundleIdentifier` hem Android `package` için aynı değer seçildi. **Kritik
+kısıt: bu değer yayınlandıktan (App Store/Play submit) sonra değiştirilemez**
+— yeni bir bundle ID teknik olarak **yeni bir uygulama** demektir; mevcut
+indirme sayısı, kullanıcı yorumları ve (iOS tarafında) TestFlight geçmişi
+yeni ID'ye taşınmaz. Bu yüzden değer submit'ten önce, şimdi sabitlendi.
+
+**`expo.slug` — doğrulanamadı, değiştirilmedi:** `app.json`'daki
+`slug: "hasat-mobile"` alanının Expo panosundaki proje
+(`bff1a47c-41d5-42fa-bddc-83320c079253`) ile aynı slug'ı taşıyıp taşımadığı
+bu oturumdan kontrol edilemedi — ağ politikası `expo.dev`'e erişimi
+engelliyor. Slug'a dokunulmadı (görev talimatı: uyuşmazsa dur ve bildir,
+kendin değiştirme). **Berkin'in workflow'u ilk çalıştırmadan önce panoda bu
+projenin slug'ının gerçekten `hasat-mobile` olduğunu doğrulaması gerekiyor**
+— uyuşmazsa build ya yanlış projeye gider ya da EAS hata verir.
+
+**Workflow — `.github/workflows/eas-build-simulator.yml`:** Yalnızca
+`workflow_dispatch` (otomatik tetikleyici yok — kota koruması, aşağıda).
+Resmî `expo/expo-github-action@v8` (`eas-version: latest`,
+`token: secrets.EXPO_TOKEN`, `packager: npm` — repoda `package-lock.json`
+var, yarn değil), `npm ci` ile kurulum, ardından
+`eas build --profile simulator --platform ios --non-interactive`. Build
+bitince artifact linki `$GITHUB_STEP_SUMMARY`'ye yazılıyor (`--json`
+çıktısından çıkarılıyor; çıkarılamazsa Expo panosunun builds sayfasına
+yönlendiren bir not düşülüyor) — Berkin panoda aramadan doğrudan
+Appetize.io'ya (https://appetize.io/upload) yükleyebilsin diye.
+
+**Gereken secret:** `EXPO_TOKEN` — Expo panosundan (Account Settings →
+Access Tokens) oluşturulup `hasat-mobile` reposunda Settings → Secrets and
+variables → Actions → `EXPO_TOKEN` adıyla eklenmesi gerekiyor (Berkin'in
+tek manuel adımı).
+
+**Kota koruması:** Expo'nun ücretsiz katmanı ayda 30 build'e izin veriyor
+(iOS için bunların en fazla 15'i), kuyruk 90 dakikayı aşabiliyor, ve her
+**başarısız** deneme de kotadan düşüyor. Bu yüzden otomatik tetikleyici
+eklenmedi ve `app.json`'ın eksiksiz (dört alan da dolu) olması şart koşuldu
+— eksik bir `app.json` ile tetiklenen bir build muhtemelen başarısız olur
+ve kotayı boşa harcar. Detay hem workflow yorumunda hem `TODO.md`'de.
+
+**Doğrulama (kural #96):**
+| Kontrol | Sonuç |
+|---|---|
+| `.github/workflows/eas-build-simulator.yml` YAML syntax | ✅ PyYAML ile parse edildi, geçerli |
+| Workflow'da yalnızca `workflow_dispatch` tetikleyicisi | ✅ Doğrulandı, başka tetikleyici yok |
+| `secrets.EXPO_TOKEN` referansı | ✅ Doğru sözdizimiyle mevcut (`token: ${{ secrets.EXPO_TOKEN }}`) |
+| `app.json` geçerli JSON | ✅ `json.load` ile parse edildi |
+| `app.json` dört alan (projectId/ios.bundleIdentifier/android.package/slug mevcudiyeti) | ✅ İlk üçü doğru değerle dolu; `slug` mevcut ama Expo panosuyla eşleştiği doğrulanamadı (yukarıda) |
+| Gerçek `eas build` çalıştırması | 🔴 **Doğrulanamadı** — bu oturumun ağ politikası `expo.dev`'e erişimi engelliyor (kural #103). Berkin'in GitHub Actions'tan "Run workflow" ile tetiklemesi gerekiyor. |
+
+**Kapsam kuralı tutuldu:** `src/lib/core/` dokunulmadı (kural #105), web
+reposuna (`hasat-d2c-marketplace`) dokunulmadı, Supabase şemasına
+dokunulmadı, `unit_type` enum'una dokunulmadı. Şema/mimari kararı yok — bu
+tamamen CI/build-tetikleme altyapısı; tek karar niteliğindeki değişiklik
+(bundle identifier) zaten Berkin onaylıydı (görev talimatı), otonom
+alınmadı.
+
 ### M5-b — Ekran yazma
 - Tarif listesi/detayı, pişirme modu, AI import, **offline önbellek** (expo-sqlite)
 - Play hesap tipi kararı (personal $25 şimdi mi, organizasyon mu) burada verilir
