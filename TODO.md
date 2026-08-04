@@ -306,6 +306,8 @@ Son değişikliğin (`buyer.producer.$id` guest-erişimi) routing-guard seviyesi
 110. [2026-07-30'da eklendi] Bu Supabase projesinde yeni oluşturulan view'lar varsayılan olarak `anon` ve `authenticated` rollerine SELECT GRANT'i alıyor — mevcut 20 KPI view'ında bu grant yok, yani konvansiyon "yalnızca service_role". `security_invoker=true` ayarlamak YETERLİ DEĞİLDİR: o alttaki tabloların RLS'ini uygular, ama view'ın kendisine erişim hakkı ayrı bir katmandır. Her yeni view'de grant'ler açıkça REVOKE edilmeli VE `information_schema.role_table_grants` ile doğrulanmalı. P23-M4-a'da yakalandı; fark edilmeseydi tarif funnel verisi tüm kullanıcılara açık olacaktı.
 111. [2026-07-30'da eklendi] `hasat-core/core/db/types.ts` canlı şemadan sessizce geri düşebilir — drift koruması core↔hedef tutarlılığını denetler, DB↔core tutarlılığını denetlemez. M4-c'de `recipes.rest_minutes` eklendi ama tip üretimi yenilenmedi; bayat tipler subtree ile hem web'e hem mobile indi ve drift check yeşil kaldı (üç kopya tutarlı biçimde yanlıştı). Her şema değişikliğinden sonra tip üretimi zorunludur; kalıcı çözüm hasat-core CI'ında `supabase gen types` çıktısını commit'lenmiş dosyayla karşılaştıran bir adımdır.
 112. [2026-08-03'te eklendi] **Katı RLS altında (`USING user_id = auth.uid()`) `INSERT ... ON CONFLICT DO UPDATE`, çakışan satır BAŞKA bir kullanıcıya aitse sessizce değil, `42501 new row violates row-level security policy (USING expression)` ile düşer — ve "sahiplik devri" gerektiren her upsert bu yüzden client'tan değil `SECURITY DEFINER` bir RPC'den yapılmalıdır.** P23-M6'da `device_tokens` (UNIQUE(token), aynı cihazda ikinci kullanıcı) tam olarak buydu. İki genel ders: (a) bir upsert'in "çakışmada güncelle" dalı, UPDATE politikasının USING kısmına takılır — WITH CHECK doğru olsa bile yetmez, çünkü USING mevcut satırı hiç görmez; (b) çözüm olarak politikayı `USING (true)`'ya çekmek tabloyu satır-bazlı korumasız bırakır, doğru çözüm devri tek bir atomik fonksiyona hapsetmektir (kural #106 ile de tutarlı: iki client'ın da ihtiyaç duyacağı mantık DB'de yaşar). Not: bu, `orders`'ta bulunan "UPDATE politikası hiç yok, tüm mutasyonlar sessizce sıfır satır döndürüyor" hatasının kardeşi ama aynısı değil — orada politika YOKTU ve sessizdi, burada politika VAR ve gürültülü patlıyor; ikisi de gerçek insert/update ile test edilmeden fark edilmez.
+113. [2026-08-04'te eklendi] **`SET LOCAL ROLE` + `request.jwt.claims` ile bir kullanıcıyı taklit ederek SQL testi yaparken, doğrulama SELECT'i de o taklit edilen kimliğin RLS'ine tabidir — bir trigger'ın YAN ETKİSİ (başka bir kullanıcıya yazılan bir satır) o kimlikle görünmeyebilir, bu trigger'ın çalışmadığı anlamına gelmez.** P23-M7-a'da `rpc_create_offer` testinde buyer rolüyle impersonation yapılırken `notify_offer_received`'ın oluşturduğu bildirim (çiftçiye yazılıyor, `notifications` RLS'i `user_id=auth.uid()`) görünmedi — ilk yorum "trigger çalışmıyor" olurdu, yanlış olurdu. Gerçek neden: buyer kendi adına olmayan bir bildirimi RLS altında göremiyordu. Aynı transaction içinde `RESET ROLE` (postgres'e dönüp RLS'i bypass ederek) doğrulayınca bildirim + `dispatch_sms` kuyruğu (`net.http_request_queue`) doğru şekilde görüldü. Ders: bir yan etkinin "farklı bir kullanıcıya ait" olduğu her testte, doğrulama sorgusu ya o kullanıcı kimliğiyle ya da RLS'i bypass eden bir rolle çalıştırılmalı — karışıklık gerçek bir bug ile bir test-metodolojisi artefaktını ayırt edemez hale getirir.
+114. [2026-08-04'te eklendi] **Kalıcı süreç kuralı — web→mobil nudge:** her mobil özellik eklendiğinde aynı turda web nudge karşılığı değerlendirilir ("web'deki kullanıcı bu özelliği bilse davranışı değişir mi" sorusuna evetse eklenir). Nudge içeriği web deneyimini KISITLAMAZ, tam sayfa interstitial YOK (Google mobil sıralama cezası + SEO huninin üst ağzı). Bkz. `Build/P23-Mobile.md` → "Nudge stratejisi".
 ---
 
 ## 📌 Kararlar
@@ -328,6 +330,7 @@ Son değişikliğin (`buyer.producer.$id` guest-erişimi) routing-guard seviyesi
 | **P23-M4-a tamamlandı (2026-07-30)** | `/tarifler` + `/tarifler/$slug` (SSR, misafire açık), malzeme kartı 3 durumu, `recipe_views` ölçümleme + `v_kpi_recipe_funnel_by_recipe`. `crop_requests.quantity`/`.unit` migration gerekmediği (zaten vardı) ve yeni view'a varsayılan olarak düşen anon/authenticated grant'i bulunup düzeltildi. Gerçek RLS simülasyonu + gerçek `min_order` yuvarlama testleriyle doğrulandı; canlı tarayıcı testi bu oturumun ağ kısıtı yüzünden Berkin'e kaldı. |
 | **P23-M4 (b+c) tamamen kapandı — `_Context.md`'ye yansıtıldı (2026-07-30)** | M4-b (Talep Et + admin heatmap + Gap #9) ve M4-c (`cook_minutes` semantik düzeltmesi + SEO) daha önce ayrı turlarda tamamlanmıştı ama `_Context.md`'nin "Açık işler" satırı hâlâ "M4-b sırada" yazıyordu — M5-a turunda fark edilip düzeltildi. |
 | **`SYNC_TOKEN` kapsamı `hasat-mobile`'a genişletildi — Berkin (2026-07-30)** | `hasat-core`'un ikinci subtree hedefi (`hasat-mobile`) için PAT'ın kapsamına eklendi; dual-target `sync-to-web.yml`/`drift-check.yml` artık her iki repoda da çalışabilir durumda. |
+| **P23-M7-a — mobil marketplace stratejik kararı (Berkin, 2026-08-04)** | Teklif oluşturma web'e devredilmiyor, mobile geliyor (pazarlık akışı + push değeri + Apple 4.2 gerekçesiyle) — M7 M7-a/M7-b'ye bölündü, M8 sağa kaydı. `rpc_create_offer` yazıldı (SECURITY INVOKER yeterli), web ayrı revert edilebilir commit'le geçirildi, mobilde native ürün/teklif ekranları eklendi. Web malzeme kartında platform-dışı malzemeler için "Talep Et" eksikliği bulunup düzeltildi (M4-b'nin "nötr, buton yok" kararı Berkin tarafından değiştirildi), admin ısı haritası tarımsal/platform-dışı kırılımı kazandı (M6-ek'in iki açık maddesi kapandı), tarif filtresi adı gerçeğe uydurdu, web→mobil nudge eklendi. Detay: yukarıda "P23-M7-a" build log. |
 | **P23-M5-a tamamlandı (2026-07-30)** | `hasat-mobile` iskeleti (Expo 57 + Router + Nativewind + API 36) + `hasat-core`'un ikinci subtree hedefi (dual-target Action'lar + drift kör noktası kapandı) + tesisat (storage adapter + OTP + TanStack Query). Nohut Falafel `rest_minutes` içerik düzeltmesi + süre filtresi bulgusu/düzeltmesi ayrı iş olarak yapıldı. Statik doğrulama (bundle, API36 config, manifest hash, drift kasıtlı bozma) tamamlandı; canlı OTP girişi (web + mobil) bu oturumun ağ kısıtı Supabase host'unu engellediği için doğrulanamadı — Berkin'e kaldı. `hasat-core/db/types.ts`'te `rest_minutes` eksik olduğu (M4-c'den beri tip üretimi yenilenmemiş) bulundu, kapsam dışı bırakıldı. |
 | **Apple Developer bireysel hesabına başvuruldu (Berkin, 2026-07-30/31)** | $99, şirketten bağımsız. Onay bekleniyor. Onay gelene kadar mobil doğrulama gerçek cihaz yerine iOS Simulator build + Appetize.io ile yapılacak (`eas.json`'daki yeni `simulator` profili) — Android tarafında da elde cihaz yok. Detay: `Build/Store-Compliance.md`, `Build/P23-Mobile.md` → "M5-a-ek". |
 | **P23-M5-a-ek tamamlandı (2026-07-31)** | Ön koşul turu (M5-b öncesi): `hasat-core/core/db/types.ts` canlı şemadan yeniden üretildi (`recipes.rest_minutes` + 2 eksik KPI view eklendi) + kalıcı `types-freshness.yml` CI kontrolü (kural #111); `hasat-mobile/.env` içerik bekçisi (`EXPO_PUBLIC_` prefix + sır-kalıbı reddi) `drift-check.yml`'e eklendi, kasten bozulup geri alındı; `hasat-mobile/eas.json`'a Apple hesabı gerektirmeyen `simulator` build profili eklendi; AES anahtarının `expo-secure-store`'da (doğru yerde) tutulduğu doğrulandı, kod değiştirilmedi; `Build/E2E-QA.md` → S25'in B bölümü gerçek cihaz/Expo Go varsayımından Appetize.io'ya çevrildi. |
@@ -2369,3 +2372,158 @@ reposunda yapıldı); checkout eklenmedi; marketplace köprüsünün tamamı
 fotoğrafından tahmin M9'da kalıyor. `hasat-d2c-marketplace` reposuna
 **hiçbir commit gitmedi** — `extract-recipe` bu repoda hiç yaşamıyor
 (P23-M2'den beri bilinen durum), Supabase MCP ile doğrudan deploy edildi.
+
+---
+
+## P23-M7-a — Mobilde Teklif Oluşturma + Web/Mobil Tutarlılık (2026-08-04)
+
+**Stratejik karar (Berkin):** Mobil bir marketplace uygulaması, teklif
+oluşturma web'e devredilmiyor — mobile geliyor. Gerekçe + takvim etkisi
+(M7-a büyüyor, M8 sağa kayıyor, kapsam kesilmiyor): `Build/P23-Mobile.md`
+→ "Stratejik karar — mobil marketplace app'i, teklif oluşturma native".
+
+### 1 — `rpc_create_offer` (mimari)
+
+Canlı şemada teklif oluşturmak için RPC yoktu — web `offers` INSERT +
+`offer_items` INSERT'i client'ta iki ayrı adımda yapıyordu, ikinci adım
+başarısız olursa JS'te best-effort bir "rollback" deniyordu (atomik değil).
+Yeni `rpc_create_offer(p_farmer_id, p_items, p_delivery, p_delivery_date,
+p_note, p_subscription_id, p_source_recipe_id)`, `SECURITY INVOKER`
+(kontrol edildi, DEFINER gerekmedi — `buyer_id` parametre değil,
+`auth.uid()`'den), tek transaction'da hem `offers` hem `offer_items`
+insert ediyor + kendi min_order/stok kontrolünü ekliyor (`enforce_offer_stock`
+trigger'ı yalnızca accept-anında çalışıyordu, oluşturma anında hiç kontrol
+yoktu — bu bir mimari boşluktu, RPC kapattı). Mevcut trigger'lar
+(`enforce_offer_stock`, `enforce_offer_transitions`, `notify_offer_received`)
+bozulmadan üstünde çalışıyor. Tam detay: `Build/Shared-Architecture.md` →
+"`rpc_create_offer`".
+
+### 2 — Web geçişi (ayrı, revert edilebilir commit)
+
+`insertOfferWithItems` (`hasat-d2c-marketplace/src/lib/hasat/queries.ts`)
+artık `(supabase as any).rpc("rpc_create_offer", {...})` çağırıyor — public
+arayüz (`OfferInput`/`MultiBatchOfferInput`, `useCreateOffer`,
+`useCreateMultiBatchOffer`) ve çağıran taraf (`buyer.payment.tsx`) hiç
+değişmedi. `hasat-core`'a dokunulmadı — mevcut kod tabanının zaten
+kullandığı `(supabase as any).rpc(...)` deseni izlendi (`get_price_history_summary`,
+`dispatch_sms`, `get_farmer_rating_summary` gibi), sync PR riski yok.
+
+### 3 — Mobilde teklif oluşturma
+
+- `src/lib/hasat/offers.ts` (yeni) — `useFarmerCropListings`/`useListingStock`
+  web'in aynı adlı hook'larının (`queries.ts`) birebir portu; `useCreateOffer`
+  doğrudan `rpc_create_offer`'ı çağırıyor.
+- `app/product/[farmerId]/[crop].tsx` (yeni) — çoklu-parti miktar seçimi
+  (stok'a clamp), teslimat (Kargo / Aynı Gün Kurye / Üreticiden Teslim —
+  web'in `DeliveryFields`'ıyla aynı 3 seçenek, canonical `delivery_type`
+  değeri doğrudan id olarak kullanıldı — web'in bulanık string eşleştirmesi
+  gerekmedi), teslim tarihi (preset chip'ler: 3/7/14/30 gün — native date
+  picker paketi **eklenmedi**, yeni native modül yeni EAS build gerektirirdi,
+  kota 15/ay 4 kullanıldı), not. Her partide min_order altı miktar önden
+  anlaşılır uyarı gösterip submit'i kilitliyor — trigger'ın reddiyle
+  karşılaşılmıyor.
+- `app/offer/confirm.tsx` (yeni) — onay ekranı, "çiftçi yanıtladığında
+  bildirim alacaksın". Sipariş takip ekranı bu turda YOK (Berkin kararı),
+  canlı durum göstermiyor.
+- `app/recipe/[slug].tsx` — "Sipariş Ver" artık `Linking.openURL` ile web'e
+  değil, native `/product/[farmerId]/[crop]`'a `router.push`.
+- `webLinks.ts` — `buyerProductUrl` kaldırıldı (tek kullanan yeri değişti);
+  `WEB_APP_URL` kaldı (pazarlık yanıtı + sipariş takibi köprüleri için).
+- Ödeme ekranı YOK — teklif oluşturmak ödeme değil, Guideline 2.1 riski yok.
+
+### 4 — Web malzeme kartı: teşhis + 4 durum + admin heatmap kırılımı
+
+**Teşhis (görev metninin sorduğu soru — kod yok mu, koşul yanlış mı,
+yayınlanmamış mı):** `tarifler.$slug.tsx`'te "platform crop ama eşleşmiyor
+→ Talep Et" kodu `main`'de zaten doğru yazılmıştı ve `rpc_recipe_availability`/
+`rpc_recipe_shopping_list` gerçek veriyle doğrulandı (Cevizli Elmalı Salata:
+ceviz/zeytinyağı için `is_platform_crop=true, is_matched=false` dönüyor —
+kod bu durumda "Talep Et" render etmeliydi). **Gerçek durum:** kod eksik
+değildi, ama platform-dışı malzemeler (`crop=null` — roka, beyaz peynir,
+bal, tuz gibi) BİLİNÇLİ olarak `null` render ediyordu (orijinal M4-b
+kararı: "platform-dışı → nötr, buton yok"). Berkin bu kararı bu turda
+DEĞİŞTİRDİ (mobilde zaten M6-ek'te değişmişti). Yayınlanmama ihtimali
+(kural #109) da olası bir katkı ama kod tarafında gerçek bir eksiklik
+gerçekten vardı — platform-dışı dal hiç yazılmamıştı.
+
+**Düzeltme (`tarifler.$slug.tsx` + `recipe-intent.ts` + `CropRequestModal.tsx`
++ `queries.ts`):**
+- 4 durum: eşleşti+ilan var → **Sipariş Ver** (eski "Ürün sayfasına git"
+  yerine, mobille aynı ad) · eşleşti+ilan yok / tarımsal-eşleşmedi /
+  platform-dışı → üçü de **Talep Et**.
+- `ingredientId`-bazlı guest→login dönüş anahtarı (eskisi `crop`'a göre
+  eşleşiyordu, off-platform'da `crop=null` olduğu için hiç bulamıyordu).
+- `ingredientClass` (`tarimsal`/`platform_disi`) artık `crop_requests`'e
+  yazılıyor — mobilin M6-ek'te zaten yaptığı sinyal, web'de eksikti.
+- Detayda "X malzemeden Y'si Hasat'ta" sayacı (`availability` array'inden
+  türetildi, yeni sorgu gerekmedi).
+
+**Admin heatmap kırılımı (`v_kpi_crop_demand_heatmap` migration + `admin.kpi.tsx`):**
+`requester_count_tarimsal`/`requester_count_platform_disi` iki yeni kolon
+eklendi (additive, mevcut kolonlar değişmedi) — **M6-ek'in açık maddesiydi**
+("`v_kpi_crop_demand_heatmap`'in `ingredient_class`'ı okuyup iki sinyali
+ayrı göstermesi" ve "`crop_requests.ingredient_class`'ın admin panelde
+gösterilmesi", ikisi de "M7 civarı" olarak not edilmişti — bu turda kapandı).
+
+### 5 — Filtre adı gerçeğe uyduruldu
+
+"Şu an Hasat'ta tam alınabilir tarifler" filtresi `coverage_pct === 100`
+kontrolü yapıyordu; ama `coverage_pct`'in paydası yalnızca crop-linked
+malzemeler (`crop IS NOT NULL`) — **platform-dışı malzemeler payda dışında
+kalıyordu.** Gerçek bulgu: "Vegan Fındık Kreması" 1 crop-linked (fındık,
+eşleşti) + 4 off-platform malzemeyle `coverage_pct=100.0` dönüyordu, yani
+5 malzemenin yalnızca 1'i gerçekten Hasat'tan alınabilirken filtre "tam
+alınabilir" diyordu. `v_recipe_coverage`'ın kendisi zaten doğru sayıları
+üretiyordu (`ingredient_count`, `available_count`) — sorun view'da değil,
+filtrenin yanlış kolonu (`coverage_pct`) kullanmasındaydı; yeni view
+gerekmedi. Düzeltme: filtre artık `availableCount >= 1` (en az bir
+eşleşme), ad "Malzemesi Hasat'ta olan tarifler", kart ve detayda "X
+malzemeden Y'si Hasat'ta" sayacı.
+
+### 6 — Web→Mobil nudge
+
+`MobileNudge.tsx` (yeni, paylaşılan) — tarif detayında "Telefonda pişirme
+modu…", tarif listesinde "Kitaptaki tarifi telefonla çekip defterine
+aktar…". İkisi de inline kart, interstitial değil. Kalıcı süreç kuralı
+kural #114'e yazıldı.
+
+### Doğrulama (kural #96)
+
+| Kontrol | Sonuç |
+|---|---|
+| `rpc_create_offer` — tek parti (gerçek SQL, ROLLBACK) | ✅ Offer + 1 offer_item doğru oluştu |
+| `rpc_create_offer` — çoklu parti (2 farklı ilan) | ✅ Toplam 32 birim, ağırlıklı ort. fiyat ₺348.13 doğru hesaplandı |
+| `rpc_create_offer` — min_order altı | ✅ `Minimum sipariş miktarının altında (min: 5.00)` ile reddedildi |
+| `rpc_create_offer` — stoktan fazla | ✅ `Stok yetersiz (batch)` ile reddedildi |
+| `notify_offer_received` zinciri (in-app bildirim + `dispatch_sms`) | ✅ Gerçek çalıştı — `net.http_request_queue`'ya 1 satır kuyruklandı, ROLLBACK sonrası kuyruk 0'a döndü (gerçek SMS gitmedi) |
+| RLS — anon reddi | ✅ `Oturum bulunamadı` |
+| RLS — başkası adına oluşturma | ✅ Yapısal olarak imkansız (`buyer_id` parametre değil) |
+| `crop_requests.ingredient_class` yazımı (gerçek INSERT, RLS altında) | ✅ Kabul edildi |
+| `v_kpi_crop_demand_heatmap` yeni kolonlar + grant | ✅ `anon`/`authenticated`'a grant yok (advisor taraması yeni uyarı üretmedi) |
+| Web dört durum (Cevizli Elmalı Salata: elma/ceviz/zeytinyağı/limon) — `rpc_recipe_availability`/`shopping_list` gerçek veri | ✅ elma `is_matched=true`, diğer üçü `is_platform_crop=true, is_matched=false` — kod dalları doğrulandı |
+| Filtre sayacı — `v_recipe_coverage` tutarlılığı | ✅ Aynı view'ın `ingredient_count`/`available_count` kolonları kullanıldı, yeni view yok |
+| `tsc --noEmit` — web | ✅ Temiz |
+| `tsc --noEmit` — mobil | ✅ Temiz |
+| `tsc --noEmit` — `hasat-core` | ✅ Temiz (dokunulmadı, baseline doğrulandı) |
+| Web gerçek tarayıcı click-through | 🔴 **Doğrulanamadı (kural #103)** — bu oturumun ağ politikası Supabase REST API'ye (`efuqpiaavrzimvstpdpm.supabase.co`) doğrudan erişimi engelliyor, `curl` ile yeniden doğrulandı. Berkin'in kendi tarayıcısında bir teklif oluşturup doğrulaması gerekiyor. |
+| Mobil native UI davranışı (routing, TextInput, sticky footer) | 🔴 **Doğrulanamadı (kural #103)** — simülatör/cihaz yok bu oturumda. QA senaryosu: `Build/E2E-QA.md` → S29 |
+| Mobil build | Bu oturumdan tetiklenemez — kota 15 iOS/ay, 4 kullanıldı. Berkin'in GitHub Actions'tan tetiklemesi gerekiyor. |
+| `eslint` (`hasat-mobile`) | ⚠️ Çalıştırılamadı — ağ politikası ESLint config indirmesini engelliyor (kural #103'ün aynısı, M6-ek'te de yaşanmıştı) |
+
+### Açık maddeler (M7-a'dan sonraya)
+
+| Madde | Nereye |
+|---|---|
+| Pazarlık yanıtı (karşı teklife cevap) — mobilde ekran yok, çiftçi karşı teklif verirse alıcı web'e yönlendiriliyor | M8 sonrası |
+| Sipariş takip ekranı + "web'de devam et" yönlendirmesi | M9 |
+| Web Defterim (kişisel tarif içe aktarma web'de yok) | M9 |
+| Keşfet (genel ürün tarama), Siparişlerim | M7-b |
+| Store varlıkları (gizlilik metni, hesap silme, ekran görüntüleri, review notları) | M7-b |
+
+### Kapsam kuralı tutuldu
+
+`src/lib/core/` dokunulmadı (kural #105); mobilde ödeme ekranı eklenmedi;
+`unit_type` enum'una dokunulmadı; editoryal 18 tarifin `crop` bağlantılarına
+dokunulmadı; Keşfet/Siparişlerim/store varlıkları M7-b'ye bırakıldı;
+pazarlık yanıtı ve sipariş takibi M8/M9'a not edildi, bu turda inşa
+edilmedi.

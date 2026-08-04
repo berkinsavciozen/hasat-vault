@@ -877,6 +877,69 @@ doğrulandı — `TODO.md` → "P23-M6-ek" madde 5:
 
 ---
 
+### S29 — P23-M7-a: Mobilde Teklif Oluşturma + Web/Mobil Tutarlılık
+
+**Arka plan:** `TODO.md` → "P23-M7-a" build log, `Build/P23-Mobile.md` →
+"Stratejik karar — mobil marketplace app'i, teklif oluşturma native",
+`Build/Shared-Architecture.md` → "`rpc_create_offer`", `Build/DB-Schema.md` →
+"P23-M7-a".
+
+**Merge listesi**
+| Repo | İçerik |
+|---|---|
+| `hasat-d2c-marketplace` | `src/lib/hasat/queries.ts` (`rpc_create_offer`'a geçiş + `ingredient_class` yazımı), `src/lib/hasat/recipes.ts`, `src/lib/hasat/recipe-intent.ts`, `src/components/hasat/CropRequestModal.tsx`, `src/components/hasat/MobileNudge.tsx` (yeni), `src/routes/tarifler.$slug.tsx`, `src/routes/tarifler.index.tsx`, `src/routes/admin.kpi.tsx` |
+| `hasat-mobile` | `src/lib/hasat/offers.ts` (yeni), `app/product/[farmerId]/[crop].tsx` (yeni), `app/offer/confirm.tsx` (yeni), `app/recipe/[slug].tsx`, `src/lib/hasat/webLinks.ts` |
+| `hasat-vault` | Bu doküman + `TODO.md` + `Build/P23-Mobile.md` + `Build/DB-Schema.md` + `Build/Shared-Architecture.md` + `Build/Store-Compliance.md` |
+| Supabase | `rpc_create_offer` fonksiyonu + `v_kpi_crop_demand_heatmap` (iki yeni kolon) **zaten uygulandı/deploy edildi** (canlı) — merge gerektirmiyor, bilgi amaçlı |
+| `hasat-core` | **Değişiklik yok** — RPC tipi eklenmedi, mevcut `(supabase as any).rpc(...)` deseni izlendi (bkz. `DB-Schema.md` → "P23-M7-a" → "Dokunulmayanlar") |
+
+> ⚠️ **İlk adım — kural #109:** Web tarafındaki değişiklikler `main`'e
+> merge edildikten sonra **Lovable'da Publish'e basılmadan** `hasat.lovable.app`'e
+> inmez. Aşağıdaki web adımlarına (1-8) geçmeden önce Publish yapıldığından
+> emin ol — aksi halde test edilen build merge edilmiş koddan geride olur
+> (P22-G'de tam bu yüzden 3 yanlış "defect" raporlanmıştı).
+>
+> **Mobil için:** bu turda `app/product/[farmerId]/[crop].tsx` ve
+> `app/offer/confirm.tsx` yeni eklendiği + `app/recipe/[slug].tsx` değiştiği
+> için **yeni bir simülatör build'i gerekiyor** (S27/S28'in build'i bu
+> ekranları hiç içermiyor) — GitHub Actions'tan `eas-build-simulator.yml`
+> tetiklenmeli.
+
+**Test adımları — Web (kural #104):**
+
+| # | Adım | Beklenen |
+|---|---|---|
+| 1 | `/tarifler` sayfasını aç | Filtre "Malzemesi Hasat'ta olan tarifler" yazıyor (eski "Şu an Hasat'ta tam alınabilir tarifler" değil); listede "Kitaptaki tarifi telefonla çekip defterine aktar…" nudge kartı var (tam sayfa değil, akışın içinde) |
+| 2 | Her kartta bir sayaç ara | "X malzemeden Y'si Hasat'ta" (ör. "7 malzemeden 1'i Hasat'ta") görünüyor |
+| 3 | Filtreyi aç, en az bir eşleşmesi olan ama hepsi eşleşmeyen bir tarifi ara (ör. Cevizli Elmalı Salata, sadece elma eşleşiyor) | Filtre açıkken bu tarif **görünüyor** (en az 1 eşleşme var) |
+| 4 | "Cevizli Elmalı Salata" detayına gir | Malzemeler başlığının altında "7 malzemeden 1'i Hasat'ta" sayacı; alt tarafta "Telefonda pişirme modu…" nudge kartı (Hazırlanışı bölümünden önce) |
+| 5 | Elma satırına bak | **"Sipariş Ver →"** butonu (eski "Ürün sayfasına git" değil) |
+| 6 | Ceviz / zeytinyağı satırlarına bak | **"Talep Et →"** butonu var (önceden hiçbir şey yoktu) |
+| 7 | Roka / beyaz peynir / bal (platform-dışı) satırlarına bak | **"Talep Et →"** butonu var (önceden `null` — hiçbir şey render edilmiyordu) |
+| 8 | Roka için "Talep Et"i gönder | Talep kaydediliyor; admin `/admin/kpi` → "Talep Isı Haritası"nda roka satırının "Talep eden" sütununda "0 tarımsal · 1 platform-dışı" gibi bir kırılım görünüyor |
+
+**Test adımları — Mobil (kural #104, yeni simülatör build'i ile):**
+
+| # | Adım | Beklenen |
+|---|---|---|
+| 9 | Eşleşen + aktif ilanı olan bir malzemede "Sipariş Ver →"e dokun | **Artık cihaz tarayıcısı AÇILMIYOR** — native bir ekran açılıyor: "N parti mevcut" metni, her partide miktar girişi, "Mevcut X birim" + fiyat + "Min. sipariş Y birim" |
+| 10 | Bir partiye min_order'ın altında bir miktar gir | Kırmızı/sarı bir uyarı metni görünüyor ("...altında kaldığı sürece teklif gönderilemez"), alttaki "Teklif Gönder" butonu pasif |
+| 11 | Miktarı min_order'ın üstüne çek, ikinci bir partiden de miktar seç (çoklu parti) | Alt sabit çubukta toplam fiyat + toplam miktar + "N parti" güncelleniyor |
+| 12 | Teslimat seçeneklerine bak | Üç seçenek: "Kargo" (3-5 iş günü), "Aynı Gün Kurye" (Sadece İstanbul), "Üreticiden Teslim" (Çiftlikten alın) — web'deki üç seçenekle aynı |
+| 13 | Teslim tarihi seç | 3/7/14/30 gün sonrası chip'lerinden biri seçilebiliyor, seçmeden "Teklif Gönder" pasif kalıyor |
+| 14 | Not alanına bir mesaj yaz, "Teklif Gönder"e dokun | Kısa bir yükleniyor durumundan sonra onay ekranına geçiyor: "✅ Teklif Gönderildi!" + "çiftçi yanıtladığında bildirim alacaksın" |
+| 15 | Farmer tarafında (web veya ikinci bir test hesabıyla) yeni teklifi kontrol et | Gerçek bir `offers` + N `offer_items` satırı oluşmuş, çiftçiye in-app bildirim + SMS gitmiş (gerçek Twilio — dikkat: bu adım gerçek SMS gönderir, test hesabıyla yapılmalı) |
+| 16 | Onay ekranında "Tariflere Dön"e dokun | Ana tarif listesine dönüyor |
+| 17 | Stoktan fazla miktar girmeyi dene (partinin "Mevcut" değerinden fazla) | Girilen değer otomatik olarak mevcut stoka **clamp'leniyor** — hata mesajıyla karşılaşılmıyor |
+
+**Beklenen sonuç: 17/17.**
+
+**Bu S29'un tamamı Claude Code tarafından doğrulanamadı (kural #103):**
+- Web adım 1-8: kod okunarak + gerçek SQL/RPC testleriyle (`rpc_recipe_availability`/`rpc_recipe_shopping_list` gerçek veri) doğrulandı, ama tarayıcı click-through'u bu oturumun ağ politikası Supabase REST API'sine erişimi engellediği için yapılamadı (`curl` ile yeniden doğrulandı, `TODO.md` kural #103'ün aynı kısıtı — P24/M4-a/M5-a'da da yaşanmıştı).
+- Mobil adım 9-17: kod yazıldı, `tsc --noEmit` temiz, `rpc_create_offer`'ın kendisi gerçek SQL/RLS simülasyonuyla (tek parti, çoklu parti, min_order reddi, stok reddi, anon reddi, gerçek bildirim/SMS-kuyruk zinciri) kanıtlandı — ama ekrandaki gerçek davranış (routing, TextInput, clamp, sticky footer, teslimat seçici) bu oturumda simülatör/cihaz olmadığı için gözle test edilemedi.
+
+---
+
 ## Feature Sonrası Süreç
 
 1. Yeni prompt tamamlanınca yeni S-numarası eklenir

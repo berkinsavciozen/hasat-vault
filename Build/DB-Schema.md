@@ -1403,3 +1403,83 @@ jenerik `/buyer/discover`'a gidiyor ama mobilde fiyat/min_order'ı
 gösterebilmek için daha spesifik hedef gerekiyordu — `listings.farmer_id`
 zaten sorgulanan tabloda mevcut olduğu için mevcut, tam çalışan web
 rotası kullanıldı, yeni bir native ekran kurulmadı).
+
+## P23-M7-a — `rpc_create_offer` + Admin Heatmap Kırılımı (2026-08-04)
+
+> Stratejik karar (Berkin): mobil marketplace app'i, teklif oluşturma
+> web'e devredilmiyor. Detay: `TODO.md` → "P23-M7-a" build log,
+> `Build/Shared-Architecture.md` → "`rpc_create_offer`".
+
+### Yeni fonksiyon: `rpc_create_offer`
+
+```
+rpc_create_offer(
+  p_farmer_id uuid,
+  p_items jsonb,           -- [{listing_id, quantity, price_per_unit}, ...]
+  p_delivery text default 'kargo-buyer',
+  p_delivery_date date default null,
+  p_note text default null,
+  p_subscription_id uuid default null,
+  p_source_recipe_id uuid default null
+) returns public.offers
+```
+
+`SECURITY INVOKER`, `SET search_path = public`. `buyer_id` parametre
+**değil** — `auth.uid()`'den okunur, NULL ise `RAISE EXCEPTION 'Oturum
+bulunamadı'` (errcode `28000`). Her `p_items` satırı için: ilan `p_farmer_id`'ye
+ait mi + `status='active'` mi kontrol edilir; `min_order` altı miktar
+reddedilir; stok `enforce_offer_stock` trigger'ının kullandığı AYNI
+hesapla (batch_total>0 ise `listing_harvest_entries` toplamı, yoksa
+`listings.quantity`; `accepted` teklifler rezerve) kontrol edilir, aşan
+miktar reddedilir. Geçerliyse tek transaction'da `offers` (ağırlıklı
+ortalama fiyat + toplam miktar, ilk item'ın `listing_id`'si `offers.listing_id`'ye
+— geriye dönük uyumluluk için, mevcut `insertOfferWithItems` deseninin
+aynısı) + N `offer_items` satırı insert edilir.
+
+**Mevcut trigger'lara dokunulmadı:** `trg_offer_received` (AFTER INSERT)
+otomatik tetikleniyor; `trg_enforce_offer_stock`/`enforce_offer_transitions`/
+`enforce_offer_accept_turn` (hepsi BEFORE/AFTER UPDATE, `status→'accepted'`
+geçişine bağlı) hiç dokunulmadı, ikinci savunma hattı olarak duruyor.
+
+**Doğrulama (transaction + ROLLBACK, gerçek veri):**
+- Tek parti: `1aa51305-...` (fındık, min_order=1kg) — 5kg → başarılı.
+- Çoklu parti: `7874ae4c-...` (safran, 12g) + `a1ac7203-...` (safran, 20g)
+  → toplam 32, ağırlıklı ort. fiyat ₺348.13 (doğru: (12×900+20×17)/32).
+- Min_order altı: `63b0cf1b-...` (kekik, min_order=5kg) — 2kg →
+  `Minimum sipariş miktarının altında (min: 5.00)`.
+- Stok aşımı: `6afab8e6-...` (safran_soğanı, base_stock=10kg) — 9999kg →
+  `Stok yetersiz (batch)`.
+- Zincir: `notify_offer_received` → in-app bildirim + `dispatch_sms` →
+  `net.http_request_queue`'ya 1 satır kuyruklandı (SELECT `RESET ROLE`
+  sonrası doğrulandı — bkz. `TODO.md` kural #113, buyer rolüyle
+  test ederken çiftçiye giden bildirim RLS altında görünmüyor). ROLLBACK
+  sonrası kuyruk 0 — gerçek SMS gitmedi.
+- Anon: `Oturum bulunamadı`.
+
+### `v_kpi_crop_demand_heatmap` — iki yeni kolon (additive)
+
+`requester_count_tarimsal`, `requester_count_platform_disi` — `crop_requests.ingredient_class`'a
+göre `requester_count`'un kırılımı (`count(distinct requested_by) filter
+(where ingredient_class='...')`). Mevcut kolonlar/sıra değişmedi (CREATE OR
+REPLACE VIEW ile kolon eklerken mevcut kolonların adı/tipi değişemiyor —
+yeni kolonlar listenin **sonuna** eklendi, ortaya değil). `anon`/`authenticated`'a
+GRANT yok (20 KPI view deseni, `revoke all ... from anon, authenticated`
+tekrar uygulandı — advisor taraması yeni uyarı üretmedi).
+
+### Web'de `crop_requests.ingredient_class` yazımı (mobil M6-ek'ten sonra web'e geldi)
+
+`ingredient_class` kolonu M6-ek'te mobil için eklenmişti; web o zaman
+yazmıyordu. Bu turda `CropRequestModal.tsx`/`useCreateCropRequest`
+(`hasat-d2c-marketplace`) da yazıyor — malzeme kartından açılan her Talep
+Et için `crop ? 'tarimsal' : 'platform_disi'`. Genel (`buyer.discover.tsx`)
+Talep Et akışı hâlâ `ingredientClass` göndermiyor (tarif bağlamı yok,
+sınıf bilinmiyor) — `null` kalıyor, CHECK constraint nullable olduğu için
+sorun değil.
+
+### Dokunulmayanlar
+
+`src/lib/core/` (kural #105) — RPC tipi `hasat-core/core/db/types.ts`'e
+eklenmedi, mevcut kod tabanının onlarca RPC çağrısında zaten kullandığı
+`(supabase as any).rpc(...)` deseni izlendi; `unit_type` enum'u; editoryal
+18 tarifin `crop` bağlantıları; `offers`/`offer_items` RLS politikaları
+(mevcutlar zaten yeterliydi, değiştirilmedi).

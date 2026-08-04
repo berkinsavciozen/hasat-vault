@@ -44,6 +44,59 @@ Bu, eksikliği varlığa çeviriyor: `crop_requests` crop bazında toplandığı
 
 ---
 
+## Stratejik karar — mobil marketplace app'i, teklif oluşturma native (Berkin, 2026-08-04)
+
+**Karar:** Mobil uygulama bir marketplace uygulaması; tarif katmanı onun
+kullanıcı çekme yüzeyi. Bu yüzden teklif oluşturma web'e devredilmiyor,
+mobile geliyor.
+
+**Gerekçe (üç madde):**
+1. **Satın alma akışı pazarlıklı** — `ball_side` ping-pong, günlere yayılan
+   diyalog. Her turda Safari'ye çıkmak huniyi kırar; pazarlığın her adımı
+   bir uygulama-dışı sıçrama demek.
+2. **M6'da kurulan push bildirimlerinin değeri, bildirimin yanıtlanabildiği
+   yerde olmasına bağlı.** Push geldi ama yanıt web'de veriliyorsa, push'un
+   kendisi yarım bir yatırım kalır.
+3. **Apple 4.2 savunması güçlenir.** Reviewer "Sipariş Ver"e basıp Safari'ye
+   atılırsa app "web kısayolu" gibi görünür — tam olarak 4.2'nin aradığı red
+   gerekçesi. Bkz. `Store-Compliance.md` → "Web/mobil özellik ayrımı".
+
+**Takvim etkisi: M7-a büyüyor, M8 sağa kayıyor.** Kapsam kesilmiyor
+(öteleme kuralı, bkz. `Roadmap.md`). M7'nin eski tanımı ("Keşfet, ürün
+detayı, Talep Et, Siparişlerim") P23-M7-a ile kısmen gerçekleşti (ürün
+detayı + teklif oluşturma) — Keşfet (genel ürün tarama) ve Siparişlerim
+(sipariş takibi) hâlâ yapılmadı, M9'a not edildi (bkz. `TODO.md`).
+
+**Kapsam dışı kalanlar (bilinçli, bu turda değil):**
+- Pazarlık yanıtı (karşı teklife cevap) — çiftçi karşı teklif verirse alıcı
+  hâlâ web'e yönlendiriliyor. M8 sonrası açık madde.
+- Sipariş takip ekranı — Berkin kararı, bu turda yapılmadı. Siparişlerle
+  ilgili yerlerde "web'de devam et" yönlendirmesi M9 maddesi.
+- Keşfet / genel ürün tarama — ürün/parti detay ekranına yalnızca tarif
+  malzeme kartından ("Sipariş Ver") ulaşılıyor, bağımsız bir keşif ekranı
+  kurulmadı.
+
+### Nudge stratejisi — web'de mobil özelliklere işaret (Berkin kararı, 2026-08-04)
+
+Web'deki alıcı, mobilde olup webde olmayan yetenekleri görsün, web deneyimi
+kısıtlanmasın. P23-M7-a'da uygulandı: `hasat-d2c-marketplace/src/components/hasat/MobileNudge.tsx`
+(yeni, paylaşılan) — tarif detayında "Telefonda pişirme modu — adım adım,
+timer'lı, offline", tarif listesinde "Kitaptaki tarifi telefonla çekip
+defterine aktar". İkisi de inline kart, sayfanın akışının içinde.
+
+**Kural:** nudge içeriği web deneyimini KISITLAMAZ. Tam sayfa interstitial
+YOK — Google mobil sıralama cezası riski + web SEO huninin üst ağzı burada
+bir sayfa (bkz. `P23-Mobile.md` → M4-a/b "SEO 3-6 ayda birikir" gerekçesi,
+aynı mantık nudge'a da uygulanıyor).
+
+**Kalıcı süreç kuralı:** her mobil özellik eklendiğinde aynı turda web
+nudge karşılığı değerlendirilir. Bu, otomatik "her mobil PR'a nudge ekle"
+demek değil — bazı özellikler (ör. push token kaydı) kullanıcıya görünür bir
+web karşılığı gerektirmez. Değerlendirme = "web'deki kullanıcı bu özelliği
+bilse davranışı değişir mi" sorusuna evetse nudge eklenir.
+
+---
+
 ## Mobil v1 kapsam kararı — checkout YOK
 
 **Mobil v1'de ödeme ekranı bulunmayacak.** Akış "Talep Et" / teklif oluşturmada biter, ödeme web'e devredilir.
@@ -589,9 +642,61 @@ sebebi tam olarak bu). `tsc --noEmit` `hasat-mobile` + `hasat-core`'da
 temiz. Native UI davranışı (picker/modal/Linking) bu oturumda
 doğrulanamadı (kural #103) — QA senaryosu: `Build/E2E-QA.md` → S28.
 
-### M7 — Mobilde marketplace köprüsü + store varlıkları
-- Keşfet, ürün detayı, Talep Et, Siparişlerim (**checkout yok**)
-- **Store varlıkları burada hazırlanır** (M8'den öne çekildi — hiçbiri hesap gerektirmiyor): gizlilik metni, **uygulama içi hesap silme** (Apple zorunlu), ekran görüntüleri, review notları
+### M7-a — Mobilde teklif oluşturma + web/mobil tutarlılığı — 🟡 **UYGULANDI (2026-08-04, Claude Code doğrudan), simülatör/cihaz QA bekliyor**
+
+M7'nin eski tanımı ("Keşfet, ürün detayı, Talep Et, Siparişlerim") M7-a/M7-b'ye
+bölündü — bkz. "Stratejik karar" bölümü yukarıda. M7-a kapsamı: **ürün/parti
+detay ekranı + teklif oluşturma**, Keşfet ve Siparişlerim değil.
+
+**1. `rpc_create_offer` (mimari, önce yapıldı):** Çoklu-parti teklif
+orkestrasyonu (offers + offer_items INSERT, en az 1 item invariant'ı) tek
+transaction'a taşındı. `SECURITY INVOKER` yeterli bulundu (kontrol edildi,
+DEFINER gerekmedi). Mevcut trigger'lar (`enforce_offer_stock`,
+`enforce_offer_transitions`, `notify_offer_received`) bozulmadan üstünde
+çalışıyor — detay: `Shared-Architecture.md` → "`rpc_create_offer`".
+
+**2. Web geçişi (ayrı, revert edilebilir commit):** `insertOfferWithItems`
+(`hasat-d2c-marketplace/src/lib/hasat/queries.ts`) artık RPC'yi çağırıyor,
+public arayüz değişmedi. Geçiş sonrası doğrulama SQL seviyesinde kanıtlandı
+(gerçek insert, stok düşümü, `notify_offer_received` zinciri) — canlı
+tarayıcı click-through'u bu oturumun ağ politikası engellediği için
+yapılamadı (kural #103, aynı kısıt P24/M4-a/M5-a'da da yaşanmıştı).
+
+**3. Mobilde teklif oluşturma:**
+- `src/lib/hasat/offers.ts` (yeni) — `useFarmerCropListings`/`useListingStock`
+  web'in aynı adlı hook'larının portu, `useCreateOffer` doğrudan
+  `rpc_create_offer`'ı çağırıyor.
+- `app/product/[farmerId]/[crop].tsx` (yeni) — çoklu-parti miktar seçimi
+  (stok'a clamp), teslimat (Kargo / Aynı Gün Kurye / Üreticiden Teslim —
+  web'in `DeliveryFields`'ıyla aynı 3 seçenek), teslim tarihi (preset
+  chip'ler — native date picker paketi eklenmedi, yeni native modül yeni EAS
+  build gerektirirdi, kota 15/ay 4 kullanıldı), not. Her partide min_order
+  altı miktar önden anlaşılır uyarı gösterip submit'i kilitliyor.
+- `app/offer/confirm.tsx` (yeni) — onay ekranı, "çiftçi yanıtladığında
+  bildirim alacaksın". Sipariş takip ekranı bu turda YOK (Berkin kararı),
+  canlı durum göstermiyor.
+- `app/recipe/[slug].tsx` — "Sipariş Ver" artık `Linking.openURL` ile web'e
+  değil, native `/product/[farmerId]/[crop]`'a yönlendiriyor (M6-ek'te
+  web'e dışarı link veriyordu).
+- Ödeme ekranı YOK — teklif oluşturmak ödeme değil, Guideline 2.1 riski yok.
+
+**Kapsam dışı (bilinçli):** ödeme ekranı, pazarlık yanıtı, sipariş takibi,
+Keşfet/genel ürün tarama, `src/lib/core/` dokunulmadı.
+
+**Doğrulama (kural #96):** `rpc_create_offer` gerçek SQL/RLS simülasyonuyla
+(tek parti, çoklu parti, min_order altı reddi, stok aşımı reddi, anon reddi,
+gerçek bildirim+SMS-kuyruk zinciri, ROLLBACK ile gerçek SMS engellendi) —
+detay `Shared-Architecture.md`. `tsc --noEmit` web + mobil + `hasat-core`'da
+(dokunulmadı, baseline doğrulandı) temiz. **Native UI davranışı (routing,
+miktar clamp, teslimat seçimi, sticky footer) bu oturumda simülatörde
+doğrulanamadı** (kural #103) — QA senaryosu: `Build/E2E-QA.md` → S29.
+
+### M7-b — Store varlıkları + Keşfet/Siparişlerim (M7'nin geri kalanı)
+- Keşfet (genel ürün tarama), Siparişlerim (sipariş takibi — M9'a not edilen
+  "web'de devam et" yönlendirmesiyle birlikte)
+- **Store varlıkları** (M8'den öne çekildi — hiçbiri hesap gerektirmiyor):
+  gizlilik metni, **uygulama içi hesap silme** (Apple zorunlu), ekran
+  görüntüleri, review notları
 - **Çıkış:** Hesap geldiğinde submit tek günlük iş olacak durumda
 
 ### M8 — Store submit
@@ -599,7 +704,9 @@ doğrulanamadı (kural #103) — QA senaryosu: `Build/E2E-QA.md` → S28.
 - **Çıkış:** iOS + Android canlı
 
 ### M9 — Sıraya alındı (silinmedi)
-YouTube/link import (hukuki kontrol şartıyla) · yemek fotoğrafından tahmin · HoReCa porsiyon maliyeti hesaplayıcı · abonelik köprüsü (`harvest_subscriptions` × tarif) · bildirim event map konsolidasyonu · organizasyon hesabına geçiş
+YouTube/link import (hukuki kontrol şartıyla) · yemek fotoğrafından tahmin · HoReCa porsiyon maliyeti hesaplayıcı · abonelik köprüsü (`harvest_subscriptions` × tarif) · bildirim event map konsolidasyonu · organizasyon hesabına geçiş · **web Defterim** (kişisel tarif içe aktarma web'de yok, mobil-only kalıyor) · **sipariş takibi web köprüsü** (P23-M7-a'da not edildi — mobilde sipariş takip ekranı yok, ilgili yerlerde "web'de devam et" yönlendirmesi)
+
+**M8 sonrası:** pazarlık yanıtı (karşı teklife cevap) — P23-M7-a'da mobilde teklif OLUŞTURMA native oldu ama çiftçi karşı teklif verirse alıcı hâlâ web'e yönlendiriliyor (kopma noktası bir adım sonraya kaydı, tamamen kaybolmadı).
 
 ---
 

@@ -111,6 +111,7 @@ Tarif katmanı bu testi geçmek için **doğal ve güçlü** özellikler getiriy
 | AI import — **kamera/galeri** (yazılı tarif fotoğrafı) | ✅ M6 | 🔴 Hayır — `expo-image-picker` simülatörde gerçek fotoğraf üretmiyor |
 | Push token kaydı + `device_tokens` devri | ✅ M6 (`rpc_register_device_token`) | ✅ DB tarafı gerçek SQL ile · 🔴 gerçek token/teslimat hayır (kredansiyel + cihaz yok) |
 | Push **teslimatı** (Android FCM / iOS APNs) | 🔴 Kredansiyel yok | 🔴 Hayır |
+| Teklif oluşturma (`rpc_create_offer` — çoklu-parti, ürün/parti detay ekranı) | ✅ P23-M7-a | ✅ RPC gerçek SQL/RLS simülasyonuyla · 🟡 Ekrandaki akış (routing, miktar clamp, teslimat seçimi) cihazda koşulmadı |
 
 **Kredansiyel engelleri (kod değil, hesap işi):**
 - **Android:** FCM V1 servis hesabı anahtarı + `google-services.json` — Firebase
@@ -137,9 +138,36 @@ Tarif katmanı bu testi geçmek için **doğal ve güçlü** özellikler getiriy
    çevriliyor, kullanıcı kaydetmeden önce her alanı düzeltebiliyor.
 5. **Push notifications** — sipariş/talep/sezon bildirimleri.
 6. **Bu uygulamada ödeme/checkout ekranı yoktur** (Guideline 2.1 + IAP
-   tartışmasını baştan kapatan not) — akış "Talep Et"te bitiyor.
+   tartışmasını baştan kapatan not) — akış "Talep Et" veya teklif
+   oluşturmada bitiyor (P23-M7-a'dan sonra ikisi de native).
 7. **Test hesabı** (telefon + OTP) ve mobil test girişinin gerçek SMS ile
    yapıldığı notu.
+8. **Native offer creation** (P23-M7-a) — reviewer'ın "Sipariş Ver"e basıp
+   Safari'ye atılmadığı, teklifin uygulama içinde (çoklu-parti, teslimat
+   seçimi, teslim tarihi dahil) oluşturulduğu not — bu doğrudan 4.2
+   savunmasının bir parçası (aşağıdaki "Web/mobil özellik ayrımı"na bkz.).
+
+### Web/mobil özellik ayrımı — App Review notlarına girecek çerçeve (P23-M7-a)
+
+4.2 savunmasının özeti App Review notlarına şu formda girecek: **"web
+[X]'i listeliyor, [Y] yalnızca uygulamada çalışıyor."** Örnekler:
+
+- Web tarifleri ve malzeme eşleşmesini listeliyor (SSR, SEO için); **çalışan
+  timer ve ekranı uyanık tutan pişirme modu yalnızca uygulamada.**
+- Web teklif oluşturmayı da destekliyor (aynı `rpc_create_offer`, kural
+  #106); **ama teklif oluşturma artık mobilde de native** — reviewer 4.2
+  testinde (uçak modu + "Sipariş Ver" akışı) bir web sayfasına
+  düşürülmüyor, IAP'a da düşürülmüyor (3.1.3(e), Bölüm 4).
+- Web'de pazarlığın devamı (karşı teklife cevap) ve sipariş takibi var;
+  bunlar mobilde bu turda YOK, ilgili yerlerde "web'de devam et"
+  yönlendirmesi olacak — **ama bu yönlendirmeler yalnızca satın alma
+  SONRASI noktalarda** (bir teklif zaten oluşturulduktan sonra, çiftçi
+  karşı teklif verdiğinde veya sipariş takibinde). Teklifin kendisini
+  oluşturmak (huninin "satın alma" adımı) hiçbir zaman web'e düşmüyor —
+  4.2 riski tam olarak bu adımda ("Sipariş Ver"e basınca Safari'ye
+  atılmak) yoğunlaşırdı, P23-M7-a bunu kapattı. Uygulamanın kendi değeri
+  (tarif + pişirme + teklif oluşturma) her zaman baskın kalıyor, web
+  yönlendirmeleri asla ana huniyi kesmiyor.
 
 **Submit sırasında:** App Review notlarına bu native özellikleri **açıkça listele.** 4.2 itirazlarında fark yaratıyor.
 
@@ -159,6 +187,27 @@ Yan fayda: ödeme altyapısı (P17-A/iyzico, şirkete bağlı) gecikirse **uygul
 |---|---|---|
 | Fiziksel ürün (tarım ürünü) | Hayır — fiziksel mal muaf | Zaten mobil v1'de ödeme yok |
 | Premium abonelik (dijital hizmet) | Evet — %15–30 kesinti | **Mobil v1'de premium SATILMAYACAK**, sadece web'de |
+
+### 3.1.3(e) — fiziksel mal kuralı (P23-M7-a'da netleştirildi, 2026-08-04)
+
+Apple Guideline 3.1.3(e) "Physical Goods and Services": kargoyla/elden teslim
+edilen fiziksel bir malın (bu durumda: tarım ürünü) satışında **IAP
+kullanmak yasaktır**, ödeme uygulama dışına (dış ödeme yöntemi, banka
+transferi, iyzico vb.) çıkarılmak **zorundadır**. Bu, dijital içerik satan
+uygulamalara uygulanan "anti-steering" kısıtının (3.1.3, kullanıcıyı uygulama
+dışı ödemeye yönlendiren bir link/buton bile koyamama) **tam tersi** —
+3.1.3(e) kapsamındaki uygulamalar için Apple dış ödemeye **yönlendirmeyi
+serbest bırakıyor**, hatta pratikte bunu bekliyor.
+
+**Hasat'a etkisi:** P23-M7-a'da mobile eklenen teklif oluşturma akışı bu
+yüzden Guideline 2.1/3.1.3 riski taşımıyor — teklif oluşturmanın kendisi bir
+ödeme değil (mobil v1'de checkout hâlâ yok, bkz. Bölüm 3), ama ileride
+gerçek ödeme (P17-A/iyzico) mobile eklenirse bile bu IAP tartışmasını hiç
+açmayacak: tarım ürünü fiziksel mal olduğu için IAP zaten muaf, dış ödemeye
+(iyzico) yönlendirmek Apple'ın kendi kuralına uygun. Karıştırılmaması gereken
+nokta: bu muafiyet yalnızca **fiziksel mal** (üretici→alıcı tarım ürünü)
+içindir — premium abonelik (dijital hizmet) hâlâ IAP'a tabi, tablodaki karar
+değişmedi.
 
 ---
 
