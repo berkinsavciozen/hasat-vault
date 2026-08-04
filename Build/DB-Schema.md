@@ -1483,3 +1483,80 @@ eklenmedi, mevcut kod tabanının onlarca RPC çağrısında zaten kullandığı
 `(supabase as any).rpc(...)` deseni izlendi; `unit_type` enum'u; editoryal
 18 tarifin `crop` bağlantıları; `offers`/`offer_items` RLS politikaları
 (mevcutlar zaten yeterliydi, değiştirilmedi).
+
+---
+
+## P26 — `rpc_delete_own_account` (2026-08-04)
+
+Uygulama içi hesap silme (Apple 5.1.1(v)). Tam gerekçe/doğrulama:
+`TODO.md` → "P26". Burada yalnızca şema/mimari referansı.
+
+### ⚠️ Ön koşul bulgusu — `profiles.id`'nin `auth.users`'a FK'si yok
+
+`pg_constraint` taraması: `public.profiles`'ta yalnızca `PRIMARY KEY (id)`
+var, `auth.users(id)`'e referans **yok** (Supabase'in standart
+`references auth.users on delete cascade` konvansiyonu bu projede hiç
+kurulmamış). Bağlantı tek yönlü ve INSERT'e özel: `on_auth_user_created`
+trigger'ı (`handle_new_user()`, `auth.users` AFTER INSERT). Gerçek FK
+grafiği:
+
+- **`profiles(id)`'e CASCADE:** `offers`, `orders`, `reviews`, `listings`,
+  `harvest_entries`, `parcels`, `farms`, `certifications`,
+  `community_posts`, `harvest_subscriptions`, `buyer_profiles`,
+  `recipe_saves`, `recipes.owner_id`, `device_tokens`, `notifications`,
+  `notif_prefs`, `crop_type_requests`, `disputes`,
+  `farmer_journal_prefs`, `journal_entry_types`,
+  `referral_qualifications` (`profiles.referred_by` kendi kendine FK,
+  `NO ACTION`).
+- **Doğrudan `auth.users(id)`'e CASCADE (profiles'tan bağımsız):**
+  `buyer_addresses.buyer_id`, `offer_messages.sender_id`,
+  `ai_usage_tracking.user_id`, `ai_chat_messages.user_id`,
+  `mcp_tool_calls.user_id`.
+
+Bu ayrım kritik: `auth.users`'ı hard-delete etmek ikinci gruptaki
+tabloları (özellikle `offer_messages` — anonimleştirilmesi gereken bir
+tablo) sessizce ve tamamen siler. Bkz. `TODO.md` kural #116.
+
+### Fonksiyon
+
+```sql
+rpc_delete_own_account() returns void
+security definer, set search_path = public
+grant: authenticated (anon'a `revoke execute` ile kapatıldı —
+       bu projede yeni fonksiyonlara varsayılan anon-EXECUTE grant'i
+       düşüyor, kural #110'un fonksiyon karşılığı)
+```
+
+Parametre yok, `auth.uid()` kullanır. Adımlar:
+
+1. `profiles.role = 'farmer'` ise: `listings.status='active'` veya
+   `orders.status NOT IN ('completed','cancelled')` varsa
+   `RAISE EXCEPTION 'Önce açık ilanlarınızı ve siparişlerinizi
+   tamamlayın'` — izlenebilirlik zinciri korunuyor.
+2. Kişisel veri **silinir**: `buyer_addresses`, `buyer_profiles`,
+   `recipe_saves`, `recipes` (`owner_id` + `author_type='kullanici'`),
+   `device_tokens`, `ai_usage_tracking`, `ai_chat_messages`,
+   `mcp_tool_calls`.
+3. `profiles` **anonimleştirilir** (satır kalır): `name`→`'Silinmiş
+   Kullanıcı'`, `phone`/`city`/`iban`/`bank_account_name`→`NULL`. Satır
+   kaldığı için ona CASCADE bağlı her tablo (yukarıdaki 20 tablo) hiç
+   dokunulmadan otomatik anonim görünür.
+4. `auth.users` **silinmez**, kimliklendirici alanları scrub edilir:
+   `phone`/`email`/`encrypted_password`/tüm token alanları →
+   `NULL`/boş, `banned_until = 'infinity'`. `phone` `NULL` olduğu için
+   UNIQUE kısıtı aynı numarayla yeni bir `auth.users` satırı açılmasını
+   engellemiyor — yeniden kayıt = yeni `id`, yeni `profiles` satırı.
+
+`postgres` rolünün `auth.users` üzerinde gerçek `UPDATE` yetkisi olduğu
+(`has_table_privilege`) doğrulandı — tablo `supabase_auth_admin`
+sahipliğinde ama `postgres`'e grant verilmiş.
+
+### Doğrulama
+
+Gerçek `auth.users` insert'i (buyer + farmer, atılabilir test
+kullanıcıları) + `SET LOCAL ROLE authenticated` ile impersonation (kural
+#113 deseni): farmer + aktif ilan → reddedildi ✅; ilan silinip tekrar →
+geçti ✅; buyer + 7 tablodan birer satır + IBAN/isim → hepsi 0 satıra
+düştü, `profiles` anonimleşti, `auth.users` scrub edildi ✅; aynı
+telefonla yeni `auth.users` insert'i → UNIQUE çakışması yok ✅. Test
+verisi (3 `auth.users` + `profiles` + `notif_prefs`) temizlendi.
