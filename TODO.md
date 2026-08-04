@@ -2646,3 +2646,26 @@ taramasında yeni fonksiyonun `anon`'a açık kaldığı bulundu ve düzeltildi
 - Store-Compliance.md'deki "Uygulama içi hesap silme çalışıyor" kutucuğu
   DB/RPC seviyesinde ✅, ama submit öncesi M8 kontrol listesindeki nihai
   onay gerçek cihaz/tarayıcı testine bağlı — bkz. `Build/Store-Compliance.md`.
+
+### Açık madde (M9) — `auth.users` scrub'ını FK değişikliğiyle gereksizleştir
+
+`rpc_delete_own_account`, `auth.users`'ı silmek yerine kimliklendirici
+alanlarını scrub ediyor (bkz. `Build/DB-Schema.md` → "P26" → "Bilinçli
+kabul edilen risk"). Üç bilinçli risk var: (1) `auth.users` Supabase/GoTrue'nun
+yönettiği bir tablo, doğrudan `UPDATE` resmî desteklenen bir desen değil —
+bir Supabase güncellemesi şema/semantiği sessizce kırabilir; (2)
+`banned_until = 'infinity'` Postgres'te geçerli ama GoTrue Go tarafında
+parse ediyor, bazı zaman kütüphanelerinde taşma riski var — yalnızca yedek
+katman, asıl engel şifre/token alanlarının boş olması.
+
+**Daha temiz alternatif:** `offer_messages.sender_id` FK'sini
+`auth.users(id)` yerine `profiles(id)`'e çevirmek (ya da `ON DELETE SET
+NULL` yapmak) — böylece `auth.users` gerçekten (Supabase'in resmî
+`admin.deleteUser()` yoluyla) silinebilir, scrub hack'ine gerek kalmaz.
+**M9'a ertelendi:** canlı şemada kullanımda olan bir FK'yi lansmana ~2,5
+hafta kala (25 Ağustos hedefi) değiştirmek `offer_messages` RLS
+politikalarının ve olası uygulama kodunun yeniden doğrulanmasını
+gerektirir — bu turun riziko/getiri dengesinde değildi. Şimdiki scrub
+çözümü işlevsel olarak doğru ve gerçek insert/impersonation ile test
+edildi; M9'daki iş bunu kırık bir şeyi düzeltmek değil, daha sağlam bir
+temele (Supabase'in resmî silme yolu) oturtmak.

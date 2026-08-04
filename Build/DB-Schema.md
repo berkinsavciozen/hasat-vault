@@ -1551,6 +1551,46 @@ Parametre yok, `auth.uid()` kullanır. Adımlar:
 (`has_table_privilege`) doğrulandı — tablo `supabase_auth_admin`
 sahipliğinde ama `postgres`'e grant verilmiş.
 
+### ⚠️ Bilinçli kabul edilen risk — `auth.users` scrub'ı
+
+`auth.users`'ı doğrudan `UPDATE` ile scrub etmek (silmek yerine)
+çalışıyor ve doğrulandı, ama üç açık riski var — kayıt altına alınıyor,
+kapatılmıyor:
+
+1. **`auth.users`, Supabase/GoTrue'nun yönettiği bir tablo — doğrudan
+   `UPDATE` resmî desteklenen bir desen değil.** `postgres` rolünün bu
+   tabloda gerçek `UPDATE` yetkisi olduğu doğrulandı (bkz. yukarı), ama bu
+   bir Supabase API garantisi değil, bu projenin mevcut rol
+   yapılandırmasının bir gözlemi. Supabase bir migration'da şemayı
+   (kolon adları/tipleri) veya bu alanların semantiğini değiştirirse,
+   `rpc_delete_own_account`'ın scrub bloğu **sessizce** bozulabilir —
+   fonksiyon hata vermeden çalışmaya devam edip artık doğru alanları
+   temizlemiyor olabilir. Her Supabase platform güncellemesinden sonra bu
+   fonksiyonun gerçek bir silme testiyle yeniden doğrulanması gerekir,
+   "bir kere doğrulandı, hep doğru kalır" varsayılmamalı (kural #101'in
+   aynı dersi).
+2. **`banned_until = 'infinity'`** Postgres `timestamptz` için geçerli bir
+   değer, ama GoTrue bunu Go tarafında okuyup parse ediyor — bazı Go zaman
+   kütüphaneleri `infinity`'i düzgün işlemeyip taşma/hata üretebilir. Bu
+   satır **yalnızca yedek bir katman**: asıl giriş engeli
+   `encrypted_password`/tüm token alanlarının boşaltılmış olması — şifre
+   yoksa, token yoksa, `banned_until` ne olursa olsun giriş zaten
+   imkânsız. `banned_until` bu yüzden "olursa iyi olur" savunması,
+   mekanizmanın tek bacağı değil.
+3. **Daha temiz bir alternatif var ama bu turda uygulanmadı:**
+   `offer_messages.sender_id` FK'sini `auth.users(id)` yerine
+   `profiles(id)`'e çevirmek (ya da `ON DELETE SET NULL` yapmak) —
+   böylece `auth.users` normal `supabase.auth.admin.deleteUser()` yoluyla
+   gerçekten silinebilir, scrub hack'ine hiç gerek kalmaz. **M9'a
+   ertelendi** (bkz. `TODO.md` → "SEZONLUK ÜRÜN YÖNETİMİ / SONRAKI
+   FAZLAR" altı, yeni madde): canlı şemada kullanımda olan bir FK'yi
+   lansıma ~2,5 hafta kala (25 Ağustos hedefi) değiştirmek —
+   `offer_messages` RLS politikalarının ve olası uygulama kodunun yeniden
+   doğrulanmasını gerektirir — bu turun riziko/getiri dengesinde değildi.
+   Şimdiki scrub çözümü işlevsel olarak doğru ve test edildi; M9'daki iş
+   bunu **daha sağlam** (Supabase'in resmî silme yoluna dayanan) bir
+   temele oturtmak, kırık bir şeyi düzeltmek değil.
+
 ### Doğrulama
 
 Gerçek `auth.users` insert'i (buyer + farmer, atılabilir test
