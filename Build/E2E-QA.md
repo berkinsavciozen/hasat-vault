@@ -813,6 +813,70 @@ detay ve tam tablo: `TODO.md` → "P23-M6" madde 5.
 
 ---
 
+### S28 — P23-M6-ek: AI Import Crop Eşleştirmesi · İsim Alanı · Manuel Eşleştirme · Malzeme Kartı Aksiyonları
+
+**Arka plan:** `Build/P23-Mobile.md` → "P23-M6-ek", `Build/DB-Schema.md` →
+"P23-M6-ek", `TODO.md` → "P23-M6-ek" build log. Berkin'in 2026-08-04
+canlı testinde bulundu: AI import çalıştı ama 12 malzemenin 0'ı `crop`'a
+bağlanmıyordu — tarif katmanı marketplace'e hiç ticari sinyal üretmiyordu.
+
+**Merge listesi**
+| Repo | İçerik |
+|---|---|
+| `hasat-core` | `core/db/types.ts` (yeniden üretildi: `recipe_ingredients.ingredient_class`, `crop_requests.ingredient_class`, `fn_match_culinary_crop`), `core/.manifest` |
+| `hasat-mobile` | Yeni `src/components/hasat/CropPickerModal.tsx`, `src/components/hasat/CropRequestSheet.tsx`, `src/lib/hasat/cropRequests.ts`, `src/lib/hasat/webLinks.ts`; değişen `app/import.tsx`, `src/lib/hasat/import.ts`, `src/lib/hasat/types.ts`, `src/lib/hasat/recipes.ts`, `src/lib/offline/recipeCache.ts`, `app/recipe/[slug].tsx` |
+| `hasat-vault` | Bu doküman + `TODO.md` + `Build/P23-Mobile.md` + `Build/DB-Schema.md` |
+| `hasat-d2c-marketplace` | **Değişiklik yok** — `extract-recipe` bu repoda hiç yaşamıyor (bkz. `Build/DB-Schema.md` → "P23-M6-ek" notu), Supabase MCP ile doğrudan deploy edildi |
+| Supabase | `p23_m6ek_ingredient_crop_matching` migration'ı + `extract-recipe` v4 **zaten uygulandı/deploy edildi** (canlı) — merge gerektirmiyor, bilgi amaçlı |
+
+> **Merge sırası önemli:** önce `hasat-core` → sync PR'ları `hasat-mobile`
+> ve web'e insin → sonra `hasat-mobile` (aksi halde drift "sürüm-gerisi"
+> kontrolü hedefleri bayat görür, bkz. `Shared-Architecture.md`).
+
+**Test adımları (kural #104 — kullanıcı-akışı dilinde):**
+
+| # | Adım | Beklenen |
+|---|---|---|
+| 1 | Yeni bir simülatör build'i al (bu turda `app/import.tsx`, `app/recipe/[slug].tsx` değişti — S27'nin build'i eski ekranları taşıyor), Appetize'a yükle | Uygulama normal açılıyor |
+| 2 | "+ Tarif Ekle" → **"Tarifin adı (opsiyonel)"** alanına bir isim yaz (örn. "Karnıyarık") → "✍️ Metin Yapıştır" ile yazılı bir tarif metni yapıştır (malzemelerinde domates/patlıcan/biber gibi mainstream ürünler olsun) → "Tarifi Çıkar" | Çıkarım normal tamamlanıyor, "Kontrol Et" ekranı açılıyor |
+| 3 | Malzeme listesine bak | Eşleşen malzemelerin yanında (domates/patlıcan/biber gibi) turuncu bir **"🌾 <ürün>"** rozeti önseçili görünüyor; eşleşmeyenlerde "Ürün eşleştir" rozeti var |
+| 4 | Eşleşmeyen bir malzemede (örn. "soğan" — alias'ı henüz boş) rozete dokun | Ürün seçici açılıyor, arama kutusu var, `crop_config`'ten gelen liste görünüyor (pamuk/tütün/şeker_pancarı/safran_soğanı **listede YOK**) |
+| 5 | Listeden bir ürün seç | Seçici kapanıyor, malzeme satırında artık o ürünün rozeti var |
+| 6 | Otomatik eşleşen bir malzemenin (örn. domates) rozetine dokun → "Eşleşmeyi kaldır" | Rozet "Ürün eşleştir"e dönüyor |
+| 7 | Her malzemenin altındaki **"Tarımsal / Market malzemesi"** ikili anahtarına bak (örn. tuz'da) | AI'ın tahmini önseçili; gerekirse dokunup değiştirebiliyorsun |
+| 8 | Yalnızca malzeme listesi olan, "Yapılışı" bölümü olmayan bir metin yapıştırıp çıkar | **"Adımlar okunamadı, elle ekleyebilirsin"** açıklaması + "+ Ekle" ile kendi adımlarını yazabiliyorsun — uygulama adım uydurmuyor |
+| 9 | "Kaydet" → tekrar aynı tarifi aç (Defterim'den) | Adım 5-6'daki manuel değişiklikler (eklenen/kaldırılan eşleşme) **kalıcı** — tekrar otomatik eşleşmeye geri dönmüyor |
+| 10 | Kaydedilen tarifi aç, malzeme listesine bak | Eşleşen + aktif ilanı olan bir malzemede **"Sipariş Ver →"** butonu; eşleşen ama ilanı olmayan / eşleşmeyen tarımsal / platform-dışı (tuz gibi) malzemelerde **"Talep Et →"** butonu — dördü de "Hasat'ta henüz yok" rozetiyle birlikte |
+| 11 | "Sipariş Ver →"e dokun | Cihazın tarayıcısı açılıp `hasat.lovable.app/buyer/product/...` adresine gidiyor (mobilde checkout yok, web'e yönleniyor) |
+| 12 | Eşleşmeyen bir malzemede "Talep Et →"e dokun | Alt sayfa açılıyor: eşleşen crop'ta ürün adı **kilitli** gösteriliyor, eşleşmeyende serbest metin düzenlenebiliyor; miktar/birim önerisi dolu geliyor |
+| 13 | Talep formunu gönder | "✅ Talebiniz alındı…" onayı; kısa süre sonra kapanıyor |
+| 14 | Platform-dışı bir malzemede (tuz gibi) de "Talep Et"i dene | Aynı akış çalışıyor — platform-dışı malzemede de buton var (Berkin kararı, pivot sinyali) |
+| 15 | Wi-Fi kapalıyken kaydedilmiş bir tarifi aç | Malzeme kartlarında "Çevrimdışı — fiyat ve stok bilgisi gösterilmiyor" — Sipariş Ver/Talep Et butonları görünmüyor (ağ gerektiren aksiyon) |
+
+**Beklenen sonuç: 15/15.**
+
+**Bu S28'in tamamı Claude Code tarafından doğrulanamadı** (kural #103 —
+oturumda simülatör/cihaz yok, native ekranlar/`Linking.openURL`/modal
+davranışı gözle test edilemedi). Sunucu tarafı gerçekten ve kapsamlı
+doğrulandı — `TODO.md` → "P23-M6-ek" madde 5:
+- `fn_match_culinary_crop` 11 test cümlesiyle gerçek SQL'de (kısmi/çoklu
+  eşleşme, yenilemez crop, boş/null girdi dahil)
+- Berkin'in canlı "Karnıyarık" tarifi geriye dönük eşleştirildi: 12
+  malzemenin **3'ü** bağlandı (domates, biber, patlıcan), editoryal 18
+  tarife dokunulmadı
+- `extract-recipe` gerçek bir kullanıcı JWT'siyle `pg_net` üzerinden iki
+  kez çağrıldı: (1) isim ipucuyla + kaynakta adım YOKKEN → `step_count=0`
+  (uydurmadı), `crop_linked_count=3`, malzeme sınıflandırması geldi
+  (**gerçek bir AI yanlış sınıflandırması gözlemlendi:** "tuz"
+  `is_agricultural:true` döndü — tam da önizleme ekranındaki düzeltme
+  anahtarının var olma sebebi, ayrıntı `TODO.md`'de); (2) sunucu tarafı
+  zorlama testi — client kasten `visibility:'public'`/`author_type:'hasat'`/
+  başka `owner_id` gönderdi, kayıt yine `private`/`kullanici`/gerçek JWT
+  sahibi olarak yazıldı
+- `tsc --noEmit` hem `hasat-mobile` hem `hasat-core`'da temiz
+
+---
+
 ## Feature Sonrası Süreç
 
 1. Yeni prompt tamamlanınca yeni S-numarası eklenir
@@ -851,3 +915,4 @@ detay ve tam tablo: `TODO.md` → "P23-M6" madde 5.
 - **2026-08-03:** **S26 eklendi (P23-M5-b tarif ekranları + `expo-sqlite` offline önbellek).** Yeni bir simülatör build'i gerektiriyor (S25'in build'i eski yer tutucu ekranı taşıyor). RPC/veri doğruluğu Supabase MCP ile SQL üzerinden doğrudan doğrulandı (`TODO.md` → "P23-M5-b" madde 6); ekranda render, gerçek ağ `recipe_views` yazımı ve sqlite'ın çalışma zamanı davranışı bu oturumda test edilemedi (simülatör/cihaz yok) — Berkin'in QA'sına kaldı. Kural #107 gereği iki madde (mobil test giriş yolu, çiftçi girişi) yalnızca araştırılıp sunuldu, karar verilmedi.
 - **2026-08-03:** **S26'ya adım 11 eklendi (P23-M5-b-ek — bulk detay prefetch + uçak modu).** Liste ağdan çekilince artık 18 tarifin tamamının detayı arka planda önbelleklendiği için, yeni adım özellikle **daha önce hiç açılmamış bir tarife** uçak modundayken dokunmayı test ediyor (eski adım 9-10 yalnızca Wi-Fi kapatmayı test ediyordu, bu da hâlâ gerçek uçak modu değil — bkz. adım 11'in üstündeki not). Berkin kararı gereği (madde 4/5, `TODO.md` → "P23-M5-b-ek") test girişi gerçek SMS ile, çiftçi rolüyle de tüm ekranlar erişilebilir kaldığı için bu S26 senaryosu değişmedi.
 - **2026-08-03:** **S27 eklendi (P23-M6 native yetenekler — pişirme modu, AI import, push).** İlk adım yeni bir simulator build alıp Appetize'a yüklemek (S26'nın build'inde bu turun kodu ve dört yeni native modül yok). Sunucu tarafı bu turda gerçekten doğrulandı: `device_tokens` UNIQUE(token) devri gerçek insert/update ile (önce arıza birebir üretildi: client'ın düz upsert'ü RLS USING'e takılıp `42501` veriyor), `extract-recipe` gerçek bir kullanıcı JWT'siyle `pg_net` üzerinden çağrıldı ve kaydın `visibility='private'`/`author_type='kullanici'` olduğu, client'ın gönderdiği `public` değerinin yok sayıldığı, kota aşımında 429 döndüğü kanıtlandı; test verisi temizlendi. Kamera, push teslimatı ve gerçek uçak modu ayrı bir tabloda "simülatörde test edilemez" olarak tutuluyor — S27'nin 26 adımına dahil değil.
+- **2026-08-04:** **S28 eklendi (P23-M6-ek — AI import crop eşleştirmesi, isim alanı, manuel eşleştirme, dört-durumlu malzeme kartı).** Berkin'in canlı testinde bulundu: import edilen tarifte 12 malzemenin 0'ı `crop`'a bağlanıyordu. Deterministik (fuzzy değil, birebir alias lookup) bir DB fonksiyonu + `recipe_ingredients` üzerinde BEFORE INSERT trigger eklendi; gerçek SQL ile 11 test cümlesi (kısmi/çoklu eşleşme, yenilemez crop, boş girdi) doğrulandı; Berkin'in canlı tarifi geriye dönük eşleştirildi (12'nin 3'ü bağlandı), editoryal 18 tarife dokunulmadı. Önizleme ekranına manuel crop seçici + tarımsal/platform-dışı sınıflandırma anahtarı eklendi. Malzeme kartı dört duruma çıkarıldı (Sipariş Ver dış link · üç ayrı Talep Et durumu), yeni bir native "Talep Et" formu (web'in `useCreateCropRequest`'inin birebir portu) eklendi. `extract-recipe` gerçek bir kullanıcı JWT'siyle iki kez çağrıldı: isim ipucuyla adım uydurmadığı (`step_count=0` kaynakta adım yokken) ve sunucu tarafı zorlamanın (visibility/author_type/owner_id) hâlâ çalıştığı kanıtlandı; bir gerçek AI sınıflandırma hatası da gözlemlendi ("tuz" yanlışlıkla tarımsal döndü — önizleme düzeltmesinin tam olarak var olma sebebi). `tsc --noEmit` hem `hasat-mobile` hem `hasat-core`'da temiz.

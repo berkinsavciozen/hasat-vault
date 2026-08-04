@@ -527,6 +527,68 @@ titreşim + "⏰ Süre doldu" uyarısı gösteriyor).
 bildirim de yok — şartnamedeki gibi "Tahmini süre: 3 gün" açıklamasına
 dönülüyor.
 
+### M6-ek — AI Import Crop Eşleştirmesi · İsim Alanı · Manuel Eşleştirme · Malzeme Kartı Aksiyonları — ✅ **TAMAMLANDI (2026-08-04)**
+
+Berkin'in canlı testinden (2026-08-04) doğan takip turu. M6'nın AI import
+akışı çalışıyordu ama malzemeler hiçbir zaman `crop`'a bağlanmıyordu —
+tarif katmanının marketplace'e kullanıcı çekme amacı (bkz. "Stratejik
+çerçeve") sessizce çalışmıyordu. Tam SQL/kod detayı: `Build/DB-Schema.md`
+→ "P23-M6-ek", `TODO.md` → "P23-M6-ek" build log.
+
+**Import akışı (`app/import.tsx`) — üç ekleme:**
+1. **Tarifin adı (opsiyonel).** Kaynak seçim ekranına eklendi. Kesin
+   sınır: yalnızca `extract-recipe`'in OCR/çıkarımını yönlendirmek için
+   gönderiliyor — sunucu tarafında da (`SYSTEM_PROMPT`) bu isimden
+   malzeme/adım uydurulması yasaklandı. Kaynakta adım yoksa
+   `recipe_steps` boş kalır, "Adımlar okunamadı, elle ekleyebilirsin"
+   mesajı gösterilir (düzenleme ekranı zaten mevcuttu).
+2. **Manuel crop eşleştirme.** "Kontrol Et" ekranındaki her malzeme
+   satırına bir ürün seçici (`CropPickerModal`) eklendi — `crop_config`'ten
+   besleniyor, `is_edible=false` crop'lar (pamuk/tütün/şeker_pancarı/
+   safran_soğanı) hiç listelenmiyor. Otomatik eşleşen crop önseçili,
+   kullanıcı değiştirebilir/kaldırabilir; seçim `recipe_ingredients.crop`'a
+   yazılır.
+3. **Tarımsal/platform-dışı sınıflandırma anahtarı.** `extract-recipe`'in
+   her malzeme için ürettiği olgusal tahmin (`ingredient_class`)
+   önizlemede gösterilir, kullanıcı düzeltebilir.
+
+**Crop eşleştirmesi artık DB'de deterministik olarak çalışıyor.** Yeni
+`fn_match_culinary_crop()` fonksiyonu + `recipe_ingredients` üzerinde
+`BEFORE INSERT` trigger'ı, `crop_culinary_meta.culinary_aliases`'e karşı
+**birebir** (fuzzy değil) eşleşme deniyor — M2'nin "runtime fuzzy
+matching yasak" kararıyla çelişmiyor, sadece editoryal-tek-seferlik
+varsayımının import'ta hiç geçerli olmadığını kapatıyor. Berkin'in canlı
+"Karnıyarık" tarifi (12 malzeme) geriye dönük eşleştirildi: **3/12**
+bağlandı (domates, biber, patlıcan); kalan 56 crop'un alias eksikliği
+M9'a kalıyor, ama artık kullanıcının manuel eşleştirmesinden gerçek
+kullanım verisi birikiyor (`Build/DB-Schema.md`'de sorgu hazır).
+
+**Malzeme kartı (`app/recipe/[slug].tsx`) — iki durumdan dörde çıktı:**
+1. Eşleşti + aktif ilan var → **Sipariş Ver** (web'in mevcut ürün
+   sayfasına `Linking.openURL` ile dışarı link — mobilde checkout yok,
+   marketplace köprüsünün tamamı hâlâ M7, bu turda native bir ekran
+   kurulmadı, yalnızca doğru yere link verildi)
+2. Eşleşti + aktif ilan yok → **Talep Et** (ürün adı kilitli)
+3. Tarımsal ama eşleşmedi → **Talep Et** (serbest metin)
+4. Platform-dışı → **Talep Et de var** (Berkin kararı — "gerekirse ufak
+   pivotlar yaparız, data çok önemli erken aşamada"; sinyal karışmasın
+   diye yeni `ingredient_class` kolonu — hem `recipe_ingredients`'ta hem
+   `crop_requests`'te — talep kaydedilirken sınıfı da taşıyor)
+
+Mobilde daha önce hiç var olmayan bir "Talep Et" yazma yolu
+(`useCreateCropRequest`, `src/lib/hasat/cropRequests.ts`) eklendi — web'in
+aynı adı taşıyan hook'unun birebir portu (aynı çiftçi eşleştirme + SMS
+akışı, yeni bir mimari icat edilmedi).
+
+**Doğrulama (kural #96):** `fn_match_culinary_crop` 11 test cümlesiyle
+gerçek SQL'de doğrulandı; `extract-recipe` gerçek bir kullanıcı JWT'siyle
+çağrıldı (isim ipucuyla adım uydurmadığı ve sunucu tarafı zorlamanın hâlâ
+çalıştığı kanıtlandı — bir gerçek AI sınıflandırma hatası da gözlemlendi,
+"tuz" yanlışlıkla tarımsal işaretlendi, önizleme düzeltmesinin varlık
+sebebi tam olarak bu). `tsc --noEmit` `hasat-mobile` + `hasat-core`'da
+temiz. Native UI davranışı (picker/modal/Linking) bu oturumda
+doğrulanamadı (kural #103) — QA senaryosu: `Build/E2E-QA.md` → S28.
+
 ### M7 — Mobilde marketplace köprüsü + store varlıkları
 - Keşfet, ürün detayı, Talep Et, Siparişlerim (**checkout yok**)
 - **Store varlıkları burada hazırlanır** (M8'den öne çekildi — hiçbiri hesap gerektirmiyor): gizlilik metni, **uygulama içi hesap silme** (Apple zorunlu), ekran görüntüleri, review notları

@@ -1126,3 +1126,280 @@ bir süre (saat bileşeninin 24'ü aşması standarda aykırı değil).
 - `public/robots.txt` — **dokunulmadı** (zaten doğruydu)
 - `src/routeTree.gen.ts` — **dokunulmadı** (yeni rota yok)
 - `src/lib/core/` — **dokunulmadı** (kural #105)
+
+---
+
+## P23-M6-ek — AI Import Crop Eşleştirmesi + Malzeme Sınıflandırması (2026-08-04)
+
+`Build/P23-Mobile.md` → "P23-M6-ek". Berkin'in 2026-08-04 canlı testinde
+bulundu: AI import edilen "Karnıyarık" tarifinin 12 malzemesinin **0'ı**
+`crop`'a bağlanmıyordu — "domates", "patlıcan" gibi Hasat'ta mevcut olan
+ürünler bile yalnızca `free_text_name` olarak kayıtlıydı. M2'de "fuzzy
+matching YOK, crop editoryal bağlanır" kararı editoryal korpus için
+doğruydu ama import'ta editoryal süreç hiç yoktu — bu yüzden hiçbir zaman
+bağlanmadı.
+
+### A — `fn_match_culinary_crop(p_text text) → text`
+
+**Bu fuzzy matching DEĞİL.** M2'de reddedilen şey bulanık benzerlik
+skoruydu (Levenshtein/trigram gibi); burada yalnızca
+`crop_culinary_meta.culinary_aliases`'e karşı **birebir (normalize
+edilmiş) eşitlik** aranıyor — skor yok, "en yakın" yok.
+
+```sql
+create or replace function public.fn_match_culinary_crop(p_text text)
+returns text
+language plpgsql
+stable
+set search_path = public
+as $$
+declare
+  v_norm text;
+  v_core text;
+  v_matches text[];
+begin
+  if p_text is null then return null; end if;
+  v_norm := lower(btrim(p_text));
+  if v_norm = '' then return null; end if;
+
+  -- Baştaki miktar + mutfak birimini at (ör. "2 adet kırmızı domates" -> "kırmızı domates").
+  v_norm := regexp_replace(
+    v_norm,
+    '^[0-9]+([.,][0-9]+)?\s*(çay bardağı|su bardağı|yemek kaşığı|tatlı kaşığı|çay kaşığı|bardak|adet|demet|tutam|dal|salkım|dilim|diş|paket|kutu|kg|gr|gram|g|ml|lt|litre|l)?\s*',
+    '', 'i'
+  );
+  -- Virgülden sonraki hazırlık notunu at (ör. "..., ince kıyılmış").
+  v_core := btrim(split_part(v_norm, ',', 1));
+  if v_core = '' then return null; end if;
+
+  select array_agg(distinct cc.crop) into v_matches
+  from public.crop_culinary_meta cm
+  join public.crop_config cc on cc.crop = cm.crop
+  where cm.is_edible = true
+    and exists (
+      select 1 from unnest(cm.culinary_aliases) as alias
+      where lower(btrim(alias)) = v_core
+    );
+
+  if array_length(v_matches, 1) = 1 then return v_matches[1]; end if;
+  return null; -- 0 eşleşme ya da >1 (belirsiz) -> boş bırak
+end;
+$$;
+```
+
+**Normalizasyon:** küçük harf + baş/son boşluk (Türkçe karakterler
+korunuyor, ASCII'ye katlanmıyor — `ı`≠`i`, `ş`≠`s` vb. ayrı kalıyor).
+Baştaki miktar+birim ve virgülden sonraki hazırlık notu atılıyor, kalan
+**tüm** ifade bir alias'a **tam olarak** eşit olmalı — kısmi/substring eşleşme
+YOK. Bu, görev metninin "eşleşme kısmi ise crop'u boş bırak" kuralını
+doğrudan uygular ve gerçek veride bulunan bir tuzağı (`"pul biber"` içinde
+`"biber"` kelimesinin geçmesi, `"karabiber"` içinde `"biber"` alt dizesinin
+geçmesi) hiçbir özel durum kodu yazmadan çözer — ikisi de tam ifade
+eşitliği testini geçemediği için otomatik olarak NULL kalır.
+
+**Yenilemez crop'lar** (`is_edible=false`: pamuk, tütün, şeker_pancarı,
+safran_soğanı) `cm.is_edible = true` filtresiyle aday havuzuna hiç girmiyor.
+
+### B — Trigger: `trg_recipe_ingredients_auto_match_crop`
+
+```sql
+create or replace function public.tg_recipe_ingredients_auto_match_crop()
+returns trigger language plpgsql set search_path = public as $$
+begin
+  if new.crop is null and new.free_text_name is not null then
+    new.crop := public.fn_match_culinary_crop(new.free_text_name);
+  end if;
+  return new;
+end;
+$$;
+
+create trigger trg_recipe_ingredients_auto_match_crop
+before insert on public.recipe_ingredients
+for each row execute function public.tg_recipe_ingredients_auto_match_crop();
+```
+
+**Neden trigger, RPC değil (kural #106):** eşleştirme `recipe_ingredients`
+tablosuna giren **her** INSERT'te otomatik çalışır — `extract-recipe`
+(mobil import), ileride web import'u, hatta editoryal insert (zaten
+`crop` dolu geldiği için trigger'ın `if` koşulu hiç tetiklenmiyor,
+editoryal 18 tarife dokunulmadı) dahil, hepsi aynı tek mantığı kullanır.
+Client (mobil/web) hiçbir eşleştirme kodu yazmaz — yalnızca INSERT eder,
+sonucu okur.
+
+**`extract-recipe` ile ilişkisi:** edge function hâlâ `crop: null` insert
+ediyor (kendi başına tahmin yapmıyor) — trigger, INSERT'in kendisi
+sırasında satırı deterministik olarak doldurur. Edge function'ın döndürdüğü
+`crop_linked_count` artık sabit `false`/0 değil, gerçek trigger sonucunu
+(`recipe_ingredients` üzerinde `crop is not null` sayımı) okuyor.
+
+### C — Geriye dönük eşleştirme (backfill)
+
+Trigger yalnızca yeni INSERT'lerde çalıştığı için, Berkin'in önceden
+import ettiği tarif için tek seferlik bir UPDATE gerekti:
+
+```sql
+update public.recipe_ingredients ri
+set crop = public.fn_match_culinary_crop(ri.free_text_name)
+from public.recipes r
+where r.id = ri.recipe_id
+  and r.author_type = 'kullanici'
+  and ri.crop is null
+  and ri.free_text_name is not null
+  and public.fn_match_culinary_crop(ri.free_text_name) is not null;
+```
+
+Kapsam `author_type='kullanici' AND crop IS NULL` ile sınırlı —
+editoryal (`author_type='hasat'`) satırlara hiç dokunmuyor (zaten hepsi
+`crop` dolu). **Gerçek sonuç (Berkin'in "Karnıyarık" tarifi, 12
+malzeme):** `patlıcan`, `yeşil biber`→`biber`, `domates` olmak üzere
+**3/12** bağlandı. Kalan 9 (kıyma, soğan, sıvı yağ, salça, su, tuz,
+karabiber, pul biber, "domates ve biber") bilinçli olarak boş kaldı —
+soğan/pul_biber `culinary_aliases`'i henüz boş (M9 gap), geri kalanı
+gerçekten platform-dışı/belirsiz.
+
+### D — Malzeme sınıflandırması: `ingredient_class` (2 yeni kolon)
+
+```sql
+alter table public.recipe_ingredients
+  add column if not exists ingredient_class text
+  check (ingredient_class in ('tarimsal','platform_disi'));
+
+alter table public.crop_requests
+  add column if not exists ingredient_class text
+  check (ingredient_class in ('tarimsal','platform_disi'));
+```
+
+Nullable, ekleyici — görev metninin kendi önerisi. `extract-recipe`
+her malzeme için AI'dan olgusal bir sınıflandırma (`is_agricultural`)
+istiyor, `recipe_ingredients.ingredient_class`'a yazıyor; kullanıcı
+önizleme ekranında düzeltebiliyor. "Talep Et" bir malzeme kartından
+açıldığında bu sınıf `crop_requests.ingredient_class`'a da kopyalanıyor —
+admin ısı haritasının (`v_kpi_crop_demand_heatmap`, P23-M4-b) ileride
+gerçek tarımsal talep ile platform-dışı/pivot sinyalini ayırabilmesi
+için (bu turda heatmap sorgusunun kendisi değiştirilmedi — kolon hazır,
+kullanım M7/sonraki bir tur).
+
+**UPDATE RLS doğrulaması (kural #96/#112 — "yeni kolon eklenirse UPDATE
+politikasını açıkça doğrula"):**
+- `recipe_ingredients`: UPDATE politikası zaten vardı (`recipe_ingredients
+  auth update own recipe`, P23-M2'den beri) ve satır-bazlı, kolon-bazlı
+  değil — yeni kolonu otomatik kapsıyor. Mobil önizleme ekranının UPDATE
+  yolu gerçek SQL ile test edildi (aşağı bkz.).
+- `crop_requests`: **UPDATE politikası hiç yok** (yalnızca `own insert` +
+  `own select`) — ama `ingredient_class` bu tabloya yalnızca **INSERT**
+  anında yazılıyor (talep oluşturulurken), sonradan UPDATE edilmiyor.
+  INSERT politikası (`own insert`, `with check (requested_by =
+  auth.uid())`) satır sahipliğini kontrol ediyor, kolon kısıtlamıyor —
+  gerçek `authenticated` rolüyle `ingredient_class` dolu bir insert
+  denendi ve kabul edildi (aşağı bkz.). Yeni bir UPDATE politikası
+  **gerekmedi.**
+
+### E — Doğrulama (kural #96, Claude Code + Supabase MCP, gerçek çalıştırma)
+
+| Kontrol | Sonuç |
+|---|---|
+| `fn_match_culinary_crop('2 adet kırmızı domates, ince kıyılmış')` | ✅ `domates` |
+| `fn_match_culinary_crop('1 su bardağı süt')` | ✅ NULL (platform-dışı) |
+| `fn_match_culinary_crop('pamuk')` | ✅ NULL (yenilemez) |
+| `fn_match_culinary_crop('karabiber')` | ✅ NULL (word-boundary — "biber" alt dizesi yanlış eşleşmiyor) |
+| `fn_match_culinary_crop('pul biber')` | ✅ NULL (kısmi eşleşme — "biber" tüm ifadeyi karşılamıyor) |
+| `fn_match_culinary_crop('domates ve biber')` | ✅ NULL (bileşik/belirsiz ifade) |
+| `fn_match_culinary_crop('yeşil biber')`, `('patlıcan')` | ✅ `biber`, `patlıcan` |
+| `fn_match_culinary_crop('soğan')` | ✅ NULL (alias seed'i boş, M9 gap — beklenen) |
+| `fn_match_culinary_crop(null)`, `('')` | ✅ NULL |
+| Trigger — gerçek INSERT (`kırmızı domates`→eşleşti, `pamuk`→NULL, `tuz`→NULL) | ✅ Test tarifi oluşturulup silindi |
+| Geriye dönük eşleştirme — Berkin'in "Karnıyarık" tarifi | ✅ 12 malzemenin **3'ü** bağlandı (yukarı bkz.) |
+| Editoryal 18 tarif etkilendi mi | ✅ Hayır — `author_type='hasat'` satırlarında 117 malzeme, 68 crop-linked (öncesiyle aynı) |
+| `crop_requests` — `authenticated` rolüyle `ingredient_class` dolu INSERT | ✅ Kabul edildi, gerçek satır yazıldı, test verisi temizlendi |
+| `get_advisors(security)` | ✅ Bu migration'dan kaynaklı yeni uyarı yok |
+
+### F — Manuel eşleştirme verisinin sorgulanması (M9 için, Berkin kararı)
+
+Alias eşleştirmesi yalnızca 14 crop'u kapsıyor; mobil önizleme ekranındaki
+manuel crop seçici kalan boşluğu kullanıcı eliyle kapatıyor (bkz.
+`Build/P23-Mobile.md` → "P23-M6-ek"). Bu manuel seçimler ayrı bir tabloya
+yazılmıyor — doğrudan `recipe_ingredients.crop`'a yazılıyor — ama **hangi
+crop'lara alias eklemek gerektiğini** aşağıdaki sorguyla görmek mümkün:
+kullanıcı elle bağladığı ama `fn_match_culinary_crop` otomatik
+bulamayacağı satırlar, yani "otomatik eşleşseydi aynı crop'u
+bulamayacaktık" kümesi:
+
+```sql
+-- Kullanıcı importlarında elle bağlanmış ama otomatik eşleştirmenin
+-- (aynı free_text_name üzerinden) bulamayacağı satırlar — M9'un alias
+-- doldurma önceliği burada tahmine değil kullanım verisine dayanır.
+select ri.crop, ri.free_text_name, count(*) as manual_link_count
+from public.recipe_ingredients ri
+join public.recipes r on r.id = ri.recipe_id
+where r.author_type = 'kullanici'
+  and ri.crop is not null
+  and public.fn_match_culinary_crop(ri.free_text_name) is distinct from ri.crop
+group by ri.crop, ri.free_text_name
+order by manual_link_count desc;
+```
+
+Bu sorgu şu an (bu turun test verisi temizlendiği için) 0 satır döner —
+gerçek kullanıcı importları biriktikçe dolacak. `manual_link_count`
+yüksek olan `free_text_name`'ler, o crop'un `culinary_aliases`'ine
+eklenmesi gereken gerçek ifadeleri gösterir (tahmini bir liste değil).
+
+### G — `extract-recipe` değişiklikleri (edge function, Supabase MCP ile deploy edildi — bkz. not aşağıda)
+
+1. **`recipe_name` (opsiyonel body alanı).** Yalnızca AI prompt'una bir
+   OCR/çıkarım ipucu olarak eklenir (`"Kullanıcının belirttiğine göre bu
+   tarifin adı: ..."`). SYSTEM_PROMPT'a **kesin sınır** eklendi: kaynakta
+   gerçekten yazmayan malzeme/adımın bu isimden ya da modelin genel
+   bilgisinden uydurulması yasak; kaynakta adım yoksa/okunamıyorsa
+   `steps` boş döner — bu geçerli bir sonuç, adım uydurmaktan iyidir.
+   `title` alanı da hâlâ yalnızca AI'ın kaynaktan çıkardığı değer —
+   `recipe_name` doğrudan `title`'a yazılmıyor (kesin sınır, "yalnızca
+   yönlendirmek için" ilkesi).
+2. **`is_agricultural` (her malzeme için AI sınıflandırması).** Olgusal
+   soru olduğu için prompt'a somut örneklerle eklendi (tuz/su/un/süt/
+   yumurta/kıyma → false; sebze/meyve/tahıl/baklagil/kuruyemiş/baharat/
+   zeytinyağı gibi ham tarım ürünleri → true). `ingredient_class`'a
+   yazılıyor.
+3. **`crop: null` insert davranışı DEĞİŞMEDİ** — fonksiyon hâlâ kendi
+   başına eşleştirme yapmıyor, yukarıdaki DB trigger'ı devreye giriyor.
+4. **`crop_linked_count`** yanıt alanı eklendi — artık sabit değil, o
+   tarifte trigger'ın gerçekten kaç malzemeyi bağladığını okuyor.
+
+⚠️ **Bu fonksiyon hâlâ hiçbir git reposunda yaşamıyor** (P23-M2'den beri
+bilinen durum, bkz. yukarı "P23-M2 → Edge function" notu) — Supabase MCP
+ile doğrudan `deploy_edge_function` ile güncellendi (v3→v4). Bu yüzden
+`hasat-d2c-marketplace`'e bu turda **hiçbir commit gitmedi** — repo
+gerçekten değişmedi.
+
+### H — Doğrulama: gerçek `extract-recipe` çağrısı (kural #96)
+
+Bu oturumun ağ politikası `efuqpiaavrzimvstpdpm.supabase.co`'ya doğrudan
+erişimi engelliyor (M4-a'dan beri bilinen kısıt). Geçici, `verify_jwt`
+kapalı bir tanı edge function'ı (`diag-p23-m6ek`) deploy edilip
+`pg_net` ile bir kez tetiklendi; bu fonksiyon kendi içinde geçici bir
+test kullanıcısı oluşturdu, gerçek bir oturum aldı ve `extract-recipe`'i
+o kullanıcının gerçek JWT'siyle çağırdı. **Bu proje için edge function
+silme aracı mevcut değildi** — tanı fonksiyonu, işi bitince gövdesi
+tamamen etkisiz bırakılıp (`410 decommissioned` döner) `verify_jwt=true`
+yapılarak (anonim çağrılamasın diye) devre dışı bırakıldı, silinemedi.
+
+| Test | Sonuç |
+|---|---|
+| Metin + `recipe_name="Karnıyarık"` ipucu, kaynak metinde **hiç adım yok** (yalnızca malzeme listesi) | ✅ `step_count=0` — model adım uydurmadı |
+| Aynı çağrıda malzeme eşleştirmesi | ✅ `crop_linked_count=3` (domates, biber, patlıcan gerçekten `recipe_ingredients.crop`'a yazıldı) |
+| Malzeme sınıflandırması geldi mi | ✅ Geldi — ama **bir gerçek AI hatası gözlemlendi:** "tuz" `is_agricultural:true` (yanlış, doğrusu `platform_disi`) döndürdü. Kod tarafında bir hata değil — tam olarak önizleme ekranındaki "kullanıcı düzeltebilir" güvencesinin var olma sebebi bu; detay `TODO.md`'de. |
+| Sunucu tarafı zorlama (kasten `visibility:'public'`, `author_type:'hasat'`, başka `owner_id` gönderildi) | ✅ Kayıt yine `private`/`kullanici`/gerçek JWT sahibi olarak yazıldı |
+| Test verisi temizliği | ✅ 2 test tarifi + test kullanıcısı + `ai_usage_tracking` satırı silindi (bir orphan `profiles` satırı bulunup elle temizlendi — `sb.auth.admin.deleteUser` çağrısı `auth.users`'ı sildi ama `profiles`'a cascade etmedi, sebep araştırılmadı, tek seferlik tanı verisiydi) |
+
+### I — Dokunulmayanlar
+
+`src/lib/core/` elle düzenlenmedi (kural #105 — `hasat-core/core/db/types.ts`
+canlı şemadan yeniden üretilip `hasat-core` reposuna commit edildi, kural
+#111); editoryal 18 tarifin `crop` bağlantılarına dokunulmadı; checkout
+eklenmedi; marketplace köprüsünün tamamı (Keşfet, native ürün detayı,
+Siparişlerim) hâlâ M7 — "Sipariş Ver" yalnızca web'in mevcut
+`buyer.product.$farmerId.$crop` sayfasına dışarı link veriyor (otonom
+karar, kural #107: web'in kendi tarif kartındaki "Ürüne Git" linki bugün
+jenerik `/buyer/discover`'a gidiyor ama mobilde fiyat/min_order'ı
+gösterebilmek için daha spesifik hedef gerekiyordu — `listings.farmer_id`
+zaten sorgulanan tabloda mevcut olduğu için mevcut, tam çalışan web
+rotası kullanıldı, yeni bir native ekran kurulmadı).
