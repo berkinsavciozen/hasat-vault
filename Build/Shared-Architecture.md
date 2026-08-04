@@ -43,8 +43,83 @@ Zemin zaten hazır: `crop_config` tek kaynak, 20 KPI view'ı, `enforce_offer_sto
 | Alışveriş listesi üretimi | RPC | Porsiyon ölçekleme + min_order yuvarlaması tek yerde |
 | Tarif hunisi ölçümü | `v_kpi_recipe_funnel` | Mevcut 20 KPI view'ıyla aynı desen |
 | Yenilebilirlik filtresi | `crop_culinary_meta.is_edible` | Pamuk/tütün/şeker pancarı/safran soğanı tarif akışına girmemeli |
+| Teklif oluşturma (çoklu-parti) | `rpc_create_offer(p_farmer_id, p_items, p_delivery, p_delivery_date, p_note, p_subscription_id, p_source_recipe_id)` | Kural #106'nın uygulanması — bkz. aşağıda |
 
 **Sonuç:** Mobil uygulama *ince* olur. İş mantığını yeniden yazmaz, RPC çağırır. Web'de bir kural değişince mobil otomatik doğru davranır.
+
+### `rpc_create_offer` (P23-M7-a, 2026-08-04)
+
+**Neden:** Canlı şemada teklif oluşturmak için RPC yoktu — web `offers` INSERT +
+`offer_items` INSERT'i client'ta iki ayrı adımda yapıyordu (`insertOfferWithItems`,
+`hasat-d2c-marketplace/src/lib/hasat/queries.ts`), ikinci adım başarısız olursa
+JS tarafında best-effort bir "rollback" (offer'ı sil) deniyordu — atomik değildi.
+Mobilde aynı akışı yeniden yazmak kural #106'nın tam uyardığı durumdu (bkz.
+`dispatch_sms`/`send-sms` sapması, iki kez yaşandı). RPC bu orkestrasyonu tek
+transaction'a taşıdı; her iki client da artık aynı fonksiyonu çağırıyor.
+
+**SECURITY INVOKER yeterli** — kontrol edildi, DEFINER'a gerek yok:
+`buyer_id` parametre olarak alınmıyor, `auth.uid()`'den okunuyor; mevcut RLS
+politikaları (`Buyers insert offers` → `auth.uid() = buyer_id`, `Buyer inserts
+own offer items` → `offers.buyer_id = auth.uid()` üzerinden) invoker'ın kimliğiyle
+zaten doğru çalışıyor. `auth.uid()` NULL ise (anon) fonksiyon RLS'e varmadan
+kendi `RAISE EXCEPTION 'Oturum bulunamadı'`'ı fırlatıyor.
+
+**Mevcut trigger'ları bozmadan, üstünde çalışıyor:**
+- `trg_offer_received` (`notify_offer_received`, AFTER INSERT) — RPC gerçek bir
+  INSERT yaptığı için otomatik tetikleniyor, hiç dokunulmadı.
+- `trg_enforce_offer_stock` (`enforce_offer_stock`) — yalnızca `status→'accepted'`
+  geçişinde (BEFORE UPDATE) çalışıyor, oluşturma anında hiç kontrol yoktu. RPC
+  oluşturma anı için AYNI stok hesaplama mantığını (batch_total>0 ise
+  `listing_harvest_entries` toplamı, yoksa `listings.quantity` fallback'i,
+  `accepted` teklifler rezerve) kendi içinde tekrarlıyor + `min_order` kontrolü
+  ekliyor. Accept-time trigger hâlâ ikinci savunma hattı, kaldırılmadı.
+- `enforce_offer_transitions`, `enforce_offer_accept_turn` — RPC yalnızca INSERT
+  yapıyor, bu trigger'lar UPDATE'e bağlı, etkilenmiyor.
+
+**Web geçişi ayrı, revert edilebilir commit:** `insertOfferWithItems`'ın iki
+ayrı `.insert()` çağrısı `(supabase as any).rpc("rpc_create_offer", {...})`'e
+çevrildi; public arayüz (`OfferInput`/`MultiBatchOfferInput`, `useCreateOffer`,
+`useCreateMultiBatchOffer`) değişmedi — çağıran taraf (`buyer.payment.tsx`)
+hiç dokunulmadı. Web'in üretilmiş tip dosyası (`src/lib/core/db/types.ts`)
+yeni RPC'yi henüz tanımıyor — mevcut kod tabanının (`get_price_history_summary`,
+`dispatch_sms`, `get_farmer_rating_summary` gibi) zaten kullandığı
+`(supabase as any).rpc(...)` deseni izlendi, `hasat-core`'a dokunulmadı (sync
+PR riski yok — bkz. `TODO.md` → P23-M7-a build log).
+
+**Doğrulama (kural #96, gerçek veri + transaction/ROLLBACK):** tek parti ✅ ·
+çoklu parti (2 farklı ilan, ağırlıklı ortalama fiyat doğru: 32 birim, ₺348.13
+ort.) ✅ · min_order altı → `Minimum sipariş miktarının altında` ile reddedildi ✅ ·
+stoktan fazla → `Stok yetersiz (batch)` ile reddedildi ✅ · gerçek insert +
+`notify_offer_received` zinciri (in-app bildirim + `dispatch_sms` →
+`net.http_request_queue`'ya 1 satır kuyruklandı) çalıştığı kanıtlandı, ROLLBACK
+sonrası kuyruk 0'a döndü (gerçek SMS gitmedi) ✅ · anon → `Oturum bulunamadı`
+ile reddedildi ✅ · RLS zaten `buyer_id`'nin parametre olmaması sayesinde
+başkası adına oluşturmayı yapısal olarak imkansız kılıyor.
+
+⚠️ **Bilinen, önceden var olan sınır (düzeltilmedi — kapsam dışı):**
+`offers.quantity`/`offers.price_per_unit` (geriye dönük uyumluluk için
+tutulan agregat alanlar) çoklu-parti tekliflerde item'ların RAW miktarını
+topluyor, birim dönüşümü yapmıyor — aynı crop'un farklı birimde partileri
+(ör. safran'ın 15g/500g/100kg partileri) varsa bu toplam anlamsızlaşır.
+Bu, RPC'nin yeni bir davranışı DEĞİL: web'in eski `insertOfferWithItems`'ı
+da (kural gereği aynen taşındı) hep böyleydi. P21-A'nın "mixed-unit
+toplama riski" düzeltmesi yalnızca DISPLAY katmanını (Keşfet grup kartı,
+ürün detay toplamı) kapsamıştı, bu agregat alanı değil. Asıl doğruluk
+kaynağı zaten `offer_items` (her satır kendi birim/fiyatıyla doğru) —
+sorun yalnızca legacy özet alanların okunmasında. Mobil ürün ekranının
+kendi TOPLAM göstergesi bu turda `convertQuantity` ile düzeltildi (bkz.
+`hasat-mobile/src/lib/hasat/offers.ts` → `useCropCanonicalUnit`), ama
+`offers.quantity` kolonunun kendisine dokunulmadı — anlamını değiştirmek
+(agregat alanın semantiğini kanonik birime çevirmek) ayrı bir karar,
+Berkin'e bırakıldı.
+
+⚠️ **Web'in gerçek tarayıcı/click-through testi bu oturumda yapılamadı** — bu
+ortamın ağ politikası `efuqpiaavrzimvstpdpm.supabase.co`'ya (REST API) doğrudan
+erişimi engelliyor (kural #103, P24/M4-a/M5-a'da da aynı kısıt yaşanmıştı,
+`curl` ile yeniden doğrulandı: bağlantı kurulamadı). Kanıt SQL seviyesinde
+(yukarıdaki tablo) — web'in çağıracağı ile birebir aynı parametrelerle,
+gerçek trigger zinciriyle. Berkin'in kendi tarayıcısında bir teklif oluşturup
+doğrulaması gerekiyor.
 
 ---
 
