@@ -2216,3 +2216,156 @@ eklenmedi (Guideline 2.1), "Talep Et" eklenmedi (M7), marketplace köprüsü
 Supabase şemasında **yalnızca** görev metninin açıkça izin verdiği
 `device_tokens` düzeltmesi yapıldı (bir ekleyici kolon + bir yeni
 fonksiyon); başka hiçbir tablo/enum/politika değiştirilmedi.
+
+---
+
+### 🟢 P23-M6-ek — AI Import Crop Eşleştirmesi · İsim Alanı · Manuel Eşleştirme · Malzeme Kartı Aksiyonları — **UYGULANDI (2026-08-04, Claude Code doğrudan), SİMÜLATÖR/CİHAZ QA BEKLİYOR**
+
+Berkin'in 2026-08-04 canlı testinden doğan takip turu: yazılı tarif
+fotoğrafından import çalıştı, malzemeler/gramajlar doğru çıktı — ama
+import edilen tarifler marketplace'e **hiç** bağlanmıyordu (12 malzemenin
+0'ı `crop`'a bağlıydı). İki gerçek bulgu + üç yeni Berkin kararı bu turda
+kapatıldı. Detay ve tam SQL: `Build/DB-Schema.md` → "P23-M6-ek".
+
+#### 1 — Crop eşleştirmesi (deterministik, fuzzy DEĞİL) — **UYGULANDI**
+
+Yeni DB fonksiyonu `fn_match_culinary_crop()` + `recipe_ingredients`
+üzerinde `BEFORE INSERT` trigger'ı: `crop_culinary_meta.culinary_aliases`'e
+karşı birebir (normalize edilmiş, Türkçe karakter duyarlı) eşitlik arıyor.
+M2'nin "fuzzy matching yasak" kararıyla **çelişmiyor** — reddedilen şey
+benzerlik skoruydu, bu bir alias sözlüğü lookup'ı. Belirsizlik (çoklu
+eşleşme veya kısmi eşleşme) her zaman NULL'a düşüyor — yanlış eşleştirme
+eşleştirmemekten kötü.
+
+**Gerçek veride ölçüm:** Berkin'in canlı import ettiği "Karnıyarık"
+tarifi (12 malzeme, `author_type='kullanici'`) geriye dönük eşleştirildi
+— **3/12** bağlandı (domates, biber, patlıcan). Kalan 9'un çoğu gerçekten
+platform-dışı (kıyma, sıvı yağ, salça, su, tuz, karabiber) veya alias'ı
+henüz boş olan crop'lar (soğan, pul_biber — 56 crop'un alias eksikliği
+kalıyor, aşağı bkz.). Editoryal 18 tarifin `crop` bağlantılarına
+dokunulmadı (görev talimatı).
+
+#### 2 — Tarif ismi alanı — sınırlı kapsamda — **UYGULANDI**
+
+Import ekranına (`app/import.tsx`) opsiyonel "Tarifin adı" alanı eklendi.
+**Kesin sınır:** `extract-recipe`'e yalnızca bir OCR/çıkarım ipucu olarak
+gönderiliyor (`recipe_name`); SYSTEM_PROMPT'a bu isimden malzeme/adım
+UYDURMAMASI için açık bir kural eklendi. Kaynakta adım yoksa `recipe_steps`
+boş kalıyor, kullanıcıya "Adımlar okunamadı, elle ekleyebilirsin" deniyor
+(düzenleme ekranı zaten mevcuttu, mesaj eklendi).
+
+**Gerçek çağrıyla kanıtlandı:** `recipe_name="Karnıyarık"` ipucuyla, ama
+kaynak metinde **hiç adım olmadan** çağrıldığında `step_count=0` döndü —
+model, "Karnıyarık"ın standart tarifini "biliyor" olsa bile adım
+uydurmadı. Bu, M9'a bilinçli ertelenen "yemek fotoğrafından tahmin"in
+tam tersi bir disiplin — kaynak metin, model bilgisinin önünde.
+
+**Gerçekleşen bir AI hatası (kod değil, model tahmini):** aynı çağrıda
+malzeme sınıflandırması ("tarımsal ürün mü") istendiğinde, model "tuz"u
+yanlışlıkla `is_agricultural:true` (tarımsal) olarak işaretledi — doğrusu
+platform-dışı. Bu, madde 4'teki "kullanıcı önizlemede düzeltebilsin"
+güvencesinin neden var olduğunun canlı kanıtı; olgusal sorularda bile
+sıfır hata garantisi yok.
+
+#### 3 — Önizleme ekranında manuel crop eşleştirme — **UYGULANDI**
+
+`app/import.tsx`'in "Kontrol Et" ekranına her malzeme için bir ürün
+seçici eklendi (`CropPickerModal`, bu kod tabanında ilk kez eklenen bir
+picker/modal deseni — daha önce hiç yoktu). `crop_config`'ten besleniyor,
+`crop_culinary_meta.is_edible=false` olan 4 crop (pamuk, tütün,
+şeker_pancarı, safran_soğanı) listede hiç görünmüyor. Otomatik eşleşen
+crop önseçili geliyor, kullanıcı değiştirebiliyor veya "Eşleşmeyi kaldır"
+ile temizleyebiliyor.
+
+**Kaydetme mantığı değişti (önemli):** `saveDraft()` daha önce malzeme
+satırlarını sil-ve-yeniden-ekle yapıyordu, her zaman `crop:null` yazarak.
+Yeni trigger'la bu, kullanıcının önizlemede **kaldırdığı** bir eşleşmenin
+(metin aynı kaldığı için) trigger tarafından sessizce yeniden
+bağlanmasına yol açardı — kullanıcının açık kararı kalıcı olmazdı. Bunun
+yerine var olan satırlar artık `id` ile **UPDATE** ediliyor (trigger
+yalnızca INSERT'te çalışıyor, UPDATE'e hiç karışmıyor); yalnızca gerçekten
+yeni eklenen satırlar INSERT ediliyor (orada trigger normal şekilde
+devrede); kullanıcının sildiği satırlar `id` ile DELETE ediliyor.
+
+**Yan fayda — M9 için kullanım verisi:** manuel eşleştirmeler ayrı bir
+tabloya yazılmıyor, doğrudan `recipe_ingredients.crop`'a — ama "hangi
+crop'lara alias eklenmeli" sorusu sorgulanabilir bırakıldı
+(`fn_match_culinary_crop(free_text_name) IS DISTINCT FROM crop` kümesi).
+SQL: `Build/DB-Schema.md` → "P23-M6-ek → F".
+
+#### 4 — Malzeme kartı aksiyonları (dört durum) — **UYGULANDI**
+
+`app/recipe/[slug].tsx`'teki `IngredientCard` iki durumdan (nötr rozet /
+salt-okunur fiyat) dört duruma çıkarıldı:
+
+1. Eşleşti + aktif ilan var → **"Sipariş Ver →"** — web'in mevcut
+   `buyer.product.$farmerId.$crop` sayfasına `Linking.openURL` ile dışarı
+   link (mobilde checkout yok, marketplace köprüsünün tamamı hâlâ M7 —
+   bu turda yalnızca doğru yere link verildi, native bir ürün/keşfet
+   ekranı KURULMADI). Hedef crop'un en ucuz aktif ilanının `farmer_id`'si
+   yeni `useMatchedListingIds` hook'uyla (`listings` tablosu, anon-safe
+   RLS, web'in aynı adı taşıyan hook'unun mobil portu) bulunuyor.
+2. Eşleşti + aktif ilan yok → **"Talep Et →"** (ürün adı kilitli = crop,
+   sınıf `tarimsal`)
+3. Tarımsal ama crop'a eşleşmedi → **"Talep Et →"** (serbest metin,
+   sınıf AI'ın/kullanıcının belirlediği `ingredient_class`)
+4. Platform-dışı → **"Talep Et →" de var** (Berkin kararı: "gerekirse
+   ufak pivotlar yaparız, data çok önemli erken aşamada")
+
+**Sinyal nasıl korunuyor:** dördüncü durumun var olması "tuz: 40 talep"
+gibi gürültünün gerçek tarımsal talebi (`zeytinyağı 12 tarifte temel
+malzeme, ilan yok` gibi) boğmasını engellemek için yeni bir
+`ingredient_class` kolonu eklendi (hem `recipe_ingredients`'a hem
+`crop_requests`'e — nullable, ekleyici, şema onayı bu görev metninin
+kendisiydi). "Talep Et" tetiklendiğinde kaynağın sınıfı `crop_requests`
+satırına kopyalanıyor. Admin ısı haritasının (`v_kpi_crop_demand_heatmap`,
+P23-M4-b) bu iki sinyali ayrı göstermek için sorgusunu güncellemesi
+**bu turun kapsamında değil** — kolon hazır, kullanım sonraki bir tur
+(M7 civarı, heatmap zaten oradaki kapsamda).
+
+**Yeni native "Talep Et" formu:** mobilde daha önce `crop_requests`
+yazma yolu hiç yoktu. `useCreateCropRequest` (yeni,
+`src/lib/hasat/cropRequests.ts`) web'in aynı adı taşıyan hook'unun
+(`hasat-d2c-marketplace/src/lib/hasat/queries.ts`) **birebir portu** —
+aynı çiftçi eşleştirme (listings+parcels üzerinden, client-side) ve
+`dispatch_sms`/`notifications` akışı. **Not:** web'in kendi eşleştirme
+mantığı da kural #106'nın istediği gibi DB'de değil client'ta yaşıyor
+(P17-E'den kalma, önceden onaylanmış bir mimari borcu) — bu tur bunu
+düzeltmedi, sadece mobilin **aynı** mantığı tekrarlamasını (kopyalamak
+yerine gerçekten portlamak) sağladı.
+
+#### 5 — Doğrulama (kural #96)
+
+| Kontrol | Sonuç |
+|---|---|
+| `fn_match_culinary_crop` — 11 test cümlesi (gerçek SQL) | ✅ Tümü beklenen sonucu verdi — `Build/DB-Schema.md` → "P23-M6-ek → E" |
+| Berkin'in canlı tarifini geriye dönük eşleştirme | ✅ 12 malzemenin 3'ü bağlandı, editoryal 18 tarif etkilenmedi |
+| `extract-recipe` gerçek çağrı — isim ipucu + kaynakta adım yok | ✅ `step_count=0`, uydurma yok |
+| `extract-recipe` gerçek çağrı — sunucu tarafı zorlama (visibility/author_type/owner_id) | ✅ Client'ın gönderdiği değerler yok sayıldı, gerçek JWT sahibiyle kaydedildi |
+| Malzeme sınıflandırması geldi mi | ✅ Geldi, bir gerçek yanlış sınıflandırma gözlemlendi ("tuz"→tarımsal) — madde 2'de detay |
+| `crop_requests.ingredient_class` — `authenticated` rolüyle gerçek INSERT | ✅ Kabul edildi |
+| Yeni kolon UPDATE RLS kontrolü | ✅ `recipe_ingredients`'ta zaten vardı (satır-bazlı); `crop_requests`'te hiç yok ama kolon yalnızca INSERT'te yazılıyor, gerekmedi — `Build/DB-Schema.md` → "P23-M6-ek → D" |
+| `hasat-core` tip tazeliği (kural #111) | ✅ `core/db/types.ts` yeniden üretildi (`ingredient_class` × 2 tablo, `fn_match_culinary_crop`), `core/.manifest` yenilendi, `npm run drift` yeşil |
+| `tsc --noEmit` (`hasat-mobile`) | ✅ Temiz |
+| `tsc --noEmit` (`hasat-core`) | ✅ Temiz |
+| `eslint` (`hasat-mobile`) | ⚠️ **Çalıştırılamadı** — bu oturumun ağ politikası ESLint config indirmesini engelledi (`HTTP Proxy Network Error: Forbidden`); repoda zaten kurulu bir ESLint config yok. `tsc` tek gerçek statik kontrol oldu. |
+| Timer/kamera/picker/modal gerçek çalışma zamanı davranışı | 🔴 **Doğrulanamadı (kural #103)** — bu oturumda simülatör/cihaz yok. QA senaryosu: `Build/E2E-QA.md` → S28 |
+
+#### Açık maddeler (M6-ek'ten sonraya)
+
+| Madde | Nereye |
+|---|---|
+| **Kalan 56 crop'un `culinary_aliases`'i boş** — alias doldurma artık tahmine değil `Build/DB-Schema.md` → "P23-M6-ek → F" sorgusunun ürettiği kullanım verisine dayanacak | M9 |
+| `v_kpi_crop_demand_heatmap`'in `ingredient_class`'ı okuyup iki sinyali (tarımsal/platform-dışı) ayrı göstermesi | M7 civarı |
+| `crop_requests.ingredient_class`'ın admin panelde gösterilmesi | M7 civarı |
+| Web import'unun aynı `fn_match_culinary_crop` trigger'ından otomatik faydalanması (zaten DB'de yaşadığı için ek iş gerekmez — client tarafı `crop:null` insert ettiği sürece) | Web import'u build edilince (tarih yok) |
+
+#### Kapsam kuralı tutuldu
+
+`src/lib/core/` elle düzenlenmedi (kural #105 — değişiklik `hasat-core`
+reposunda yapıldı); checkout eklenmedi; marketplace köprüsünün tamamı
+(Keşfet, native ürün detayı, Siparişlerim) hâlâ M7; editoryal 18 tarifin
+`crop` bağlantılarına dokunulmadı; YouTube/link import ve yemek
+fotoğrafından tahmin M9'da kalıyor. `hasat-d2c-marketplace` reposuna
+**hiçbir commit gitmedi** — `extract-recipe` bu repoda hiç yaşamıyor
+(P23-M2'den beri bilinen durum), Supabase MCP ile doğrudan deploy edildi.
