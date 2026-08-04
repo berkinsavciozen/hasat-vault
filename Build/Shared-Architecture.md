@@ -96,6 +96,23 @@ sonrası kuyruk 0'a döndü (gerçek SMS gitmedi) ✅ · anon → `Oturum buluna
 ile reddedildi ✅ · RLS zaten `buyer_id`'nin parametre olmaması sayesinde
 başkası adına oluşturmayı yapısal olarak imkansız kılıyor.
 
+⚠️ **Bilinen, önceden var olan sınır (düzeltilmedi — kapsam dışı):**
+`offers.quantity`/`offers.price_per_unit` (geriye dönük uyumluluk için
+tutulan agregat alanlar) çoklu-parti tekliflerde item'ların RAW miktarını
+topluyor, birim dönüşümü yapmıyor — aynı crop'un farklı birimde partileri
+(ör. safran'ın 15g/500g/100kg partileri) varsa bu toplam anlamsızlaşır.
+Bu, RPC'nin yeni bir davranışı DEĞİL: web'in eski `insertOfferWithItems`'ı
+da (kural gereği aynen taşındı) hep böyleydi. P21-A'nın "mixed-unit
+toplama riski" düzeltmesi yalnızca DISPLAY katmanını (Keşfet grup kartı,
+ürün detay toplamı) kapsamıştı, bu agregat alanı değil. Asıl doğruluk
+kaynağı zaten `offer_items` (her satır kendi birim/fiyatıyla doğru) —
+sorun yalnızca legacy özet alanların okunmasında. Mobil ürün ekranının
+kendi TOPLAM göstergesi bu turda `convertQuantity` ile düzeltildi (bkz.
+`hasat-mobile/src/lib/hasat/offers.ts` → `useCropCanonicalUnit`), ama
+`offers.quantity` kolonunun kendisine dokunulmadı — anlamını değiştirmek
+(agregat alanın semantiğini kanonik birime çevirmek) ayrı bir karar,
+Berkin'e bırakıldı.
+
 ⚠️ **Web'in gerçek tarayıcı/click-through testi bu oturumda yapılamadı** — bu
 ortamın ağ politikası `efuqpiaavrzimvstpdpm.supabase.co`'ya (REST API) doğrudan
 erişimi engelliyor (kural #103, P24/M4-a/M5-a'da da aynı kısıt yaşanmıştı,
