@@ -89,6 +89,7 @@ Platform hiçbir crop'a özel muamele göstermez — domates/elma/safran/lavanta
 | İş | Durum |
 |---|---|
 | **P22-D+E+F tarayıcı QA (15 adım)** | ✅ Tamamlandı (2026-07-29, tüm adımlar geçti) |
+| **Uygulama içi hesap silme (P26, Apple 5.1.1(v))** | ✅ `rpc_delete_own_account` + web/mobil UI uygulandı (2026-08-04, DB seviyesinde doğrulandı) — gerçek tarayıcı/cihaz click-through Berkin'e kalıyor (kural #103). `TODO.md` → "P26" |
 | **Şirket tescili** | 🔴 Yapılmadı — hedef ~7 Ağustos. Üç şeyi blokluyor: P17-A, P17-D, ileride store organizasyon hesapları |
 | **iyzico başvurusu** | 🔴 Tescil sonrası |
 | P17-A — gerçek bloke ödeme (escrow) | 🔴 Şirkete bağlı |

@@ -124,6 +124,15 @@ tags:
 
 Yalnızca P17-A ve P17-D kaldı, ikisi de şirket kuruluşuna bağlı.
 
+> ⚠️ **P17-D geldiğinde yeniden gözden geçirilmeli:** uygulama içi hesap silme
+> (P26, 2026-08-04, aşağıda) `offers`/`orders`/`offer_messages`/`reviews`'ı
+> "yasal saklama yükümlülüğü" gerekçesiyle anonimleştirerek (silmeden) tutuyor.
+> P17-D fatura/e-müstahsil geldiğinde bu kayıtların kapsamı genişleyecek
+> (gerçek fatura/vergi belgeleri) — o noktada anonimleştirme politikasının
+> (hangi alanlar temizlenir, hangi mali/vergisel alanlar zorunlu olarak kalır)
+> yeniden değerlendirilmesi gerekir. Bkz. `Build/DB-Schema.md` →
+> `rpc_delete_own_account`.
+
 ### ✅ P17-B / P17-C / P17-F / Abonelik-Sipariş Bağlantısı — TAMAMLANDI
 (Değişmedi — bkz. önceki sürüm)
 
@@ -309,6 +318,7 @@ Son değişikliğin (`buyer.producer.$id` guest-erişimi) routing-guard seviyesi
 113. [2026-08-04'te eklendi] **`SET LOCAL ROLE` + `request.jwt.claims` ile bir kullanıcıyı taklit ederek SQL testi yaparken, doğrulama SELECT'i de o taklit edilen kimliğin RLS'ine tabidir — bir trigger'ın YAN ETKİSİ (başka bir kullanıcıya yazılan bir satır) o kimlikle görünmeyebilir, bu trigger'ın çalışmadığı anlamına gelmez.** P23-M7-a'da `rpc_create_offer` testinde buyer rolüyle impersonation yapılırken `notify_offer_received`'ın oluşturduğu bildirim (çiftçiye yazılıyor, `notifications` RLS'i `user_id=auth.uid()`) görünmedi — ilk yorum "trigger çalışmıyor" olurdu, yanlış olurdu. Gerçek neden: buyer kendi adına olmayan bir bildirimi RLS altında göremiyordu. Aynı transaction içinde `RESET ROLE` (postgres'e dönüp RLS'i bypass ederek) doğrulayınca bildirim + `dispatch_sms` kuyruğu (`net.http_request_queue`) doğru şekilde görüldü. Ders: bir yan etkinin "farklı bir kullanıcıya ait" olduğu her testte, doğrulama sorgusu ya o kullanıcı kimliğiyle ya da RLS'i bypass eden bir rolle çalıştırılmalı — karışıklık gerçek bir bug ile bir test-metodolojisi artefaktını ayırt edemez hale getirir.
 114. [2026-08-04'te eklendi] **Kalıcı süreç kuralı — web→mobil nudge:** her mobil özellik eklendiğinde aynı turda web nudge karşılığı değerlendirilir ("web'deki kullanıcı bu özelliği bilse davranışı değişir mi" sorusuna evetse eklenir). Nudge içeriği web deneyimini KISITLAMAZ, tam sayfa interstitial YOK (Google mobil sıralama cezası + SEO huninin üst ağzı). Bkz. `Build/P23-Mobile.md` → "Nudge stratejisi".
 115. [2026-08-05'te eklendi] **Kalıcı süreç kuralı — şema değişikliği içeren turlarda sıra zorunludur: (1) DB migration, (2) `hasat-core`'da tip üretimi + PR, (3) sync PR'larının iki hedefte (web + mobil) merge edilmesi, (4) client kodunun yeni tipi kullanması.** Bu sıra atlanırsa client ya `as any` gibi geçici çözümlere düşer ya da kural #105'i (core dosyalarını elle düzenleme) ihlal etmek zorunda kalır. P23-M7-a'da atlandı: `rpc_create_offer` canlıya alındı ama tip üretimi yapılmadı, web `as any` kullandı, `types-freshness.yml` kırmızıya düşecek durumdaydı ve düzeltme iki ek tur maliyeti çıkardı (`hasat-core` PR #9 + web PR #21 + mobil PR #12).
+116. [2026-08-04'te eklendi] **`public.profiles.id`'nin `auth.users(id)`'e FK'si YOK — yalnızca `PRIMARY KEY (id)`.** Supabase'in kendi dokümantasyonu `references auth.users on delete cascade` öneriyor, ama bu projede o hiç kurulmamış; `profiles` satırını `auth.users`'a bağlayan tek şey `on_auth_user_created` trigger'ı (yalnızca INSERT yönünde, DELETE simetriği yok). Sonuç: `auth.users` silinirse `profiles` (ve ona CASCADE bağlı `offers`/`orders`/`reviews`/`listings`/`harvest_entries`/... — 20 tablo) **gitmez**, orphan kalır. Buna karşılık bazı tablolar (`buyer_addresses`, `offer_messages.sender_id`, `ai_usage_tracking`, `ai_chat_messages`, `mcp_tool_calls`) `profiles` yerine **doğrudan** `auth.users(id)`'e CASCADE bağlı — `auth.users` hard-delete edilirse bunlar sessizce ve tamamen silinir. P26 (hesap silme, aşağıda) bu ayrımı `rpc_delete_own_account`'ın mimarisinin temeli yaptı: `auth.users` hiç silinmiyor (alanları scrub ediliyor), `profiles` de siliniyor değil anonimleştiriliyor — ikisi de "silme" değil "yerinde temizleme". Ders: bir tabloyu `auth.users`/`profiles` zincirinden silmeden önce **gerçek** FK grafiği (`pg_constraint` ile) çıkarılmalı, ORM/iskelet konvansiyonuna (`references auth.users on delete cascade`) güvenilmemeli — bu projede o konvansiyon takip edilmemiş.
 ---
 
 ## 📌 Kararlar
@@ -2528,3 +2538,134 @@ kural #114'e yazıldı.
 dokunulmadı; Keşfet/Siparişlerim/store varlıkları M7-b'ye bırakıldı;
 pazarlık yanıtı ve sipariş takibi M8/M9'a not edildi, bu turda inşa
 edilmedi.
+
+---
+
+## P26 — Uygulama İçi Hesap Silme (2026-08-04)
+
+**Kapsam:** Apple 5.1.1(v) zorunluluğu (hesap oluşturmaya izin veren
+uygulamalar hesap silmeyi uygulama içinden başlatabilmeli) — M7-b'nin
+"store varlıkları" maddesinden erken çekildi, çünkü submit'i bloke eden
+teknik bir gereksinim. Berkin kararı (2026-08-04): kişisel veri silinir,
+işlem kayıtları anonimleştirilir. Kodlamadan önce mevcut durum tespit
+edildi (kural #106 gereği web'de bir akış var mı) — **yoktu**, yalnızca
+`privacy.tsx`'te "WhatsApp destek hattına yazın" metni vardı, gerçek bir
+akış hiçbir client'ta bulunmuyordu.
+
+### Kodlamadan önce çözülen üç teknik sorun
+
+**(a) FK zinciri — varsayılanın tersi çıktı.** `pg_constraint` ile gerçek
+FK grafiği çıkarıldı (bkz. kural #116): `public.profiles.id`'nin
+`auth.users(id)`'e FK'si **yok**. `auth.users` hard-delete edilse
+`profiles` (ve ona CASCADE bağlı 20 tablo — `offers`/`orders`/`reviews`/
+`listings`/`harvest_entries`/...) gitmiyor, orphan kalıyor. Buna karşılık
+`offer_messages.sender_id`, `buyer_addresses.buyer_id`, `ai_usage_tracking`,
+`ai_chat_messages`, `mcp_tool_calls` **doğrudan** `auth.users(id)`'e CASCADE
+bağlı — hard-delete bunları tamamen (anonimleştirme değil, silme) yok
+ederdi, ki bu doğrudan "offer_messages anonimleştirilecek" kararıyla
+çelişiyordu (karşı tarafın pazarlık geçmişinin yarısı kaybolurdu).
+**Çözüm:** `auth.users` hiç silinmiyor — `rpc_delete_own_account`
+kimliklendirici alanlarını (`phone`, `encrypted_password`, token'lar) SQL
+ile scrub edip `banned_until = 'infinity'` yapıyor (giriş imkansız,
+`phone` `NULL` olduğu için UNIQUE kısıtı yeniden kayda izin veriyor).
+`profiles` de siliniyor değil anonimleştiriliyor (`name`/`phone`/`city`/
+`iban`/`bank_account_name` temizlenir) — satır kaldığı için ona CASCADE
+bağlı her tablo (offers/orders/reviews/community_posts/...) otomatik
+"Silinmiş Kullanıcı" gösterir, ayrıca dokunulmadı. `postgres` rolünün
+`auth.users` üzerinde gerçek `UPDATE` yetkisi olduğu `has_table_privilege`
+ile doğrulandı.
+
+**(b) Çiftçi hesabı silme — izlenebilirlik.** Berkin'in önerisi (aktif
+ilanı/açık siparişi olan hesap silinemesin) aynen uygulandı:
+`listings.status='active'` VEYA `orders.status NOT IN ('completed',
+'cancelled')` varsa RPC reddediyor, kullanıcıya "Önce açık ilanlarınızı
+ve siparişlerinizi tamamlayın" mesajı gösteriliyor.
+
+**(c) Yasal saklama.** `privacy.tsx` güncellendi — silme sonrası kişisel
+verinin anında silindiği, işlem kayıtlarının ("yasal yükümlülük gereği
+kimliğinizden arındırılarak") saklandığı açıkça yazıldı. P17-D geldiğinde
+bu politikanın yeniden gözden geçirilmesi gerektiği not edildi (bkz.
+yukarı, P17 bölümü).
+
+### Mimari (kural #106)
+
+`rpc_delete_own_account()` — parametresiz, `auth.uid()` kullanır,
+`user_id` parametre ALINMAZ. `SECURITY DEFINER`, yalnızca `authenticated`'a
+grant (bu projede yeni fonksiyonlara varsayılan olarak `anon`'a da EXECUTE
+düşüyor — kural #110'un fonksiyon karşılığı — `revoke execute ... from anon`
+ile ayrıca kapatıldı, advisor taramasıyla doğrulandı). Silinen tablolar:
+`buyer_addresses`, `buyer_profiles`, `recipe_saves`, `recipes`
+(`owner_id` + `author_type='kullanici'`), `device_tokens`,
+`ai_usage_tracking`, `ai_chat_messages`, `mcp_tool_calls`. Anonimleştirilen:
+`profiles` (satır kalır). Dokunulmayan: `farms`/`parcels`/`harvest_entries`/
+`certifications`/`listings` — çiftçinin izlenebilirlik zinciri, kişisel
+veri değil.
+
+Web (`farmer.settings.tsx` → Hesap bölümü, `buyer.account.tsx`) ve mobil
+(`app/home.tsx` → "Hesabımı Sil") aynı RPC'yi çağırıyor, ikisi de onay
+adımı olarak "HESABIMI SİL" yazma şartı koyan bir modal kullanıyor (yanlış
+tıklamayla silme koruması). Silme sonrası her iki client da
+`supabase.auth.signOut()` çağırıp yerel oturumu temizliyor (web:
+`localStorage`, mobil: `LargeSecureStore`) — `device_tokens` zaten RPC
+içinde silindiği için ayrı bir "push token'ı unregister et" adımına gerek
+kalmadı.
+
+### Doğrulama (kural #96, gerçek insert + `SET LOCAL ROLE` impersonation)
+
+İki atılabilir test kullanıcısı oluşturuldu (buyer + farmer, gerçek
+`auth.users` insert'i, `handle_new_user` trigger'ının gerçekten `profiles`
++ `notif_prefs` ürettiği doğrulandı): (1) farmer'a aktif ilan eklenip RPC
+çağrıldı → doğru hata metniyle reddedildi ✅; (2) ilan silinip tekrar
+çağrıldı → temiz geçti ✅; (3) buyer'a tüm silinecek tablolardan birer satır
++ IBAN/isim/telefon eklenip RPC çağrıldı → 7 tablo da 0 satıra düştü,
+`profiles.name='Silinmiş Kullanıcı'`, `phone`/`iban` NULL, `auth.users.phone`/
+`encrypted_password`/`banned_until=infinity` doğru ✅; (4) aynı telefonla
+yeni bir `auth.users` satırı insert edildi → UNIQUE çakışması **olmadı**,
+yeniden kayıt senaryosu doğrulandı ✅. Tüm test verisi (3 `auth.users` +
+`profiles` + `notif_prefs` satırı) temizlendi. `get_advisors(security)`
+taramasında yeni fonksiyonun `anon`'a açık kaldığı bulundu ve düzeltildi
+(yukarıda).
+
+### Doğrulanamayan / Berkin'e kalan
+
+- Web'in gerçek tarayıcı click-through'u (modal açılışı, "HESABIMI SİL"
+  yazıp gerçek bir test hesabını silme) bu oturumda yapılamadı — ortamın
+  ağ politikası Supabase host'una doğrudan erişimi engelliyor (kural #103,
+  P24/M4-a/M5-a/P23-M7-a'da da aynı kısıt).
+- Mobilde gerçek cihaz/simülatör testi yapılamadı (kural #103, Apple hesabı
+  onayı bekleniyor).
+- `hasat-mobile`'da ESLint config hiç commit'lenmemiş (`expo lint` ilk
+  çalıştırmada otomatik kurmaya çalışıyor, bu oturumun ağ politikası
+  engelliyor) — TypeScript (`tsc --noEmit`) temiz, ama lint hiç
+  çalıştırılamadı. Web tarafında (`eslint`) hem yeni dosya
+  (`DeleteAccountModal.tsx`) hem değiştirilen satırlar temiz; dokunulmayan
+  pre-existing hatalar (queries.ts/farmer.settings.tsx/buyer.account.tsx/
+  privacy.tsx'te toplam ~500 prettier uyarısı, bu turdan önce de vardı)
+  bilinçli olarak düzeltilmedi — kapsam dışı, dosyanın tamamını
+  yeniden formatlamak gereksiz büyük bir diff çıkarırdı.
+- Store-Compliance.md'deki "Uygulama içi hesap silme çalışıyor" kutucuğu
+  DB/RPC seviyesinde ✅, ama submit öncesi M8 kontrol listesindeki nihai
+  onay gerçek cihaz/tarayıcı testine bağlı — bkz. `Build/Store-Compliance.md`.
+
+### Açık madde (M9) — `auth.users` scrub'ını FK değişikliğiyle gereksizleştir
+
+`rpc_delete_own_account`, `auth.users`'ı silmek yerine kimliklendirici
+alanlarını scrub ediyor (bkz. `Build/DB-Schema.md` → "P26" → "Bilinçli
+kabul edilen risk"). Üç bilinçli risk var: (1) `auth.users` Supabase/GoTrue'nun
+yönettiği bir tablo, doğrudan `UPDATE` resmî desteklenen bir desen değil —
+bir Supabase güncellemesi şema/semantiği sessizce kırabilir; (2)
+`banned_until = 'infinity'` Postgres'te geçerli ama GoTrue Go tarafında
+parse ediyor, bazı zaman kütüphanelerinde taşma riski var — yalnızca yedek
+katman, asıl engel şifre/token alanlarının boş olması.
+
+**Daha temiz alternatif:** `offer_messages.sender_id` FK'sini
+`auth.users(id)` yerine `profiles(id)`'e çevirmek (ya da `ON DELETE SET
+NULL` yapmak) — böylece `auth.users` gerçekten (Supabase'in resmî
+`admin.deleteUser()` yoluyla) silinebilir, scrub hack'ine gerek kalmaz.
+**M9'a ertelendi:** canlı şemada kullanımda olan bir FK'yi lansmana ~2,5
+hafta kala (25 Ağustos hedefi) değiştirmek `offer_messages` RLS
+politikalarının ve olası uygulama kodunun yeniden doğrulanmasını
+gerektirir — bu turun riziko/getiri dengesinde değildi. Şimdiki scrub
+çözümü işlevsel olarak doğru ve gerçek insert/impersonation ile test
+edildi; M9'daki iş bunu kırık bir şeyi düzeltmek değil, daha sağlam bir
+temele (Supabase'in resmî silme yolu) oturtmak.

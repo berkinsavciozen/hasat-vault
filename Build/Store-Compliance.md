@@ -215,7 +215,7 @@ değişmedi.
 
 | Gereksinim | Detay | Taş |
 |---|---|---|
-| **Uygulama içi hesap silme** | Apple zorunlu tutuyor. Mevcut web akışında var mı — **doğrulanmalı** | M7 |
+| **Uygulama içi hesap silme** | Apple zorunlu tutuyor. **Uygulandı (P26, 2026-08-04)** — `rpc_delete_own_account`, web + mobil aynı RPC'yi çağırıyor. DB/RPC seviyesinde gerçek insert + impersonation testiyle doğrulandı; gerçek tarayıcı/cihaz click-through'u kural #103 kısıtı yüzünden doğrulanamadı — bkz. `TODO.md` → "P26" | ✅ M7 (erken çekildi) |
 | **Android 16 / API 36 hedefi** | 31 Ağustos 2026'dan itibaren yeni uygulama ve güncellemeler için zorunlu. Expo SDK sürümünün bunu desteklediği M0'da doğrulanmalı | M0 / M8 |
 | **Gizlilik metni + veri beyanı** | `recipe_saves`, push token'ları, kamera erişimi → KVKK + store privacy label'ları | M7 |
 | **Sign in with Apple** | Yalnızca üçüncü taraf sosyal login sunuluyorsa zorunlu. Hasat **telefon OTP** kullanıyor → muhtemelen muaf, submit öncesi teyit | M8 |
@@ -231,7 +231,7 @@ değişmedi.
 - [ ] AI import (metin + fotoğraf) gerçek cihazda çalışıyor (metin yolu M6'da sunucu tarafında doğrulandı; **kamera yolu cihaz bekliyor**)
 - [ ] Push bildirimi gerçek cihaza ulaşıyor (iOS + Android) — **önce FCM V1 anahtarı (Android) ve APNs anahtarı (iOS) EAS'a yüklenmeli**
 - [ ] App Review notları listesi yalnızca gerçek cihazda doğrulanmış maddelerden oluşuyor (bkz. bölüm 2 → "Durum tablosu")
-- [ ] Uygulama içi hesap silme çalışıyor
+- [x] Uygulama içi hesap silme çalışıyor — DB/RPC seviyesinde doğrulandı (P26, 2026-08-04); gerçek tarayıcı/cihaz click-through'u submit öncesi Berkin tarafından yapılmalı (kural #103)
 - [ ] Hiçbir yerde ödeme/checkout ekranı yok
 - [ ] Gizlilik metni yayında ve uygulamadan erişilebilir
 - [ ] API 36 hedefleniyor
