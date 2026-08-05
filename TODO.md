@@ -2833,3 +2833,250 @@ yukarı).
 
 Her iki madde de `Build/Store-Compliance.md` → Bölüm 6 kontrol listesine
 de eklendi.
+
+---
+
+## P23-M7-d — Mobil Kayıt Akışı Tutarlılığı + Acil UI Düzeltmeleri (2026-08-05)
+
+**Kapsam:** Berkin'in canlı testinin (2026-08-05) bulduğu beş sorun: mobil
+kayıtların yanlış rolle açılması, mobilde onboarding'in hiç olmaması, çıkış
+butonunun çalışmaması (Hesabımı Sil'in yanında, veri kaybı riski), yarım
+kalan teklif huninin görünürlük eksikliği (Siparişler ekranı), ve M5-a'dan
+kalan yanlış bir teşhisin dokümanda düzeltilmesi.
+
+### 1 — 🔴 Kök neden: mobil kayıtlar neden `farmer` oluyordu
+
+`on_auth_user_created` (`AFTER INSERT ON auth.users`) → `handle_new_user()`
+fonksiyonu SQL'den okundu (Supabase MCP, `pg_get_functiondef`):
+
+```
+v_role user_role := CASE
+  WHEN NEW.raw_user_meta_data->>'role' IN ('farmer','buyer')
+  THEN (NEW.raw_user_meta_data->>'role')::user_role
+  ELSE 'farmer'::user_role
+END;
+```
+
+Rol, `auth.users.raw_user_meta_data->>'role'`'den okunuyor; boşsa/❌
+`'farmer'`'a düşüyor. Web'in `src/routes/login.tsx`'i bunu doğru besliyor:
+`supabase.auth.signInWithOtp({ phone, options: { data: { role } } })` —
+`role` `/login?role=buyer` gibi bir arama parametresinden geliyor (buyer
+giriş noktalarının hepsi bu parametreyi taşıyor). `hasat-mobile/app/login.tsx`'in
+`sendOtp()`'si ise `signInWithOtp({ phone })`'u **`options` hiç vermeden**
+çağırıyordu — `raw_user_meta_data` boş kalıyor, trigger her zaman
+`'farmer'`'a düşüyordu. Mobil-web ayrımı icat edilen yeni bir mekanizma
+değil: **aynı** `raw_user_meta_data.role` sözleşmesi kullanıldı (kural
+#106), mobil v1 tamamen tüketici tarafı olduğu için (`_Context.md` → "Mobil
+v1 kapsamı") parametrik seçim yerine sabit `role: "buyer"` gönderildi.
+
+**Düzeltme:** `hasat-mobile/app/login.tsx` → `sendOtp()`'e
+`options: { data: { role: "buyer" } }` eklendi. Trigger yalnızca **yeni**
+`auth.users` INSERT'inde ateşlediği için bu değişiklik geçmişteki hiçbir
+hesabı (Berkin'in kendi `farmer` test hesabı dahil) etkilemiyor — yalnızca
+bundan sonraki mobil kayıtları.
+
+**Doğrulama (kural #96, gerçek SQL, test verisi temizlendi):**
+`auth.users`/`auth.identities`'e gerçek bir insert yapıldı
+(`raw_user_meta_data='{"role":"buyer"}'`, mobilin artık gönderdiği payload
+birebir), trigger'ın ürettiği `profiles.role='buyer'` SQL ile doğrulandı,
+sonra test satırları (`auth.users`/`auth.identities`/`profiles`/
+`notif_prefs`) silindi (`select count(*)` ile 0/0/0 doğrulandı). Gerçek
+kullanıcılara (`905554442211` farmer, `905554443322` buyer) ve mevcut test
+hesaplarına (`905001234567` farmer, `905009876543` buyer) dokunulmadı —
+dördü de rolleriyle SQL'de tekrar kontrol edildi, değişmedi.
+
+### 2 — 🔴 Mobilde onboarding yok → şimdi var
+
+Web'in alıcı onboarding'i (`hasat-d2c-marketplace/src/routes/onboarding.buyer.tsx`)
+incelendi: mantık DB'de bir RPC'de yaşamıyor, `finish()` doğrudan iki
+`supabase.from(...)` çağrısı yapıyor — `profiles.upsert({role:'buyer',
+name, phone, buyer_type})` + `buyer_profiles.insert({user_id, company_name,
+company_type, monthly_volume})`. Yani akış zaten client-taraflı; kural
+#106'nın "mantık DB'deyse mobil onu çağırsın" şartı burada uygulanamaz
+çünkü mantık hiç DB'de değil — yeni bir RPC icat etmek yerine **aynı iki
+tabloya aynı alanlarla** yazan bir mobil ekran (`hasat-mobile/app/onboarding.tsx`)
+eklendi.
+
+**Bilinçli farklar (raporlanıyor, kendi başına tasarlanmadı):**
+- Web'in adım 2'si (ilgi alanı crop'ları) ve adım 3'ün adres alanı
+  `finish()` içinde hiçbir DB kolonuna yazılmıyor — yalnızca client-taraf
+  `useHasat` store'una gidiyor. Persist edilmeyen alanları taşımak "aynı
+  veri, aynı sonuç durumu" barına bir şey katmıyor, mobil onboarding'de yok.
+- Web'in "30 gün ücretsiz Premium" adımı (`activatePremium()`) mobile
+  taşınmadı — hem premium mobil v1'de hiç satılmıyor
+  (`Store-Compliance.md` → Bölüm 4, IAP), hem bu fonksiyon mobilin
+  çağırabileceği bir Supabase Edge Function değil (bkz. madde 6, aşağıda).
+
+**🔴 Bu turda bulunan, raporlanan ama düzeltilmeyen gerçek bir bug (kural
+#107 — dur ve bildir):** `enforce_profile_self_update_restrictions_trg`
+(`BEFORE UPDATE ON public.profiles`) kullanıcının kendi satırını
+güncellemesinde `NEW.role`/`NEW.tier`/`NEW.premium`/`NEW.buyer_type`'ı
+sessizce `OLD` değerlerine geri çeviriyor (`auth.uid() = NEW.id` ise).
+Kullanıcının `profiles` satırı `handle_new_user()` tarafından kayıt anında
+zaten oluşturulduğu için, onboarding'in `profiles.upsert(...)` çağrısı bir
+**INSERT değil UPDATE**'e denk geliyor — bu da trigger'ı tetikliyor. Gerçek
+SQL ile doğrulandı: test kullanıcısı olarak impersonate edilip
+`buyer_type='bireysel'` set edildi, ama okunduğunda `NULL` döndü (trigger
+`OLD.buyer_type`'a — `NULL`'a — geri çevirmişti). `role` görünürde
+etkilenmiyor çünkü `OLD.role` zaten kayıt anında doğru (`'buyer'`) yazılmış
+oluyor (madde 1), ama `buyer_type` **hem web hem mobilde** hiçbir zaman
+kalıcı olmuyor — bu turdan önce de böyleydi, mobil onboarding web'in aynı
+mekanizmasını birebir kullandığı için aynı sınırı miras alıyor, yeni bir
+bug icat edilmedi. Düzeltme (muhtemelen `buyer_type` yazımını da
+`rpc_delete_own_account` tarzı bir `SECURITY DEFINER` fonksiyona taşımak)
+bu turun kapsamı dışında — trigger'a veya RLS'e dokunmak güvenlik modelini
+değiştirir, kural #107 gereği karar Berkin'e bırakılıyor. Etkisi düşük
+(profil ekranındaki "İşletme Tipi" rozeti her zaman "Diğer" gösteriyor,
+gerçek veri kaybı yok — `company_name`/`monthly_volume` `buyer_profiles`'a
+doğru yazılıyor, yalnızca `profiles.buyer_type` etkileniyor).
+
+**Doğrulama:** onboarding'in `profiles`/`buyer_profiles` yazımı gerçek
+impersonation ile test edildi (`SET LOCAL ROLE authenticated` +
+`request.jwt.claims`), `buyer_profiles` satırı doğru oluştu, test verisi
+temizlendi (yukarıdaki 0/0/0 doğrulamasına dahil).
+
+### 3 — 🔴 Çıkış butonu çalışmıyordu — kök neden ve düzeltme
+
+`hasat-mobile/app/home.tsx`'teki `signOut()` `unregisterPushTokenOnSignOut()`
++ `supabase.auth.signOut()` + zustand `clear()`'ı doğru çağırıyordu —
+oturumun kendisi (LargeSecureStore) gerçekten temizleniyordu. **Ama
+hiçbir yerde bir yönlendirme (`router.replace`) yoktu** — web'in eşdeğeri
+(`buyer.account.tsx` → `logout()`) her zaman `navigate({to:"/"})` çağırıyor,
+mobilin `signOut()`'u ekranda kalıyordu. Kullanıcı "Çıkış ✕"e bastığında
+oturum sessizce temizleniyor ama ekran değişmiyordu — buton "çalışmıyor"
+gibi görünüyordu, tam da görev metninin tarif ettiği risk (kullanıcı tekrar
+tekrar dener, yanındaki "Hesabımı Sil"e basar).
+
+**Düzeltme:** `signOut()` ve `afterAccountDeleted()` `/profile`'a taşındı
+(madde 4'e bkz.), ikisi de artık işlemin sonunda `router.replace("/login")`
+çağırıyor.
+
+**Doğrulama:** Kod okunarak zincir doğrulandı — `supabase.auth.signOut()`
+mobil client'ın (`src/lib/supabase/client.ts`) `storage: new
+LargeSecureStore()` adaptörünü kullandığı teyit edildi (oturum gerçekten
+şifreli `AsyncStorage`'dan siliniyor, dekoratif değil), `unregisterPushTokenOnSignOut()`
+`device_tokens` satırını gerçek `DELETE` ile siliyor (P23-M6'da zaten
+gerçek SQL ile doğrulanmış mekanizma, burada değiştirilmedi). Gerçek
+cihaz/simülatör click-through'u bu oturumda **doğrulanamadı** (kural #103)
+— `Build/E2E-QA.md` → S31.
+
+### 4 — Profil ekranı ayrıldı (Berkin kararı)
+
+`app/profile.tsx` (yeni) — web'in `buyer.account.tsx`'i referans alındı:
+profil kartı (ad/şehir/telefon/premium rozeti) + "Siparişlerim" linki +
+tam genişlik "Çıkış Yap" + **ayraç ile ayrılmış, en altta** outline
+(dolu değil) "Hesabımı Sil". Aynı `DeleteAccountModal` (P26'dan, hiç
+değiştirilmedi) — aynı onay adımı (`HESABIMI SİL` yazma şartı). `app/home.tsx`'in
+köşesindeki iki metin linki (Çıkış ✕ / Hesabımı Sil) kaldırıldı, yerine
+`/profile` ve `/orders`'a giden iki küçük emoji-buton geldi (proje genelinde
+zaten ikon kütüphanesi kullanılmıyor, aynı desen korundu).
+
+### 5 — Siparişler ekranı (salt okunur, kapsam kararı)
+
+`app/orders.tsx` (yeni) + `src/lib/hasat/orders.ts` (yeni) — web'in
+`useBuyerOffers`/`useBuyerOrders`/`offer-status.ts`'inin (`hasat-d2c-marketplace/src/lib/hasat/`)
+birebir portu: aynı sorgu şekli, aynı durum-etiketi mantığı
+(`statusVisual`), **aksiyon butonları (Kabul Et/Karşı Teklif/Reddet/
+Ödemeyi Tamamla) çıkarıldı** — görev metninin kapsam kararı gereği pazarlık
+yanıtı yok, ödeme yok. Buyer'ın sırası geldiğinde ("Yanıtınız Bekleniyor")
+"Web'de Yanıtla →" linki `WEB_APP_URL`'e (mevcut köprü noktası, M7-a'dan
+kalan) açılıyor — yeni bir mekanizma değil, zaten planlanmış "web'de devam
+et" yönlendirmesi (`Build/P23-Mobile.md` → "M8 sonrası").
+
+**RLS doğrulaması (kural #96, gerçek impersonation):** `offers`/`orders`
+SELECT politikalarının `buyer_id = auth.uid()` (offers) / `buyer_id =
+auth.uid() OR farmer_id = auth.uid()` (orders) olduğu `pg_policies`'ten
+teyit edildi; gerçek bir buyer test hesabı (`032eb467-...`, Zeynep)
+impersonate edilip `select count(*) filter (where buyer_id <> kendi_id)
+from offers` çalıştırıldı → **0 sızıntı**, 13 kendi teklifi görünür.
+
+### 6 — Doküman düzeltmesi: yanlış teşhis + kaynak
+
+M5-a/M5-b'de "`123456` OTP web'de çalışıyor, mobilde gerçek Supabase Auth'a
+çarpıyor" diye kayda geçmişti (`Build/P23-Mobile.md` → M5-b, ve
+`Build/Store-Compliance.md` → Bölüm 2 madde 7'nin gerekçesi bu kabule
+dayanıyordu). Bu **yanlıştı** — web/mobil arasında farklı bir OTP mekanizması
+yok. Gerçek neden: Supabase Auth'ta test-OTP ayarı (istemciden bağımsız,
+sunucu-taraflı) zaten kuruluydu, ama `SMS_TEST_OTP_VALID_UNTIL` 1 Ağustos
+2026'da dolmuştu — o tarihten sonra `123456` **hiçbir istemcide**
+çalışmıyordu. Berkin 2026-08-05'te süreyi Eylül'e uzattı, eski test
+numaraları (`905001234567`, `905009876543`) mobilde de çalıştı — bu da
+"mobil-web ayrımı" teorisini bizzat çürüttü (aynı ayar, aynı sonuç, iki
+istemcide de). Düzeltildi: `Build/P23-Mobile.md` (M5-b bölümü) ve
+`Build/Store-Compliance.md` (Bölüm 2, madde 7'nin gerekçesi — M7-c'nin
+**sonucu** değişmedi, yalnızca sebebi).
+
+**Berkin'in açık maddesi — takvime hatırlatıcı:** `SMS_TEST_OTP_VALID_UNTIL`
+tek bir tarihe bağlı ve dolduğunda **sessizce** hem test hesaplarının web
+hem mobil girişini kırıyor (hata mesajı yok, sadece "kod hatalı/süresi
+dolmuş" gibi genel bir mesaj görünüyor — kullanıcı gerçek bir OTP hatasıyla
+ayırt edemez). Süre her uzatıldığında yeni bitiş tarihinden ~1 hafta önceye
+bir takvim hatırlatıcısı konmalı (App Review süreci bitene kadar tekrar
+tekrar). Bkz. `Build/Store-Compliance.md` → Bölüm 6, madde 2.
+
+### 7 — Berkin'in açık maddesi (kod değil, panodan) — eksik ortam değişkeni
+
+`SUPABASE_SERVICE_ROLE_KEY` eksikliği araştırıldı. **Düzeltme:** bu bir
+Supabase Edge Function değil — `activatePremium`
+(`hasat-d2c-marketplace/src/lib/api/premium.functions.ts`, bir TanStack
+Start **server function**, `createServerFn`) `supabaseAdmin`'i
+(`src/integrations/supabase/client.server.ts`) kullanıyor, o da
+`process.env.SUPABASE_URL` + `process.env.SUPABASE_SERVICE_ROLE_KEY`'i
+web app'in kendi sunucu çalışma zamanından (Lovable Cloud) okuyor — Supabase
+Edge Functions'ın otomatik enjekte ettiği `service_role` anahtarıyla
+**aynı değişken değil, ayrı bir ortam**. (Karşılaştırma: repodaki dört
+gerçek Supabase Edge Function — `ai-box-insights`, `whatsapp-ai-webhook`,
+`admin-kpi`, `send-sms` — `SERVICE_ROLE_KEY`'i Supabase'in kendi çalışma
+zamanından otomatik alıyor, bu sorundan etkilenmiyor.) `activatePremium`
+başarısız olunca `onboarding.buyer.tsx`'in `finish()`'i hatayı yakalayıp
+toast ile gösteriyor ve **navigate etmeden dönüyor** — profil ve
+`buyer_profile` zaten oluşmuş oluyor (kayıt kırık değil), ama kullanıcı
+akışın son adımında kırmızı bir hata görüp `/buyer/discover`'a hiç
+geçemiyor gibi bir izlenim alıyor. Mobil onboarding bu adımı hiç
+çağırmadığı için (madde 2) bu hatayı tekrarlamıyor, ama web'deki soru
+duruyor. **Berkin'in lansman öncesi zorunlu maddesi:** Lovable Cloud proje
+ayarlarından web app'e `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` ortam
+değişkenlerini eklemek (Supabase Dashboard → Project Settings → API →
+`service_role` anahtarı → Lovable Cloud environment variables). Kod
+tarafından çözülmeye çalışılmadı (görev talimatı).
+
+### 8 — Doğrulama özeti (kural #96)
+
+| Kontrol | Sonuç |
+|---|---|
+| Mobil kayıt → `handle_new_user()` → `profiles.role='buyer'` (gerçek insert) | ✅ Gerçek `auth.users`/`auth.identities` insert'i, `raw_user_meta_data='{"role":"buyer"}'`, trigger doğru çalıştı |
+| `buyer_profiles` satırı oluşuyor (onboarding'in yazdığı gibi, impersonation) | ✅ `SET LOCAL ROLE authenticated` + `request.jwt.claims` ile gerçek insert |
+| Test verisi temizlendi | ✅ `auth.users`/`auth.identities`/`profiles`/`notif_prefs`/`buyer_profiles` → 0/0/0/0/0 |
+| Gerçek kullanıcılara/test hesaplarına dokunulmadı | ✅ 4 hesap (`905554442211`,`905554443322`,`905001234567`,`905009876543`) SQL ile tekrar kontrol edildi, rolleri değişmedi |
+| `buyer_type` self-update sınırı (yeni bulgu) | ✅ Gerçek impersonation ile doğrulandı, düzeltilmedi (kural #107, Berkin'e bırakıldı) |
+| `offers`/`orders` RLS — yalnızca kendi kayıtları | ✅ Gerçek impersonation, 0 sızıntı, 13 kendi teklifi görünür |
+| Çıkış akışı — kod zinciri | ✅ `LargeSecureStore` + `device_tokens` DELETE + artık `router.replace("/login")` var |
+| Çıkış/hesap silme gerçek cihaz click-through | 🔴 **Doğrulanamadı (kural #103)** — simülatör/cihaz yok. `Build/E2E-QA.md` → S31 |
+| `tsc --noEmit` — `hasat-mobile` | ✅ Temiz |
+| `tsc --noEmit` — `hasat-d2c-marketplace` | ✅ Temiz (dokunulmadı, baseline doğrulandı) |
+| `tsc --noEmit` — `hasat-core` | ✅ Temiz (dokunulmadı, baseline doğrulandı) |
+| Mobil build | Bu oturumdan tetiklenemez — kota 15 iOS/ay, 4 kullanıldı (M7-a'dan beri değişmedi, bu turda build tetiklenmedi). |
+
+### Dokunulan dosyalar
+
+**`hasat-mobile`** (tek repo, kod değişikliği bu turda yalnızca burada):
+- `app/login.tsx` — `signInWithOtp`'e `options.data.role:"buyer"` eklendi, `verify()` onboarding'e yönlendirme dalı eklendi
+- `app/index.tsx` — cold-start guard'ı profil adı boşsa `/onboarding`'e yönlendirecek şekilde genişletildi
+- `app/onboarding.tsx` (yeni) — mobil alıcı onboarding'i
+- `app/profile.tsx` (yeni) — profil ekranı, çıkış + hesap silme
+- `app/orders.tsx` (yeni) — Siparişlerim, salt okunur
+- `app/home.tsx` — köşedeki Çıkış/Hesabımı Sil kaldırıldı, `/profile`+`/orders` linkleri eklendi
+- `src/lib/hasat/profile.ts` (yeni) — `useProfile`/`isEffectivelyPremium` portu
+- `src/lib/hasat/orders.ts` (yeni) — `useBuyerOffers`/`useBuyerOrders`/`offerStatusLabel` portu
+
+**`hasat-vault`:**
+- `TODO.md` — bu bölüm + M5-a/M5-b'nin yanlış teşhisinin düzeltilmesi referansı
+- `Build/P23-Mobile.md` — M5-b'deki yanlış teşhis düzeltildi + M7-d kapsamı (profil ekranı, siparişler, onboarding tutarlılığı)
+- `Build/Store-Compliance.md` — M7-c'nin gerekçesi güncellendi (sonuç aynı, sebep düzeltildi) + Bölüm 6'ya iki madde
+- `Build/E2E-QA.md` — S31 eklendi
+
+**Dokunulmayan (kapsam kuralı tutuldu):** `src/lib/core/` (kural #105) ·
+`hasat-d2c-marketplace` (kod, yalnızca dokümanda referans) · `hasat-core`
+(kod) · mobilde ödeme/checkout · pazarlık yanıtı ekranı · yemek
+fotoğrafından tahmin/YouTube import/web Defterim · `unit_type` enum'u ·
+şema değişikliği yok (kural #115'in sıralaması bu turda gerekmedi).

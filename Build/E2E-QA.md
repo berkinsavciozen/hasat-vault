@@ -940,6 +940,62 @@ doğrulandı — `TODO.md` → "P23-M6-ek" madde 5:
 
 ---
 
+### S31 — P23-M7-d: Mobil Kayıt Akışı Tutarlılığı + Acil UI Düzeltmeleri
+
+**Arka plan:** `TODO.md` → "P23-M7-d" build log (kök neden analizi + gerçek
+SQL/RLS doğrulama tablosu), `Build/P23-Mobile.md` → "M7-d", yanlış OTP
+teşhisinin düzeltmesi için `Build/Store-Compliance.md` → Bölüm 2 madde 7.
+
+**Merge listesi**
+| Repo | İçerik |
+|---|---|
+| `hasat-mobile` | `app/login.tsx`, `app/index.tsx`, `app/home.tsx`, `app/onboarding.tsx` (yeni), `app/profile.tsx` (yeni), `app/orders.tsx` (yeni), `src/lib/hasat/profile.ts` (yeni), `src/lib/hasat/orders.ts` (yeni) |
+| `hasat-vault` | Bu doküman + `TODO.md` + `Build/P23-Mobile.md` + `Build/Store-Compliance.md` |
+| `hasat-d2c-marketplace` | **Değişiklik yok** — yalnızca okundu (kural #106 referans mekanizması), kod dokunulmadı |
+| `hasat-core` | **Değişiklik yok** — şema değişikliği yok |
+
+> ⚠️ **İlk adım — kural #109'un mobil karşılığı:** Bu turda `app/login.tsx`,
+> `app/home.tsx` değiştiği + `app/onboarding.tsx`/`app/profile.tsx`/`app/orders.tsx`
+> yeni eklendiği için **S27/S28/S29'un build'i bu ekranları hiç içermiyor**.
+> Web tarafında değişiklik olmadığı için Lovable'da Publish gerekmiyor, ama
+> **mobil için GitHub Actions'tan `eas-build-simulator.yml` tetiklenip yeni
+> bir simülatör build'i alınmalı** — eski build'le test edilirse hem kayıt
+> rolü düzeltmesi hem yeni ekranlar hiç görünmez, "değişmedi" gibi yanlış
+> bir sonuca varılır (M7-a'daki S29 notuyla aynı ders).
+>
+> **⚠️ Hesap silme testi gerçek kullanıcıyla YAPILMAMALI:** adım 8 (aşağıda)
+> `rpc_delete_own_account`'ı gerçekten çağırır ve **geri alınamaz** (P26 —
+> kişisel veri silinir, işlem kayıtları anonimleştirilir). Yalnızca bu S31
+> için oluşturulmuş, atılabilir bir test numarasıyla yapılmalı — Ahmet/Zeynep
+> (`905001234567`/`905009876543`) ya da Berkin'in gerçek telefonuyla **asla**
+> denenmemeli.
+
+**Test adımları (kural #104):**
+
+| # | Adım | Beklenen |
+|---|---|---|
+| 1 | Yeni bir test numarasıyla (daha önce hiç kayıt olmamış) mobilden "Kod Gönder"e dokun, OTP'yi gir | Giriş başarılı, **onboarding ekranı** açılıyor (tarif listesi değil) |
+| 2 | Onboarding'de "Bireysel" seçili bırak, adını gir, "Keşfetmeye Başla →"a dokun | Kısa bir yükleniyor durumundan sonra tarif listesi (`/home`) açılıyor |
+| 3 | Uygulamayı tamamen kapat, yeniden aç | Doğrudan tarif listesine düşüyor (onboarding'e geri dönmüyor) — profil adı artık dolu |
+| 4 | Sağ üstteki 👤 ikonuna dokun | Profil ekranı açılıyor: ad, "Ücretsiz" rozeti, "📦 Siparişlerim" satırı, altta "Çıkış Yap" (kırmızı dolu buton), en altta ayraçla ayrılmış "Hesabımı Sil" (kırmızı outline, dolu değil) |
+| 5 | "Çıkış Yap"a dokun | **Giriş ekranına dönüyor** (önceki davranış: hiçbir şey olmuyormuş gibi görünüyordu — bu adım asıl düzeltmenin kanıtı) |
+| 6 | Aynı numarayla tekrar giriş yap | Doğrudan tarif listesine düşüyor (onboarding'e değil — profil zaten dolu), oturumun gerçekten temizlenip yeniden kurulduğunu doğruluyor |
+| 7 | Sağ üstteki 📦 ikonuna dokun | Siparişlerim ekranı açılıyor: "Tekliflerim"/"Siparişler" iki sekme, önceden oluşturulmuş bir teklif varsa listede görünüyor (crop, miktar, fiyat, durum etiketi) — **Kabul Et/Karşı Teklif/Reddet butonu YOK** |
+| 8 | **[Yalnızca atılabilir test hesabıyla]** Profil ekranından "Hesabımı Sil"e dokun, "HESABIMI SİL" yaz, onayla | Hesap silme akışı önceki gibi çalışıyor (P26'dan değişmedi), silme sonrası giriş ekranına dönüyor |
+
+**Beklenen sonuç: 8/8.**
+
+**Bu S31'in tamamı Claude Code tarafından doğrulanamadı (kural #103):**
+kayıt rolü düzeltmesi (adım 1'in DB tarafı) ve `buyer_profiles` oluşumu
+gerçek SQL/RLS impersonasyonuyla kanıtlandı (`TODO.md` → "P23-M7-d" madde
+1-2, madde 8 tablosu); `offers`/`orders` RLS izolasyonu (adım 7'nin DB
+tarafı) gerçek impersonasyonla kanıtlandı. Ama ekrandaki gerçek davranış
+(adım 1-8'in kendisi — routing, buton dokunuşları, "Çıkış Yap"ın gerçekten
+ekran değiştirdiği) bu oturumda simülatör/cihaz olmadığı için gözle test
+edilemedi.
+
+---
+
 ## Feature Sonrası Süreç
 
 1. Yeni prompt tamamlanınca yeni S-numarası eklenir
@@ -979,3 +1035,4 @@ doğrulandı — `TODO.md` → "P23-M6-ek" madde 5:
 - **2026-08-03:** **S26'ya adım 11 eklendi (P23-M5-b-ek — bulk detay prefetch + uçak modu).** Liste ağdan çekilince artık 18 tarifin tamamının detayı arka planda önbelleklendiği için, yeni adım özellikle **daha önce hiç açılmamış bir tarife** uçak modundayken dokunmayı test ediyor (eski adım 9-10 yalnızca Wi-Fi kapatmayı test ediyordu, bu da hâlâ gerçek uçak modu değil — bkz. adım 11'in üstündeki not). Berkin kararı gereği (madde 4/5, `TODO.md` → "P23-M5-b-ek") test girişi gerçek SMS ile, çiftçi rolüyle de tüm ekranlar erişilebilir kaldığı için bu S26 senaryosu değişmedi.
 - **2026-08-03:** **S27 eklendi (P23-M6 native yetenekler — pişirme modu, AI import, push).** İlk adım yeni bir simulator build alıp Appetize'a yüklemek (S26'nın build'inde bu turun kodu ve dört yeni native modül yok). Sunucu tarafı bu turda gerçekten doğrulandı: `device_tokens` UNIQUE(token) devri gerçek insert/update ile (önce arıza birebir üretildi: client'ın düz upsert'ü RLS USING'e takılıp `42501` veriyor), `extract-recipe` gerçek bir kullanıcı JWT'siyle `pg_net` üzerinden çağrıldı ve kaydın `visibility='private'`/`author_type='kullanici'` olduğu, client'ın gönderdiği `public` değerinin yok sayıldığı, kota aşımında 429 döndüğü kanıtlandı; test verisi temizlendi. Kamera, push teslimatı ve gerçek uçak modu ayrı bir tabloda "simülatörde test edilemez" olarak tutuluyor — S27'nin 26 adımına dahil değil.
 - **2026-08-04:** **S28 eklendi (P23-M6-ek — AI import crop eşleştirmesi, isim alanı, manuel eşleştirme, dört-durumlu malzeme kartı).** Berkin'in canlı testinde bulundu: import edilen tarifte 12 malzemenin 0'ı `crop`'a bağlanıyordu. Deterministik (fuzzy değil, birebir alias lookup) bir DB fonksiyonu + `recipe_ingredients` üzerinde BEFORE INSERT trigger eklendi; gerçek SQL ile 11 test cümlesi (kısmi/çoklu eşleşme, yenilemez crop, boş girdi) doğrulandı; Berkin'in canlı tarifi geriye dönük eşleştirildi (12'nin 3'ü bağlandı), editoryal 18 tarife dokunulmadı. Önizleme ekranına manuel crop seçici + tarımsal/platform-dışı sınıflandırma anahtarı eklendi. Malzeme kartı dört duruma çıkarıldı (Sipariş Ver dış link · üç ayrı Talep Et durumu), yeni bir native "Talep Et" formu (web'in `useCreateCropRequest`'inin birebir portu) eklendi. `extract-recipe` gerçek bir kullanıcı JWT'siyle iki kez çağrıldı: isim ipucuyla adım uydurmadığı (`step_count=0` kaynakta adım yokken) ve sunucu tarafı zorlamanın (visibility/author_type/owner_id) hâlâ çalıştığı kanıtlandı; bir gerçek AI sınıflandırma hatası da gözlemlendi ("tuz" yanlışlıkla tarımsal döndü — önizleme düzeltmesinin tam olarak var olma sebebi). `tsc --noEmit` hem `hasat-mobile` hem `hasat-core`'da temiz.
+- **2026-08-05:** **S31 eklendi (P23-M7-d — mobil kayıt rolü düzeltmesi, onboarding, profil ekranı, salt-okunur Siparişlerim).** Berkin'in canlı testinde bulundu: mobil kayıtlar `farmer` rolüyle açılıyordu (kök neden: `hasat-mobile/app/login.tsx` `signInWithOtp`'e `raw_user_meta_data.role` göndermiyordu, `handle_new_user()` boşsa `'farmer'`a düşüyor), onboarding hiç yoktu, çıkış butonu oturumu temizliyor ama hiçbir zaman yönlendirmiyordu (Hesabımı Sil'in yanında durması veri kaybı riskiydi). Rol düzeltmesi + `buyer_profiles` oluşumu gerçek `auth.users` insert'i + impersonasyonla doğrulandı, test verisi temizlendi, dört gerçek/test hesabına dokunulmadı. Yeni bulgu: `enforce_profile_self_update_restrictions_trg` onboarding'in `buyer_type` yazımını sessizce geri çeviriyor (hem web hem mobilde, bu turdan önce de) — düzeltilmedi, kural #107 gereği Berkin'e bırakıldı. Ayrıca M5-a/M5-b'den kalan yanlış bir teşhis düzeltildi: "`123456` web'de çalışıyor mobilde çarpıyor" değil, `SMS_TEST_OTP_VALID_UNTIL`'ın 1 Ağustos'ta dolmuş olması — istemciden bağımsız, ikisini de aynı şekilde kırıyordu.
