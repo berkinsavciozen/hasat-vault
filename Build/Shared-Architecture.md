@@ -132,7 +132,7 @@ DB'ye taşınamayan kısım:
 | Üretilmiş DB tipleri | `supabase gen types typescript` çıktısı | ✅ M1 |
 | Design token'ları | Marka renkleri, spacing, tipografi ölçeği | ✅ M1 |
 | Saf yardımcılar | `convertQuantity()` | ✅ M1 |
-| Saf yardımcılar (kalan) | coverage skoru, offer-status etiketleri, para/tarih formatlama | ⬜ M5-b/M9 — konsolide: `TODO.md` → "M9 — Lansman Sonrası" madde 18 |
+| Saf yardımcılar (kalan) | coverage skoru, offer-status etiketleri, para/tarih formatlama | ⬜ M5-b/M9 — konsolide: `TODO.md` → "M9 — Lansman Sonrası" madde 17 |
 | **Supabase storage adapter** | `core/supabase/client.ts` — `createHasatSupabaseClient()`, storage parametreli | ✅ **M5-a (2026-07-30)** |
 | **Supabase sorgu fonksiyonları** | `fetchListings()`, `fetchRecipe()` … | ⬜ **M5-b** |
 | **TanStack Query hook'ları** | Mobilde `@tanstack/react-query` kuruldu (M5-a); ortak hook'lar (`useListings()`, `useRecipes()`) henüz core'a taşınmadı | ⬜ **M5-b** |

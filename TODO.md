@@ -23,9 +23,19 @@ tags:
 > bırakıldı. Liste **tam değildir** (görev metninin kendisi de bunu söylüyor) — yeni bir M9
 > maddesi bulunduğunda buraya eklenmeli, tek doğruluk kaynağı burası olmalı.
 >
-> **Kural #107 notu:** Bu konsolidasyon sırasında üç nokta otonom karara bağlanmadı, aşağıda
-> madde 3, 12 ve dipnotta açıkça işaretlendi — Berkin'in doğrulamasına/kararına bırakıldı.
-> Bu tur **yalnızca doküman değişikliği** — hiçbir kod/DB/migration/edge function
+> **[2026-08-05, ikinci geçiş] Berkin'in doğrulaması sonrası düzeltme.** İlk sürümde kural
+> #107 gereği üç nokta otonom karara bağlanmamıştı; Berkin üçünü de doğruladı, ikisi
+> orkestratör hatası çıktı: (a) `.env` bekçisi maddesi **tamamen kaldırıldı** — Berkin
+> `hasat-mobile/.github/workflows/env-guard.yml`'ın gerçekten mevcut olduğunu ve hem beyaz
+> liste hem push tetikleyicisinin uygulandığını doğruladı, madde yanlışlıkla listeye
+> girmişti; (b) "8 gerçek telefon numarası" maddesi **düzeltildi** — 8 rakamı `auth.users`
+> tablosundaki kullanıcı sayısıydı, `_Context.md`'deki numara sayısı değildi (bkz. madde 3);
+> (c) probe fonksiyonları maddesi **doğrulandı ve zenginleştirildi** — `probe-ibb-hal`/
+> `probe-api-ninjas` canlı projede gerçekten mevcut (11 edge function arasında, Berkin
+> teyit etti), vault'ta hiç dokümante edilmemiş olmaları ayrı, gerçek bir doküman eksikliği
+> (bkz. madde 4).
+>
+> Bu tur da **yalnızca doküman değişikliği** — hiçbir kod/DB/migration/edge function
 > değiştirilmedi, silinmedi ya da deploy edilmedi.
 
 ### 🔐 Güvenlik / Altyapı
@@ -44,24 +54,25 @@ tags:
    lansmana 3 hafta kala canlı sistemde yapılacak iş değil. Maruziyet **public repoya
    değil**, Berkin'in kendi Lovable hesabındaki kapalı bir sohbete sınırlı. Kalıcı çözüm
    madde 1.
-3. **[YENİ, doğrulanamadı — kural #107] `_Context.md`'deki gerçek telefon numarası iddiası.**
-   Görev metni "`_Context.md`'de 8 gerçek telefon numarası public repoda duruyor" diyor. Bu
-   turda `_Context.md` ve `905\d{9}` deseniyle **tüm vault** tarandı — yalnızca **2 numara**
-   bulundu, ikisi de `_Context.md`'nin "Test Kullanıcıları" tablosunda açıkça **test
-   hesabı** olarak etiketli (`905001234567`/Ahmet, `905009876543`/Zeynep), gerçek/canlı
-   kullanıcı numarası değil. `TODO.md`'de "canlı DB'de 8 `auth.users.phone` değeri var" notu
-   geçiyor (P23-M7-c build log, "Telefon numarası seçimi" maddesi) ama bu **veritabanı**
-   verisi — vault dokümanına hiç yazılmamış. **Otonom karar verilmedi:** ya görev metnindeki
-   "8 numara" iddiası başka bir kaynağa/artık geçerli olmayan bir taslağa aitti, ya da bu
-   tarama bir şeyi kaçırdı — Berkin doğrulamalı. Doğrulanırsa temizlik/maskeleme ayrı bir
-   doküman-değişikliği PR'ı olarak yapılmalı (bu PR kapsamı dışı).
+3. **[2026-08-05 düzeltildi] `_Context.md`'deki test telefon numaraları.** İlk sürümde bu
+   madde "`_Context.md`'de 8 gerçek telefon numarası public repoda duruyor" diye
+   kaydedilmişti — **yanlıştı**. Berkin doğruladı: 8 rakamı canlı `auth.users` tablosundaki
+   toplam kullanıcı sayısıydı, `_Context.md` dosyasındaki numara sayısı değildi. Gerçek
+   madde: **`_Context.md` public repoda 2 test hesabının telefon numarasını ve sabit
+   OTP'sini içeriyor** (`905001234567`/Ahmet, `905009876543`/Zeynep, OTP `123456`).
+   Bilinçli bir karar (QA erişimi için), ancak lansman sonrası gözden geçirilmeli —
+   özellikle `SMS_TEST_OTP_VALID_UNTIL` kalıcı hale getirilirse bu numaralar gerçek giriş
+   yolu olur.
 4. **Test/teşhis edge function temizliği.** `diag-p23-m6ek`, `probe-ibb-hal`,
    `probe-api-ninjas` — özellikle `verify_jwt=false` olanlar dışarıya açık uçlar.
    **Not:** `diag-p23-m6ek` zaten `verify_jwt=true` yapılıp devre dışı bırakıldı ama proje için
    edge function **silme aracı olmadığından silinemedi** (bkz. `Build/DB-Schema.md` →
-   "P23-M6-ek → H"). `probe-ibb-hal`/`probe-api-ninjas` bu vault taramasında **hiçbir yerde
-   bulunamadı** — muhtemelen yalnızca canlı Supabase projesinde var, dokümante edilmemiş;
-   Berkin'in canlı `list_edge_functions` ile teyit etmesi gerekiyor.
+   "P23-M6-ek → H"). **[2026-08-05 doğrulandı]** `probe-ibb-hal`/`probe-api-ninjas` canlı
+   projede **gerçekten mevcut** (Berkin'in teyidiyle, 11 edge function arasında) — ama bu
+   fonksiyonlar **hiçbir vault dokümanında geçmiyor**; temizlik öncesi ne yaptıkları ve hâlâ
+   kullanılıp kullanılmadıkları tespit edilmeli. Vault'ta dokümante edilmemiş olmaları
+   `diag-p23-m6ek`'ten farklı, ayrı bir eksiklik — o en azından `Build/DB-Schema.md`'de
+   kayıtlı.
 5. **`auth.users` scrub'ının FK değişikliğiyle gereksizleştirilmesi.** `offer_messages.sender_id`
    FK'sini `auth.users(id)` yerine `profiles(id)`'e çevirmek (ya da `ON DELETE SET NULL`) —
    böylece `rpc_delete_own_account`'ın scrub hack'i yerine Supabase'in resmî
@@ -107,29 +118,25 @@ tags:
     fotoğrafından tahmin** (model gerçek tarifi bilemez, makul bir tarif *uydurur*,
     "tahmini tarif" etiketi zorunlu). `extract-recipe` şu an yalnızca `mode='text'` ve
     `mode='photo'` (yazılı tarif fotoğrafı) kabul ediyor.
-12. **`.env` bekçisinin beyaz listeye çevrilmesi + `hasat-mobile`'da push tetikleyicili
-    çalışması.** ⚠️ **Otonom bulgu (kural #107) — muhtemelen zaten kapalı:** bu tarama, bu
-    maddenin **P23-M5-b'de (2026-08-03) "UYGULANDI" olarak işaretlendiğini** buldu —
-    `hasat-core/scripts/check-env-guard.mjs` kara listeden `ALLOWED_NAMES` beyaz listesine
-    çevrildi, `hasat-mobile/.github/workflows/env-guard.yml` `.env` değiştiğinde push'ta
-    tetikleniyor (bkz. `TODO.md` → "P23-M5-b" madde 5, "5 — `.env` bekçisi — UYGULANDI").
-    Görev metninde hâlâ açık madde olarak listelenmesinin nedeni bu turdan görülemiyor
-    (muhtemelen görev metni bu uygulamadan önce yazıldı). **Otonom karara bağlanmadı** —
-    madde burada kayıt altına alınıyor ama "kapandı" diye de işaretlenmedi; Berkin
-    doğrulamalı (gerçek `.env` değişikliğiyle workflow'un tetiklendiği hâlâ cihaz/CI'da
-    gözle görülmedi).
-13. **Sipariş takip ekranı + "web'de devam et" yönlendirmesi** — mobilde sipariş takip
+12. **Sipariş takip ekranı + "web'de devam et" yönlendirmesi** — mobilde sipariş takip
     ekranı yok, ilgili yerlerde web'e yönlendirme var.
-14. **HoReCa porsiyon maliyeti hesaplayıcı.**
-15. **Abonelik köprüsü** (`harvest_subscriptions` × tarif).
-16. **Organizasyon hesabına geçiş.**
-17. **Kullanıcı tarifinin offline erişimi** — bilinçli olarak kapsam dışı bırakıldı
+13. **HoReCa porsiyon maliyeti hesaplayıcı.**
+14. **Abonelik köprüsü** (`harvest_subscriptions` × tarif).
+15. **Organizasyon hesabına geçiş.**
+16. **Kullanıcı tarifinin offline erişimi** — bilinçli olarak kapsam dışı bırakıldı
     (yalnızca editoryal/public tarifler `expo-sqlite`'a önbelleklendi, kullanıcının kendi
     içe aktardığı tarifler değil).
-18. **`hasat-core`'a taşınacak kalan saf yardımcılar** — coverage skoru, offer-status
+17. **`hasat-core`'a taşınacak kalan saf yardımcılar** — coverage skoru, offer-status
     etiketleri, para/tarih formatlama. Kaynak dokümanda çift etiketli: "M5-b/M9" (bkz.
     `Build/Shared-Architecture.md` → Katman 2 tablosu) — hangi taşın altında yapılacağı
     netleşmedi, kural #107 gereği burada karar verilmiyor.
+
+**[2026-08-05 kaldırıldı]** `.env` bekçisinin beyaz listeye çevrilmesi + push tetikleyicili
+çalışması maddesi bu bölümden **çıkarıldı**. İlk sürümde otonom bir bulgu olarak
+("muhtemelen zaten kapalı") kayda geçirilmişti; Berkin doğruladı: `hasat-mobile/.github/workflows/env-guard.yml`
+mevcut, hem beyaz liste (`ALLOWED_NAMES`) hem push tetikleyicisi **uygulanmış** — bkz.
+`TODO.md` → "P23-M5-b" madde 5, "5 — `.env` bekçisi — UYGULANDI". Madde yanlışlıkla M9
+listesine girmişti, gerçek bir açık madde değil.
 
 ---
 
@@ -2342,7 +2349,7 @@ offline testi tasarruftan önce gelir.
 | **FCM V1 servis hesabı anahtarı + `google-services.json`** (Android push'un çalışması için tek eksik; Firebase projesi Berkin'de) | Berkin |
 | **APNs anahtarı** (iOS push — ücretli Apple hesabı onayına bağlı) | Berkin / M8 |
 | Çiftçi rol kontrolü (M5-b-ek'ten devam — alıcıya özel akışlar eklenince) | M7 |
-| Kullanıcı tarifinin offline erişimi (bilinçli olarak kapsam dışı bırakıldı) | M9 — konsolide: yukarıda "M9 — Lansman Sonrası" madde 17 |
+| Kullanıcı tarifinin offline erişimi (bilinçli olarak kapsam dışı bırakıldı) | M9 — konsolide: yukarıda "M9 — Lansman Sonrası" madde 16 |
 
 #### Kapsam kuralı tutuldu
 
@@ -2650,7 +2657,7 @@ kural #114'e yazıldı.
 | Madde | Nereye |
 |---|---|
 | Pazarlık yanıtı (karşı teklife cevap) — mobilde ekran yok, çiftçi karşı teklif verirse alıcı web'e yönlendiriliyor | M8 sonrası — konsolide: yukarıda "M9 — Lansman Sonrası" madde 10 |
-| Sipariş takip ekranı + "web'de devam et" yönlendirmesi | M9 — konsolide: yukarıda "M9 — Lansman Sonrası" madde 13 |
+| Sipariş takip ekranı + "web'de devam et" yönlendirmesi | M9 — konsolide: yukarıda "M9 — Lansman Sonrası" madde 12 |
 | Web Defterim (kişisel tarif içe aktarma web'de yok) | M9 — konsolide: yukarıda "M9 — Lansman Sonrası" madde 9 |
 | Keşfet (genel ürün tarama), Siparişlerim | M7-b |
 | Store varlıkları (gizlilik metni, hesap silme, ekran görüntüleri, review notları) | M7-b |
