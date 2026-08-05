@@ -747,6 +747,10 @@ Gerçek cihaz/simülatör click-through'u bu turda **doğrulanamadı** (kural
 - **Çıkış:** iOS + Android canlı
 
 ### M9 — Sıraya alındı (silinmedi)
+
+> **[2026-08-05]** Tam konsolide liste (bu madde + tüm diğer dokümanlara dağılmış M9
+> maddeleri): `TODO.md` → "M9 — Lansman Sonrası".
+
 YouTube/link import (hukuki kontrol şartıyla) · yemek fotoğrafından tahmin · HoReCa porsiyon maliyeti hesaplayıcı · abonelik köprüsü (`harvest_subscriptions` × tarif) · bildirim event map konsolidasyonu · organizasyon hesabına geçiş · **web Defterim** (kişisel tarif içe aktarma web'de yok, mobil-only kalıyor) · **sipariş takibi web köprüsü** (P23-M7-a'da not edildi — mobilde sipariş takip ekranı yok, ilgili yerlerde "web'de devam et" yönlendirmesi)
 
 **M8 sonrası:** pazarlık yanıtı (karşı teklife cevap) — P23-M7-a'da mobilde teklif OLUŞTURMA native oldu ama çiftçi karşı teklif verirse alıcı hâlâ web'e yönlendiriliyor (kopma noktası bir adım sonraya kaydı, tamamen kaybolmadı).

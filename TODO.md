@@ -13,6 +13,126 @@ tags:
 
 ---
 
+## 🟣 M9 — Lansman Sonrası (Konsolide Açık Maddeler)
+
+> **[2026-08-05 eklendi]** P23 boyunca M9'a ertelenen maddeler `TODO.md`, `Build/DB-Schema.md`,
+> `Build/Shared-Architecture.md`, `Build/P23-Mobile.md`, `Build/Roadmap.md` ve
+> `Build/P23-Mobile-Visual-Spec.md` arasında dağılmıştı. Bu bölüm hepsini **tek listede**
+> topluyor. **Orijinal maddeler silinmedi** — her biri hâlâ kendi kaynak dokümanında/build
+> log'unda duruyor; bu bölüm onlara işaretçi veriyor, kaynaklarda da bu bölüme geri işaretçi
+> bırakıldı. Liste **tam değildir** (görev metninin kendisi de bunu söylüyor) — yeni bir M9
+> maddesi bulunduğunda buraya eklenmeli, tek doğruluk kaynağı burası olmalı.
+>
+> **Kural #107 notu:** Bu konsolidasyon sırasında üç nokta otonom karara bağlanmadı, aşağıda
+> madde 3, 12 ve dipnotta açıkça işaretlendi — Berkin'in doğrulamasına/kararına bırakıldı.
+> Bu tur **yalnızca doküman değişikliği** — hiçbir kod/DB/migration/edge function
+> değiştirilmedi, silinmedi ya da deploy edilmedi.
+
+### 🔐 Güvenlik / Altyapı
+
+1. **[YENİ] Supabase API key sistemi geçişi.** Legacy JWT tabanlı `anon`/`service_role`
+   key'lerinden yeni "Publishable and secret API keys" sistemine geçiş. Gerekçe: legacy
+   key'ler tek bir JWT secret'ıyla imzalanıyor, tek tek rotate edilemiyor — birini
+   değiştirmek diğerini de kırıyor ve tüm oturumları düşürüyor; yeni sistemde secret
+   key'ler bağımsız rotate edilebiliyor (Supabase'in kendi panosunda önerdiği yol). Madde
+   2'deki kabul edilmiş riskin kalıcı çözümü budur.
+2. **[YENİ] Kabul edilen risk — `service_role` key maruziyeti (2026-08-05).**
+   `SUPABASE_SERVICE_ROLE_KEY` Lovable sohbetine yapıştırıldı; Lovable'ın kendisi rotate
+   önerdi. **Rotate edilmedi — bilinçli karar (Berkin, 2026-08-05):** legacy sistemde
+   rotate `anon` key'i de değiştiriyor → `hasat-mobile/.env` geçersizleşiyor → yeni EAS
+   build gerekiyor (kota sınırlı, ayda 30 build/15 iOS) → tüm aktif oturumlar düşüyor;
+   lansmana 3 hafta kala canlı sistemde yapılacak iş değil. Maruziyet **public repoya
+   değil**, Berkin'in kendi Lovable hesabındaki kapalı bir sohbete sınırlı. Kalıcı çözüm
+   madde 1.
+3. **[YENİ, doğrulanamadı — kural #107] `_Context.md`'deki gerçek telefon numarası iddiası.**
+   Görev metni "`_Context.md`'de 8 gerçek telefon numarası public repoda duruyor" diyor. Bu
+   turda `_Context.md` ve `905\d{9}` deseniyle **tüm vault** tarandı — yalnızca **2 numara**
+   bulundu, ikisi de `_Context.md`'nin "Test Kullanıcıları" tablosunda açıkça **test
+   hesabı** olarak etiketli (`905001234567`/Ahmet, `905009876543`/Zeynep), gerçek/canlı
+   kullanıcı numarası değil. `TODO.md`'de "canlı DB'de 8 `auth.users.phone` değeri var" notu
+   geçiyor (P23-M7-c build log, "Telefon numarası seçimi" maddesi) ama bu **veritabanı**
+   verisi — vault dokümanına hiç yazılmamış. **Otonom karar verilmedi:** ya görev metnindeki
+   "8 numara" iddiası başka bir kaynağa/artık geçerli olmayan bir taslağa aitti, ya da bu
+   tarama bir şeyi kaçırdı — Berkin doğrulamalı. Doğrulanırsa temizlik/maskeleme ayrı bir
+   doküman-değişikliği PR'ı olarak yapılmalı (bu PR kapsamı dışı).
+4. **Test/teşhis edge function temizliği.** `diag-p23-m6ek`, `probe-ibb-hal`,
+   `probe-api-ninjas` — özellikle `verify_jwt=false` olanlar dışarıya açık uçlar.
+   **Not:** `diag-p23-m6ek` zaten `verify_jwt=true` yapılıp devre dışı bırakıldı ama proje için
+   edge function **silme aracı olmadığından silinemedi** (bkz. `Build/DB-Schema.md` →
+   "P23-M6-ek → H"). `probe-ibb-hal`/`probe-api-ninjas` bu vault taramasında **hiçbir yerde
+   bulunamadı** — muhtemelen yalnızca canlı Supabase projesinde var, dokümante edilmemiş;
+   Berkin'in canlı `list_edge_functions` ile teyit etmesi gerekiyor.
+5. **`auth.users` scrub'ının FK değişikliğiyle gereksizleştirilmesi.** `offer_messages.sender_id`
+   FK'sini `auth.users(id)` yerine `profiles(id)`'e çevirmek (ya da `ON DELETE SET NULL`) —
+   böylece `rpc_delete_own_account`'ın scrub hack'i yerine Supabase'in resmî
+   `admin.deleteUser()` yolu kullanılabilir. **Tam gerekçe/detay:** bkz. aşağıda "Açık madde
+   (M9) — `auth.users` scrub'ını FK değişikliğiyle gereksizleştir" (P26 build log) ve
+   `Build/DB-Schema.md` → "P26" → "Bilinçli scrub kararı".
+6. **Bildirim event map konsolidasyonu.** Event→tercih eşlemesi şu an `dispatch_sms` (SQL)
+   ile `send-sms` (TS) içinde ayrı ayrı yaşıyor — kural #106'nın uyardığı tam senaryo, iki
+   kez sapmıştı (P20/P24). Tek kaynağa (DB tablosu `notif_event_map`) konsolidasyonu **25
+   Ağustos'tan önce YAPILMAYACAK** (lansman öncesi risk kuralı — iki kez kırılmış bir hatta
+   dokunmak). Kaynak: `Build/Shared-Architecture.md` → "Bildirim katmanı" + "Uygulanma
+   sırası" tablosu.
+
+### 🗄️ Veri Modeli
+
+7. **`profiles.buyer_type` ↔ `buyer_profiles.company_type` çift kaynağının konsolidasyonu**
+   (kural #106). Okuyanlar: `buyer_type` → web `queries.ts` + mobil `profile.tsx`;
+   `company_type` → yalnızca `v_kpi_order_base`. **Tam gerekçe/detay:** bkz. aşağıda "Açık
+   madde (M9) — çift kaynak: `profiles.buyer_type` vs `buyer_profiles.company_type`"
+   (P23-M7-e build log).
+8. **Kalan 56 crop'un `culinary_aliases`/`conversion_hints` doldurulması.** 14 odak crop
+   P23-M3'te dolduruldu, kalan 56 boş kaldı. Alias doldurma artık tahmine değil,
+   kullanıcıların manuel crop eşleştirmelerinden gelen gerçek kullanım verisine dayanacak —
+   sorgu hazır: `Build/DB-Schema.md` → "P23-M6-ek → F" (`recipe_ingredients.crop` manuel
+   bağlantı sorgusu, `fn_match_culinary_crop` eşleşmediği ama kullanıcının elle bağladığı
+   satırlar).
+
+### 🎨 Ürün
+
+9. **Web'de Defterim salt-okunur görünüm** ("oku her yerde, oluştur telefonda") — kişisel
+   tarif içe aktarma (AI import, `extract-recipe`) yalnızca mobilde var; web bugün kişisel
+   defter tariflerini hiç göstermiyor/oluşturmuyor.
+10. **Mobilde pazarlık yanıtı** (karşı teklife cevap) — P23-M7-a'da mobile native teklif
+    OLUŞTURMA geldi, ama çiftçi karşı teklif verirse alıcı hâlâ web'e yönlendiriliyor. ⚠️
+    **Etiket notu:** kaynak dokümanlarda bu madde literal "M9" değil **"M8 sonrası"**
+    olarak etiketli (bkz. `TODO.md` → "Açık maddeler (M7-a'dan sonraya)" tablosu,
+    `Build/P23-Mobile.md` → "Kapsam dışı kalanlar"). Görev metni bunu M9 listesine dahil
+    etmeyi istediği için buraya alındı, orijinal "M8 sonrası" etiketi de kaynağında
+    korunuyor — iki etiket çelişmiyor sayılabilir (M8 sonrası ⊂ lansman sonrası) ama
+    birleştirme kararı burada **otonom alınmadı**, sadece iki kaynağın da işaret ettiği
+    aynı maddeyi kaydediyor.
+11. **YouTube/link import** (hukuki kontrol şartlı — ToS + telif riski) **ve yemek
+    fotoğrafından tahmin** (model gerçek tarifi bilemez, makul bir tarif *uydurur*,
+    "tahmini tarif" etiketi zorunlu). `extract-recipe` şu an yalnızca `mode='text'` ve
+    `mode='photo'` (yazılı tarif fotoğrafı) kabul ediyor.
+12. **`.env` bekçisinin beyaz listeye çevrilmesi + `hasat-mobile`'da push tetikleyicili
+    çalışması.** ⚠️ **Otonom bulgu (kural #107) — muhtemelen zaten kapalı:** bu tarama, bu
+    maddenin **P23-M5-b'de (2026-08-03) "UYGULANDI" olarak işaretlendiğini** buldu —
+    `hasat-core/scripts/check-env-guard.mjs` kara listeden `ALLOWED_NAMES` beyaz listesine
+    çevrildi, `hasat-mobile/.github/workflows/env-guard.yml` `.env` değiştiğinde push'ta
+    tetikleniyor (bkz. `TODO.md` → "P23-M5-b" madde 5, "5 — `.env` bekçisi — UYGULANDI").
+    Görev metninde hâlâ açık madde olarak listelenmesinin nedeni bu turdan görülemiyor
+    (muhtemelen görev metni bu uygulamadan önce yazıldı). **Otonom karara bağlanmadı** —
+    madde burada kayıt altına alınıyor ama "kapandı" diye de işaretlenmedi; Berkin
+    doğrulamalı (gerçek `.env` değişikliğiyle workflow'un tetiklendiği hâlâ cihaz/CI'da
+    gözle görülmedi).
+13. **Sipariş takip ekranı + "web'de devam et" yönlendirmesi** — mobilde sipariş takip
+    ekranı yok, ilgili yerlerde web'e yönlendirme var.
+14. **HoReCa porsiyon maliyeti hesaplayıcı.**
+15. **Abonelik köprüsü** (`harvest_subscriptions` × tarif).
+16. **Organizasyon hesabına geçiş.**
+17. **Kullanıcı tarifinin offline erişimi** — bilinçli olarak kapsam dışı bırakıldı
+    (yalnızca editoryal/public tarifler `expo-sqlite`'a önbelleklendi, kullanıcının kendi
+    içe aktardığı tarifler değil).
+18. **`hasat-core`'a taşınacak kalan saf yardımcılar** — coverage skoru, offer-status
+    etiketleri, para/tarih formatlama. Kaynak dokümanda çift etiketli: "M5-b/M9" (bkz.
+    `Build/Shared-Architecture.md` → Katman 2 tablosu) — hangi taşın altında yapılacağı
+    netleşmedi, kural #107 gereği burada karar verilmiyor.
+
+---
+
 ## ✅ TAMAMLANDI
 
 ### Teknik Build
@@ -635,7 +755,7 @@ P22 serisi (A/B/C/D/E/F) + P22-F'nin yan etki düzeltmeleri + P22-G (tarih/filtr
 | M6 | Native yetenekler + push | 28 Eyl – 11 Eki | 🟡 Uygulandı (2026-08-03) — pişirme modu + AI import + push token kaydı; `device_tokens` açık maddesi kapandı; simülatör/cihaz QA (S27) bekliyor |
 | M7 | Köprü + store varlıkları | 12 – 18 Eki | ⬜ |
 | M8 | Store submit | 19 – 31 Eki | ⬜ |
-| M9 | Sıraya alındı (silinmedi) | Kasım+ | ⬜ |
+| M9 | Sıraya alındı (silinmedi) | Kasım+ | ⬜ — konsolide liste: yukarıda "M9 — Lansman Sonrası" |
 
 #### ⚠️ M6 açık maddeleri — M6 prompt'u yazılırken buraya BAKILACAK
 
@@ -1055,7 +1175,7 @@ dışı: Keşfet/ürün listesi/siparişlerim/tarif listesi (webden port edilece
 | `default_photo_url` güncelleme SQL'ini görseller yüklendikten sonra çalıştırmak | Berkin/Claude (M3 sonrası) |
 | ~~13 vs 14 sayı tutarsızlığının netleştirilmesi~~ — ✅ **Berkin M4-a'da doğruladı: 14 doğru** (yukarı bkz.) | Kapandı |
 | **Glossary insan gözden geçirmesi** — P22-C içeriği AI üretimi, bölgesel doğrulama yapılmadı. **Hâlâ açık, bu turda kapanmadı.** | Berkin |
-| `crop_culinary_meta` kalan 56 crop'un alias + conversion_hints'i | M4-b/M9 |
+| `crop_culinary_meta` kalan 56 crop'un alias + conversion_hints'i | M4-b/M9 — konsolide: yukarıda "M9 — Lansman Sonrası" madde 8 |
 | ~~"Temsili görsel" etiketinin gerçek UI'a eklenmesi~~ — ✅ **P23-M4-a'da eklendi** (`RepresentativePhoto` component'i) | Kapandı |
 
 ---
@@ -1525,6 +1645,10 @@ hesabı onaylanıp gerçek cihaza kurulum mümkün olunca tek turda koşulacak:
 - [ ] **(P23-M6) Yerel bildirimin gerçekten teslim edilmesi** — pişirme modu timer'ı dolduğunda uygulama arka plandayken/kapalıyken bildirimin geldiği
 - [ ] **(P23-M6) Ekranı uyanık tutma** — pişirme modunda ekranın kararmadığı VE çıkışta normal davranışa döndüğü (pil tüketimi riski)
 - [ ] **(P23-M6) Timer'ın arka plan doğruluğu** — uygulamayı kapatıp birkaç dakika sonra dönünce kalan sürenin doğru olduğu (zaman-damgası yaklaşımının asıl testi)
+- [ ] **[2026-08-05 eklendi, M9 konsolidasyon taramasında bulunan eksik] Prefetch atlama davranışı** — `prefetchAllRecipeDetails`'in "önbellek tam ve 24 saatten yeni ise tarama hiç başlamıyor" kararının (bkz. `TODO.md` → "P23-M5-b-ek-2" civarı, `cached_recipe_detail_meta`) gerçek cihazda/uçak modunda hâlâ doğru davrandığı — simülatörde sqlite çalışma zamanı test edilemedi (kural #103)
+- [ ] **[2026-08-05 eklendi] Native picker/modal/Linking akışları** — `CropPickerModal` (AI import "Kontrol Et" ekranı), teslim tarihi preset chip'leri, `Linking`/`router.push` ile web/native yönlendirme geçişleri gerçek cihazda dokunmatik davranışıyla denenmedi
+- [ ] **[2026-08-05 eklendi] Hesap silme — gerçek cihaz click-through** — `rpc_delete_own_account` DB/RPC seviyesinde doğrulandı (P26), "HESABIMI SİL" yazma onayı + gerçek silme akışı mobilde/webde cihaz/tarayıcıda hiç denenmedi (bkz. `Build/E2E-QA.md` → S31)
+- [ ] **[2026-08-05 eklendi] Reviewer test hesabıyla uçtan uca gezinti** — App Store Connect'teki test telefon+OTP ile gerçek bir mobil build'de giriş yapıp pişirme modu/AI import/teklif oluşturma akışlarının tamamının denenmesi (bu madde aslında Apple hesabından **bağımsız**, submit gününden önce yapılmalı — bkz. yukarıda "P23-M7-c açık madde 1" ve `Build/Store-Compliance.md` → Bölüm 6, madde 7)
 
 ---
 
@@ -2214,11 +2338,11 @@ offline testi tasarruftan önce gelir.
 
 | Madde | Nereye |
 |---|---|
-| **Push GÖNDERME yolu** (token'ları kullanan edge function; `notif_channel.push` enum'u hazır, `dispatch_sms` deseninin push eşleniği) | M7/M9 |
+| **Push GÖNDERME yolu** (token'ları kullanan edge function; `notif_channel.push` enum'u hazır, `dispatch_sms` deseninin push eşleniği) | M7/M9 — konsolide: yukarıda "M9 — Lansman Sonrası" madde 6 (event map konsolidasyonu) |
 | **FCM V1 servis hesabı anahtarı + `google-services.json`** (Android push'un çalışması için tek eksik; Firebase projesi Berkin'de) | Berkin |
 | **APNs anahtarı** (iOS push — ücretli Apple hesabı onayına bağlı) | Berkin / M8 |
 | Çiftçi rol kontrolü (M5-b-ek'ten devam — alıcıya özel akışlar eklenince) | M7 |
-| Kullanıcı tarifinin offline erişimi (bilinçli olarak kapsam dışı bırakıldı) | M9 |
+| Kullanıcı tarifinin offline erişimi (bilinçli olarak kapsam dışı bırakıldı) | M9 — konsolide: yukarıda "M9 — Lansman Sonrası" madde 17 |
 
 #### Kapsam kuralı tutuldu
 
@@ -2525,9 +2649,9 @@ kural #114'e yazıldı.
 
 | Madde | Nereye |
 |---|---|
-| Pazarlık yanıtı (karşı teklife cevap) — mobilde ekran yok, çiftçi karşı teklif verirse alıcı web'e yönlendiriliyor | M8 sonrası |
-| Sipariş takip ekranı + "web'de devam et" yönlendirmesi | M9 |
-| Web Defterim (kişisel tarif içe aktarma web'de yok) | M9 |
+| Pazarlık yanıtı (karşı teklife cevap) — mobilde ekran yok, çiftçi karşı teklif verirse alıcı web'e yönlendiriliyor | M8 sonrası — konsolide: yukarıda "M9 — Lansman Sonrası" madde 10 |
+| Sipariş takip ekranı + "web'de devam et" yönlendirmesi | M9 — konsolide: yukarıda "M9 — Lansman Sonrası" madde 13 |
+| Web Defterim (kişisel tarif içe aktarma web'de yok) | M9 — konsolide: yukarıda "M9 — Lansman Sonrası" madde 9 |
 | Keşfet (genel ürün tarama), Siparişlerim | M7-b |
 | Store varlıkları (gizlilik metni, hesap silme, ekran görüntüleri, review notları) | M7-b |
 
@@ -2648,6 +2772,8 @@ taramasında yeni fonksiyonun `anon`'a açık kaldığı bulundu ve düzeltildi
   onay gerçek cihaz/tarayıcı testine bağlı — bkz. `Build/Store-Compliance.md`.
 
 ### Açık madde (M9) — `auth.users` scrub'ını FK değişikliğiyle gereksizleştir
+
+> Konsolide listede: yukarıda "M9 — Lansman Sonrası" → Güvenlik/Altyapı, madde 5.
 
 `rpc_delete_own_account`, `auth.users`'ı silmek yerine kimliklendirici
 alanlarını scrub ediyor (bkz. `Build/DB-Schema.md` → "P26" → "Bilinçli
@@ -3122,6 +3248,8 @@ doğrulama: `Build/DB-Schema.md` → "P23-M7-e".
    `Build/DB-Schema.md` → "P23-M7-e".
 
 ### Açık madde (M9) — çift kaynak: `profiles.buyer_type` vs `buyer_profiles.company_type`
+
+> Konsolide listede: yukarıda "M9 — Lansman Sonrası" → Veri Modeli, madde 7.
 
 Aynı bilgi iki tabloda ayrı ayrı tutuluyor — kural #106'nın uyardığı
 desen (`dispatch_sms`/`send-sms` sapmasının kardeşi). Bu turda kim neyi

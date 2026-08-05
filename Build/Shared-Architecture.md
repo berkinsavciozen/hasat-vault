@@ -132,7 +132,7 @@ DB'ye taşınamayan kısım:
 | Üretilmiş DB tipleri | `supabase gen types typescript` çıktısı | ✅ M1 |
 | Design token'ları | Marka renkleri, spacing, tipografi ölçeği | ✅ M1 |
 | Saf yardımcılar | `convertQuantity()` | ✅ M1 |
-| Saf yardımcılar (kalan) | coverage skoru, offer-status etiketleri, para/tarih formatlama | ⬜ M5-b/M9 |
+| Saf yardımcılar (kalan) | coverage skoru, offer-status etiketleri, para/tarih formatlama | ⬜ M5-b/M9 — konsolide: `TODO.md` → "M9 — Lansman Sonrası" madde 18 |
 | **Supabase storage adapter** | `core/supabase/client.ts` — `createHasatSupabaseClient()`, storage parametreli | ✅ **M5-a (2026-07-30)** |
 | **Supabase sorgu fonksiyonları** | `fetchListings()`, `fetchRecipe()` … | ⬜ **M5-b** |
 | **TanStack Query hook'ları** | Mobilde `@tanstack/react-query` kuruldu (M5-a); ortak hook'lar (`useListings()`, `useRecipes()`) henüz core'a taşınmadı | ⬜ **M5-b** |
@@ -332,7 +332,7 @@ Reddedilen alternatifler: (a) dosyayı re-export'a çevirmek — Lovable üzerin
 4. Event→tercih eşlemesinin tek kaynağa (DB tablosu `notif_event_map`) konsolidasyonu
 
 ### ⚠️ Risk kuralı
-4. madde iki kez kırılmış SMS hattına dokunuyor. **25 Ağustos lansmanından önce YAPILMAYACAK** — M9'a bırakıldı. Lansman öncesi yalnızca ekleyici işler.
+4. madde iki kez kırılmış SMS hattına dokunuyor. **25 Ağustos lansmanından önce YAPILMAYACAK** — M9'a bırakıldı. Lansman öncesi yalnızca ekleyici işler. (Konsolide: `TODO.md` → "M9 — Lansman Sonrası" madde 6.)
 
 ---
 
@@ -348,7 +348,7 @@ Reddedilen alternatifler: (a) dosyayı re-export'a çevirmek — Lovable üzerin
 | M5-b | Sorgu fonksiyonları + TanStack Query hook'ları + zod şemaları (mobilde kütüphane kuruldu, ortak hook'lar henüz core'a taşınmadı) | ⬜ |
 | **M5-a** | **Drift script'ine sürüm-gerisi kontrolü** (hedef `.manifest` ↔ `hasat-core` `core/.manifest`) — bkz. "Drift kontrolünün kör noktası" | ✅ 2026-07-30 |
 | **M5-a** | Sync Action'a ikinci hedef (`hasat-mobile`) | ✅ 2026-07-30 |
-| M9 | Bildirim event map konsolidasyonu (lansman sonrası) | ⬜ |
+| M9 | Bildirim event map konsolidasyonu (lansman sonrası) | ⬜ — konsolide liste: `TODO.md` → "M9 — Lansman Sonrası" |
 
 ---
 
