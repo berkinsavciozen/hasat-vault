@@ -522,9 +522,15 @@ sqlite doğrulaması da oraya eklendi. Detay + tam doğrulama tablosu:
 `TODO.md` → "P23-M5-b", `Build/E2E-QA.md` → S26.
 
 **Kural #107 gereği kararı Berkin'e bırakılan iki madde (uygulanmadı):**
-mobil test giriş yolu (`123456` OTP web'de çalışıyor, mobilde gerçek
-Supabase Auth'a çarpıyor) ve çiftçi rolüyle mobil girişin nasıl
-ele alınacağı — üç seçenek + etki analizi `TODO.md`'de.
+mobil test giriş yolu (`123456` OTP mobilde çalışmıyordu) ve çiftçi rolüyle
+mobil girişin nasıl ele alınacağı — üç seçenek + etki analizi `TODO.md`'de.
+**⚠️ Teşhis düzeltmesi (P23-M7-d, 2026-08-05):** bu turda "`123456` web'de
+çalışıyor, mobilde Supabase Auth'a çarpıyor" diye yazılmıştı — bu web/mobil
+istemci ayrımı **yanlıştı**. Gerçek neden: Supabase Auth'ta test-OTP ayarı
+zaten kuruluydu (her iki istemci için de geçerli, istemci-bağımsız bir
+sunucu ayarı) ama `SMS_TEST_OTP_VALID_UNTIL` 1 Ağustos 2026'da dolmuştu —
+o tarihten sonra `123456` **hiçbir** istemcide çalışmıyordu. Detay ve
+düzeltilen kaynak: `TODO.md` → "P23-M7-d" build log.
 
 - **Çıkış:** Uçak modunda app açılıyor ve tarifler görünüyor — *Apple
   4.2'nin asıl testi* — kod tarafı hazır, **gerçek cihaz doğrulaması
@@ -691,12 +697,49 @@ detay `Shared-Architecture.md`. `tsc --noEmit` web + mobil + `hasat-core`'da
 miktar clamp, teslimat seçimi, sticky footer) bu oturumda simülatörde
 doğrulanamadı** (kural #103) — QA senaryosu: `Build/E2E-QA.md` → S29.
 
-### M7-b — Store varlıkları + Keşfet/Siparişlerim (M7'nin geri kalanı)
-- Keşfet (genel ürün tarama), Siparişlerim (sipariş takibi — M9'a not edilen
-  "web'de devam et" yönlendirmesiyle birlikte)
+### M7-d — Mobil Kayıt Akışı Tutarlılığı + Acil UI Düzeltmeleri — ✅ **UYGULANDI (2026-08-05, Claude Code doğrudan), simülatör/cihaz QA bekliyor**
+
+Berkin'in canlı testinin (2026-08-05) bulduğu beş sorunun turu — plan
+sırası dışında, acil (çıkış/hesap silme yan yana durması veri kaybı riski
+taşıyordu). Detay + kök neden analizi + doğrulama tablosu: `TODO.md` →
+"P23-M7-d" build log.
+
+- **Kayıt rolü düzeltildi:** mobil kayıtlar `handle_new_user()`'ın
+  `raw_user_meta_data.role` sözleşmesini artık web gibi besliyor
+  (`options.data.role:"buyer"`), yeni mobil kayıtlar `farmer` yerine
+  `buyer` + `buyer_profiles` satırıyla açılıyor.
+- **Onboarding eklendi:** `app/onboarding.tsx` — web'in
+  `onboarding.buyer.tsx`'inin persist edilen alanlarının (isim, işletme
+  tipi, aylık hacim) birebir portu; persist edilmeyen alanlar (ilgi
+  crop'ları, adres, premium deneme) bilinçli olarak taşınmadı (gerekçe:
+  `TODO.md`).
+- **Profil ekranı ayrıldı (Berkin kararı):** `app/profile.tsx` — çıkış +
+  hesap silme `app/home.tsx`'in köşesinden buraya taşındı (çıkış
+  çalışmıyorken yan yana durmaları veri kaybı riski taşıyordu — kök neden:
+  `signOut()` oturumu gerçekten temizliyordu ama hiçbir zaman
+  yönlendirmiyordu, şimdi `router.replace("/login")` var).
+- **Siparişlerim geldi (M7-b'den erken çekildi, salt okunur):**
+  `app/orders.tsx` + `src/lib/hasat/orders.ts` — web'in
+  `useBuyerOffers`/`useBuyerOrders`/`offer-status.ts`'inin portu, aksiyon
+  butonları (Kabul Et/Karşı Teklif/Reddet/Ödeme) çıkarıldı. Pazarlık
+  yanıtı hâlâ YOK (mevcut plan kararı, "Web'de Yanıtla" yönlendirmesi) —
+  **Keşfet (genel ürün tarama) hâlâ M7-b'nin işi**, buradan çekilmedi.
+
+**Kapsam dışı (bilinçli, değişmedi):** mobilde ödeme/checkout, pazarlık
+yanıtı ekranı, Keşfet, uygulama içi hesap silme'nin **kendisi** (P26'da
+zaten vardı, bu turda yalnızca UI'da taşındı — yeni bir silme mekanizması
+kurulmadı).
+
+**Doğrulama:** kural #96, gerçek SQL/RLS impersonation — detay `TODO.md`.
+Gerçek cihaz/simülatör click-through'u bu turda **doğrulanamadı** (kural
+#103) — QA senaryosu: `Build/E2E-QA.md` → S31.
+
+### M7-b — Store varlıkları + Keşfet (M7'nin geri kalanı)
+- **Keşfet** (genel ürün tarama) — Siparişlerim M7-d'de erken çekildi
+  (salt okunur), M7-b'de kalan tek marketplace-köprüsü işi bu
 - **Store varlıkları** (M8'den öne çekildi — hiçbiri hesap gerektirmiyor):
-  gizlilik metni, **uygulama içi hesap silme** (Apple zorunlu), ekran
-  görüntüleri, review notları
+  gizlilik metni, ekran görüntüleri, review notları — **uygulama içi hesap
+  silme** zaten P26'da vardı, M7-d'de yalnızca profil ekranına taşındı
 - **Çıkış:** Hesap geldiğinde submit tek günlük iş olacak durumda
 
 ### M8 — Store submit

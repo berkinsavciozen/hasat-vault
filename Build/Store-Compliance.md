@@ -150,6 +150,20 @@ Tarif katmanı bu testi geçmek için **doğal ve güçlü** özellikler getiriy
    reviewer'ın giriş yapabilmesinin **tek** yolu, canlı Supabase Auth'un
    o numara için gerçekten sabit bir kodu kabul etmesidir.
 
+   **⚠️ Teşhis düzeltmesi (P23-M7-d, 2026-08-05):** M5-a/M5-b'de "`123456`
+   web'de çalışıyor, mobilde Supabase Auth'a çarpıyor" diye kayda geçmişti —
+   bu web/mobil istemci ayrımı **yanlıştı**. Gerçek neden istemciden bağımsız:
+   Supabase Auth'taki test-OTP ayarı zaten kuruluydu ama
+   `SMS_TEST_OTP_VALID_UNTIL` 1 Ağustos 2026'da dolmuştu, bu yüzden hiçbir
+   istemcide çalışmıyordu; Berkin 2026-08-05'te süreyi Eylül'e uzattı ve eski
+   test numaraları (`905001234567`, `905009876543`) mobilde de çalıştı. Bu
+   düzeltme M7-c'nin **sonucunu değiştirmiyor** — reviewer için ayrı,
+   gerçek kullanıcı verisi taşımayan bir numara + zorunlu süre yönetimi
+   (`SMS_TEST_OTP_VALID_UNTIL`) hâlâ doğru iş; yalnızca gerekçesi "mobil web'e
+   göre farklı bir OTP mekanizması kullanıyor" değil, "tek bir paylaşılan
+   Supabase Auth ayarının süresi sessizce dolabiliyor" oldu. Detay:
+   `TODO.md` → "P23-M7-d" build log.
+
    **Reviewer demo hesabı kuruldu (buyer, izole, gerçek veri yok)** —
    isim, adres, birkaç kaydedilmiş tarif dahil, reviewer pişirme modu, AI
    import ve teklif oluşturma akışlarını gerçek veriyle deneyebilir (aksi
@@ -263,6 +277,17 @@ değişmedi.
       Dashboard'daki test-OTP satırı kaldırıldı (`SMS_TEST_OTP_VALID_UNTIL`
       bir yedek, elle kaldırma unutulmamalı; bkz. `TODO.md` → P23-M7-c açık
       madde 2)
+- [ ] **[P23-M7-d, 2026-08-05]** `SMS_TEST_OTP_VALID_UNTIL` süresi her
+      uzatıldığında yeni bitiş tarihinden ~1 hafta önceye bir takvim
+      hatırlatıcısı konuldu — süre sessizce dolarsa test hesapları (web +
+      mobil, istemciden bağımsız) hata mesajı vermeden "kod hatalı/süresi
+      dolmuş" gibi genel bir mesajla kilitleniyor; bkz. `TODO.md` →
+      "P23-M7-d" madde 6
+- [ ] **[P23-M7-d, 2026-08-05]** Lovable Cloud'a `SUPABASE_URL` +
+      `SUPABASE_SERVICE_ROLE_KEY` ortam değişkenleri eklendi — eksik olduğu
+      sürece yeni alıcı web onboarding'i "Premium deneme başlatılamadı"
+      hatası gösteriyor (kayıt kırık değil, ama 25 Ağustos lansmanında ilk
+      saniyede kırmızı hata; bkz. `TODO.md` → "P23-M7-d" madde 7)
 - [ ] Native özellik listesi review notlarında
 - [ ] Store politikaları yeniden kontrol edildi (bu doküman güncel mi?)
 
