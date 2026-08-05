@@ -1,6 +1,6 @@
 ---
 title: Hasat — App Store & Play Store Uyumluluk
-updated: 2026-08-03
+updated: 2026-08-05
 tags:
   - hasat
   - mobile
@@ -108,7 +108,8 @@ Tarif katmanı bu testi geçmek için **doğal ve güçlü** özellikler getiriy
 | Süre dolunca yerel bildirim | ✅ M6 | 🟡 Hayır — planlama kodu doğru, teslimat cihaz işi |
 | Ekranı uyanık tutma (`expo-keep-awake`, yalnızca pişirme modunda) | ✅ M6 | 🟡 Hayır — kararmama VE çıkışta bırakılma (pil) ölçülmedi |
 | AI import — **metin** girdisi | ✅ M6 | ✅ **Evet, uçtan uca gerçek `extract-recipe` çağrısıyla** (sunucu tarafı; ekrandaki akış cihazda koşulmadı) |
-| AI import — **kamera/galeri** (yazılı tarif fotoğrafı) | ✅ M6 | 🔴 Hayır — `expo-image-picker` simülatörde gerçek fotoğraf üretmiyor |
+| AI import — **galeri** (yazılı tarif fotoğrafı, galeriden seçilerek) | ✅ M6 | ✅ **Evet — Appetize'da galeriden seçilen gerçek bir tarif fotoğrafıyla uçtan uca doğrulandı (Berkin, 2026-08-04)** |
+| AI import — **kamera** (yazılı tarif fotoğrafı, canlı çekim) | ✅ M6 | 🔴 Hayır — `expo-image-picker`'ın kamera akışı simülatör/Appetize'da gerçek çekim üretmiyor, gerçek cihaz bekliyor |
 | Push token kaydı + `device_tokens` devri | ✅ M6 (`rpc_register_device_token`) | ✅ DB tarafı gerçek SQL ile · 🔴 gerçek token/teslimat hayır (kredansiyel + cihaz yok) |
 | Push **teslimatı** (Android FCM / iOS APNs) | 🔴 Kredansiyel yok | 🔴 Hayır |
 | Teklif oluşturma (`rpc_create_offer` — çoklu-parti, ürün/parti detay ekranı) | ✅ P23-M7-a | ✅ RPC gerçek SQL/RLS simülasyonuyla · 🟡 Ekrandaki akış (routing, miktar clamp, teslimat seçimi) cihazda koşulmadı |
@@ -140,8 +141,25 @@ Tarif katmanı bu testi geçmek için **doğal ve güçlü** özellikler getiriy
 6. **Bu uygulamada ödeme/checkout ekranı yoktur** (Guideline 2.1 + IAP
    tartışmasını baştan kapatan not) — akış "Talep Et" veya teklif
    oluşturmada bitiyor (P23-M7-a'dan sonra ikisi de native).
-7. **Test hesabı** (telefon + OTP) ve mobil test girişinin gerçek SMS ile
-   yapıldığı notu.
+7. **Test hesabı** — reviewer'a **gerçek SMS ile değil**, Supabase Auth'un
+   resmî "Test OTP" özelliğiyle tanımlı sabit bir telefon numarası +
+   rastgele (tahmin edilemez) 6 haneli bir kod verilir (bkz. P23-M7-c,
+   `TODO.md`, 2026-08-05). Gerekçe: Apple inceleme ekibi Türk numarasına
+   SMS alamıyor ve mobil client gerçek `verifyOtp` akışını çağırıyor
+   (sahte/mock bir kod kabul etmiyor, M5-a'da doğrulandı) — bu yüzden
+   reviewer'ın giriş yapabilmesinin **tek** yolu, canlı Supabase Auth'un
+   o numara için gerçekten sabit bir kodu kabul etmesidir.
+
+   **Reviewer demo hesabı kuruldu (buyer, izole, gerçek veri yok)** —
+   isim, adres, birkaç kaydedilmiş tarif dahil, reviewer pişirme modu, AI
+   import ve teklif oluşturma akışlarını gerçek veriyle deneyebilir (aksi
+   halde 4.2 savunmasının tamamı hiç görülmeden inceleme biter). **Telefon
+   ve OTP App Store Connect → App Review Information alanında tutulur, bu
+   repoda saklanmaz** — hesap boş olsa da RLS altında gerçek yazma yetkisi
+   var (bkz. Bölüm 7 — Bilinen riskler), bu yüzden çift bu public repoda
+   duramaz. `SMS_TEST_OTP_VALID_UNTIL` ile zorunlu time-box + App Review
+   onayından sonra dashboard'dan kaldırma: bkz. Bölüm 6 ve `TODO.md` →
+   P23-M7-c açık maddeleri.
 8. **Native offer creation** (P23-M7-a) — reviewer'ın "Sipariş Ver"e basıp
    Safari'ye atılmadığı, teklifin uygulama içinde (çoklu-parti, teslimat
    seçimi, teslim tarihi dahil) oluşturulduğu not — bu doğrudan 4.2
@@ -236,6 +254,15 @@ değişmedi.
 - [ ] Gizlilik metni yayında ve uygulamadan erişilebilir
 - [ ] API 36 hedefleniyor
 - [ ] Test hesabı (telefon + OTP) review notlarında
+- [ ] **[P23-M7-c, 2026-08-05]** Reviewer test hesabıyla (test telefon
+      numarası + rastgele OTP, App Store Connect → App Review Information'da)
+      **gerçek bir mobil build'de** uçtan uca giriş denendi — pişirme modu,
+      AI import, teklif oluşturma dahil (Berkin, submit gününden ÖNCE; bkz.
+      `TODO.md` → P23-M7-c açık madde 1)
+- [ ] **[P23-M7-c, 2026-08-05, ZORUNLU]** Apple onayından **sonra** Supabase
+      Dashboard'daki test-OTP satırı kaldırıldı (`SMS_TEST_OTP_VALID_UNTIL`
+      bir yedek, elle kaldırma unutulmamalı; bkz. `TODO.md` → P23-M7-c açık
+      madde 2)
 - [ ] Native özellik listesi review notlarında
 - [ ] Store politikaları yeniden kontrol edildi (bu doküman güncel mi?)
 
@@ -250,3 +277,5 @@ değişmedi.
 | Play personal → 12 tester bulunamaz | Production gecikir | M5'te başlat, 14 gün paralel akar; tester ağı hazır |
 | Apple hesap doğrulaması takılır | Push + submit gecikir | 7–10 gün içinde başvur, ~7 hafta tampon var |
 | Şahıs şirketi ile organizasyon hesabı alınamaz | Satıcı adı kişisel görünür | Kabul edilebilir; ileride Ltd. Şti. ile dönüşüm mümkün |
+| **[P23-M7-c, 2026-08-05] Reviewer mobil test girişi yapamıyor** (Türk numarasına SMS ulaşmıyor, sahte OTP mobilde çalışmıyor — M5-a'da doğrulandı) | **Kesin red** — pişirme modu, AI import, teklif oluşturma (4.2 savunmasının tamamı) hiç görülmeden inceleme biter | Supabase Auth test telefon numarası + rastgele (tahmin edilemez) OTP (yalnızca bu numarayı etkiliyor, gerçek kullanıcıların SMS akışı değişmiyor) + arkasında dolu bir demo hesap + submit öncesi gerçek mobil build'de doğrulama (Bölüm 6). Detay ve doğrulama: `TODO.md` → P23-M7-c |
+| **[P23-M7-c, 2026-08-05] Reviewer demo hesabının RLS altında gerçek yazma yetkisi var** (boş olması onu zararsız yapmıyor — telefon+OTP ele geçerse gerçek bir `buyer` gibi işlem yapılabilir) | Sahte teklif → gerçek bir çiftçiye **gerçek Twilio SMS** gider (maliyet + çiftçi güveni); sahte talep admin ısı haritasını (`v_kpi_crop_demand_heatmap`) kirletir; `ai_usage_tracking` kotası tüketilebilir | Tahmin edilemez rastgele 6 haneli OTP + telefon/OTP bu repoda **tutulmuyor** (App Store Connect → App Review Information'da) + zorunlu time-box (`SMS_TEST_OTP_VALID_UNTIL`) + Apple onayından sonra test-OTP ayarının dashboard'dan kaldırılması (Bölüm 6) |
