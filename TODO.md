@@ -2672,7 +2672,7 @@ temele (Supabase'in resmî silme yolu) oturtmak.
 
 ---
 
-## P23-M7-c — Reviewer Test Girişi (2026-08-05)
+## P23-M7-c — Reviewer Test Girişi (2026-08-05, düzeltme 2026-08-05)
 
 **Kapsam:** `Build/Store-Compliance.md`'nin App Review notları taslağı
 (Bölüm 2 → madde 7) "mobil test girişinin gerçek SMS ile yapıldığı"
@@ -2681,6 +2681,19 @@ alamıyorlar) ve M8'in kayıtlı en büyük riskiydi: reviewer giriş
 yapamazsa pişirme modu/AI import/teklif oluşturma (4.2 savunmasının
 tamamı) hiç görülmeden inceleme biter. Bölüm 7 — Bilinen riskler
 tablosunda bu risk hiç yoktu.
+
+**Kural #107 gereği bu turun ilk sürümünde bırakılan üç açık kararı
+Berkin verdi (2026-08-05):**
+1. OTP rastgele 6 haneye çevrilecek (`123456` gibi en yaygın tahmin
+   edilebilir kod kullanılmayacak).
+2. Telefon+OTP çifti vault'tan tamamen çıkarılacak — public repoda
+   fonksiyonel bir hesabın kimlik bilgisi durmayacak (bu hesabın RLS
+   altında gerçek yazma yetkisi var, aşağıya bkz.); credential App Store
+   Connect → App Review Information alanında tutulacak, Berkin'e ayrı
+   bir kanaldan verildi, PR açıklamasına da yazılmadı.
+3. `SMS_TEST_OTP_VALID_UNTIL` zorunlu, ve "Apple onayından sonra test OTP
+   ayarını kaldır" Berkin'in açık maddesi olarak hem burada hem Bölüm 6
+   kontrol listesinde duruyor.
 
 ### Önceki karar ile ilişki — M5-b-ek'in "Seçenek C" kararı GEÇERSİZ KILINMADI
 
@@ -2699,20 +2712,22 @@ sorunu farklı: gerçek SMS Berkin için "yavaş", reviewer için
 hiç seçenek değil. Bu turda açılan test-OTP kapısı M5-b-ek'in
 reddettiği iki **public/gerçek** hesaba değil, yalnızca bu iş için
 oluşturulmuş, **arkasında gerçek çiftçi/alıcı verisi olmayan** yeni bir
-numaraya bağlı — ve submit penceresiyle sınırlı tutulması öneriliyor
-(`SMS_TEST_OTP_VALID_UNTIL`). Berkin'in kendi günlük test döngüsü için
-gerçek SMS kararı (M5-b-ek, "Kayıt: mobil test girişi gerçek SMS ile
-yapılır") **değişmedi**.
+numaraya bağlı. Berkin'in kendi günlük test döngüsü için gerçek SMS
+kararı (M5-b-ek, "Kayıt: mobil test girişi gerçek SMS ile yapılır")
+**değişmedi**.
 
-**⚠️ `hasat-vault` public bir repo.** Bu numara+kod çifti
-`Build/Store-Compliance.md`'ye yazıldığı andan itibaren teknik olarak
-herkese açık — M5-b-ek'teki riskin daha küçük ölçekli bir hali burada
-da geçerli. Fark: o iki hesap gerçek kullanıcı kimliğiydi, bu hesap
-sıfırdan oluşturulmuş boş bir demo hesabı (aşağıdaki doğrulama
-tablosunda hiçbir gerçek tabloya (listings/offers/orders/harvest_entries/
-reviews) dokunmadığı gösteriliyor) — sızsa bile blast radius bu demo
-hesabıyla sınırlı. Yine de süre sınırı (yukarıdaki
-`SMS_TEST_OTP_VALID_UNTIL` önerisi) ve onay sonrası kaldırma zorunlu.
+**⚠️ `hasat-vault` public bir repo — ve bu hesabın "boş" olması onu
+zararsız yapmıyor.** Reviewer hesabı bir `buyer` — RLS altında gerçek
+yazma yetkisi var. Telefon+OTP çifti bu repoda dursaydı, onu bulan
+herkes bu hesapla: (a) gerçek bir çiftçiye teklif gönderebilir
+(`rpc_create_offer` → `notify_offer_received` → `dispatch_sms` →
+**gerçek Twilio SMS**, hem maliyet hem çiftçi güveni riski), (b) talep
+oluşturup admin talep ısı haritasını (`v_kpi_crop_demand_heatmap`)
+kirletebilir, (c) `ai_usage_tracking` kotasını tüketebilir. Bu, `.env`
+tartışmasında konan "gerçek sırlar hiçbir zaman repoya girmez"
+kuralıyla tutarsız olurdu — **bu yüzden telefon+OTP bu dokümandan ve
+`Build/Store-Compliance.md`'den çıkarıldı.** Bu riskin kendisi Bölüm 7'ye
+ayrı bir satır olarak eklendi (aşağıya bkz.).
 
 ### 1 — Supabase Auth test telefon numarası — MCP ile YAPILAMADI, panodan Berkin uygulayacak
 
@@ -2720,31 +2735,38 @@ Supabase MCP tool seti (`execute_sql`, `apply_migration`, ...) yalnızca
 Postgres'e erişiyor; `SMS_TEST_OTP` bir GoTrue/Auth platform ayarı —
 `auth` şemasında bir `config` tablosu **yok** (doğrulandı,
 `information_schema.tables` taraması), yani bu ayar SQL'den
-görünmüyor/değiştirilemiyor. Dashboard'dan elle yapılması gerekiyor:
+görünmüyor/değiştirilemiyor. Dashboard'dan elle yapılması gerekiyor.
+**Telefon numarası ve rastgele 6 haneli OTP bu dokümanda tutulmuyor —
+Berkin'e ayrı bir mesajla verildi, App Store Connect → App Review
+Information alanına o girecek:**
 
 1. https://supabase.com/dashboard/project/efuqpiaavrzimvstpdpm → **Authentication**
 2. Sol menüde **Sign In / Providers** (bazı sürümlerde **Providers**) → **Phone**
 3. Phone sağlayıcı panelini aç, aşağı kaydırıp **Test OTP** / **Test phone
    numbers and OTPs** bölümünü bul (Advanced/ek ayarlar altında olabilir)
-4. Bir satır ekle: telefon `+905552223344`, OTP `123456`
-5. Varsa bir "expiry"/"valid until" alanı: App Review onayından ~1-2 hafta
-   sonrasına bir tarih gir (örn. 2026-09-05) — Supabase'in resmi önerisi
-   test OTP'lerin production'a kalıcı bırakılmaması
+4. Bir satır ekle: ayrı mesajda verilen telefon numarası + rastgele 6
+   haneli OTP (**`123456` gibi tahmin edilebilir bir kod KULLANILMAYACAK**)
+5. **Zorunlu:** `SMS_TEST_OTP_VALID_UNTIL` (expiry/valid-until alanı) —
+   App Review onayından ~1-2 hafta sonrasına bir tarih (örn. 2026-09-05).
+   Bu alan Supabase'in resmi dokümantasyonunda var; boş bırakılmaz —
+   süresiz bir test-OTP girişi tek canlı projede kalıcı bir arka kapı
+   olur.
 6. Kaydet
 7. **Doğrula:** başka hiçbir numara girilmedi/değiştirilmedi — yalnızca bu
    tek satır eklenmeli, mevcut Phone sağlayıcı ayarlarının geri kalanına
    (Twilio kimlik bilgileri vb.) dokunulmamalı
-8. App Store onayından sonra bu satırı **sil** (veya expiry tarihinin
-   geçtiğini doğrula)
+8. **Apple onayından sonra bu satırı dashboard'dan sil** — bu, Berkin'in
+   açık maddesi (aşağıya ve Bölüm 6'ya bkz.), expiry tarihine
+   güvenip atlanmamalı (unutma riski tarihe devredilir, sıfırlanmaz).
 
 ### 2 — Reviewer demo hesabı — SQL ile oluşturuldu (Supabase MCP, `execute_sql`)
 
 `auth.users`/`auth.identities`'e Supabase'in resmi Admin API'si yerine
 doğrudan SQL insert yapıldı (bu MCP araç setinde Admin API çağrısı yok) —
 riski azaltmak için **gerçek bir OTP ile daha önce oluşmuş** bir
-kullanıcının (905398545294, "Alıcı" test hesabı) `auth.users`/
-`auth.identities` satırları alan alan referans alınıp birebir aynı
-şekilde (aynı `instance_id`, `aud`/`role`, `raw_app_meta_data` şekli,
+kullanıcının (mevcut "Alıcı" test hesabı) `auth.users`/`auth.identities`
+satırları alan alan referans alınıp birebir aynı şekilde (aynı
+`instance_id`, `aud`/`role`, `raw_app_meta_data` şekli,
 `identities.provider_id` deseni) dolduruldu — bu projede daha önce aynı
 sınıf riskle karşılaşılmıştı (P26, `rpc_delete_own_account`, "`auth.users`
 resmi desteklenen bir UPDATE/INSERT hedefi değil" notu orada da var).
@@ -2752,10 +2774,10 @@ resmi desteklenen bir UPDATE/INSERT hedefi değil" notu orada da var).
 gerçekten ateşlediği ve `profiles`+`notif_prefs` satırlarını ürettiği
 doğrulandı.
 
-**Oluşturulan:**
-- `auth.users` / `auth.identities`: telefon `905552223344`
-  (`+90 555 222 33 44`), `id = d24d389f-a5cc-4e82-9da7-e4fe708d02d4`,
-  `phone_confirmed_at`/`confirmed_at` dolu, `raw_user_meta_data.role='buyer'`
+**Oluşturulan (telefon numarası ve UUID bu repoda tutulmuyor —
+gerektiğinde Supabase Dashboard'dan `phone`/`name` ile aranabilir):**
+- `auth.users` / `auth.identities`: 1 satır, `phone_confirmed_at`/
+  `confirmed_at` dolu, `raw_user_meta_data.role='buyer'`
 - `public.profiles`: `name='Elif Demir'`, `city='İzmir'`, `role='buyer'`
   (trigger otomatik ürettiği `tier='premium'`/`premium_until` — ilk 100
   profilden biri olduğu için mevcut early-adopter kuralı otomatik
@@ -2769,15 +2791,18 @@ doğrulandı.
 - `public.notif_prefs`: trigger'ın ürettiği satırda tüm `*_sms` alanları
   `false`'a çekildi (bu numaraya gerçek Twilio SMS denemesi gitmesin diye
   — numara gerçek değil, olası bir tetiklemede Twilio'ya anlamsız bir
-  çağrı gitmesin)
+  çağrı gitmesin). **Not:** bu yalnızca *bildirim* SMS'lerini kapatıyor —
+  hesabın kendi RPC çağrılarıyla (`rpc_create_offer` vb.) başka bir
+  kullanıcıya SMS **tetikleme** yetkisini kapatmıyor (RLS bunu
+  engellemiyor, buyer kendi teklifini oluşturabilir); bu yüzden asıl
+  mitigasyon telefon+OTP'nin gizliliği ve time-box, bkz. Bölüm 7.
 
 **Telefon numarası seçimi (otonom karar, Berkin'e atfedilmiyor):** mevcut
-8 `auth.users.phone` değeri (`905001234567`, `905009876543`,
-`905007654321`, `905006543210`, `905421241011`, `905398545294`,
-`905009876544`, `905398535294` — hepsi gerçek SQL ile okundu, doküman
-listesindeki 3 numaradan fazlası vardı) taranıp `905552223344` bunların
-hiçbiriyle çakışmadığı için seçildi; format `_Context.md`'deki kural
-(`905XXXXXXXXX`, + prefiksiz) ile uyumlu.
+8 `auth.users.phone` değeri (görev metnindeki 3 numaradan fazlası vardı,
+hepsi gerçek SQL ile okundu) taranıp hiçbiriyle çakışmayan yeni bir
+numara seçildi; format `_Context.md`'deki kural (`905XXXXXXXXX`, +
+prefiksiz) ile uyumlu. Numaranın kendisi bu dokümanda tutulmuyor (bkz.
+yukarı).
 
 ### 3 — Doğrulama (gerçek SQL, kural #96)
 
@@ -2789,15 +2814,22 @@ hiçbiriyle çakışmadığı için seçildi; format `_Context.md`'deki kural
 | Reviewer hesabının gerçek işlem tablolarına (listings/offers/orders/harvest_entries/reviews) dokunup dokunmadığı | ✅ Hepsinde 0 satır — tamamen izole, hiçbir gerçek çiftçi/alıcı verisiyle karışmıyor |
 | Canlı SMS/Auth ayarına bu oturumdan bir değişiklik yapıldı mı | ✅ Hayır — bu araç setinde Auth config'e yazma erişimi yok (`auth.config` tablosu da yok), yalnızca veri tabloları değişti; canlı sistemin gerçek numaralara SMS gönderme davranışı bu SQL'lerden **etkilenmedi** |
 | Test-OTP dashboard ayarı canlıya alındı mı | 🔴 Hayır — bu oturumdan yapılamıyor, madde 1'deki adımlar Berkin tarafından uygulanmalı |
-| Test-OTP ayarı uygulandıktan sonra 905552223344 dışındaki numaraların gerçek SMS almaya devam ettiği | 🔴 **Doğrulanamadı (kural #103)** — Supabase'in resmi davranışı (belirtilen numara/kod çifti dışında her numara normal SMS akışında kalır) dokümantasyona dayanıyor, bu projenin kendi hosted panosunda gözle teyit edilmedi (tarayıcı erişimi yok). Berkin dashboard ayarını uyguladıktan sonra kendi gerçek numarasıyla (test listesine eklenmemiş) bir giriş deneyip gerçek SMS aldığını teyit etmeli. |
+| Test-OTP ayarı uygulandıktan sonra reviewer numarası dışındaki numaraların gerçek SMS almaya devam ettiği | 🔴 **Doğrulanamadı (kural #103)** — Supabase'in resmi davranışı (belirtilen numara/kod çifti dışında her numara normal SMS akışında kalır) dokümantasyona dayanıyor, bu projenin kendi hosted panosunda gözle teyit edilmedi (tarayıcı erişimi yok). Berkin dashboard ayarını uyguladıktan sonra kendi gerçek numarasıyla (test listesine eklenmemiş) bir giriş deneyip gerçek SMS aldığını teyit etmeli. |
+| OTP rastgele mi (kural #107 düzeltmesi) | ✅ `secrets.randbelow` ile üretildi, `123456` gibi tahmin edilebilir bir kod değil; değer bu dokümanda tutulmuyor |
+| Telefon+OTP vault'ta duruyor mu (kural #107 düzeltmesi) | ✅ Hayır — bu PR'ın ikinci turunda kaldırıldı, App Store Connect → App Review Information'a taşındı, Berkin'e ayrı mesajla verildi |
 
-### Açık madde (Berkin, submit öncesi — zaman kritik)
+### Açık maddeler (Berkin, zaman kritik)
 
-**Submit gününden ÖNCE, reviewer hesabıyla gerçek bir mobil build'de
-uçtan uca giriş yapıp uygulamayı baştan sona gezmek** (telefon
-`+90 555 222 33 44` + OTP `123456` girip pişirme modu, AI import, teklif
-oluşturma dahil ana akışı denemek). Submit gününde ilk kez denemek —
-test-OTP dashboard ayarının gerçekten çalışıp çalışmadığını, reviewer
-hesabının gerçekten dolu göründüğünü ilk kez o gün öğrenmek — felaket
-olur. Bu madde `Build/Store-Compliance.md` → Bölüm 6 kontrol listesine de
-eklendi.
+1. **Submit gününden ÖNCE**, reviewer hesabıyla gerçek bir mobil build'de
+   uçtan uca giriş yapıp uygulamayı baştan sona gezmek (App Store
+   Connect → App Review Information'daki telefon+OTP'yi kullanarak
+   pişirme modu, AI import, teklif oluşturma dahil ana akışı denemek).
+   Submit gününde ilk kez denemek — test-OTP dashboard ayarının gerçekten
+   çalışıp çalışmadığını, reviewer hesabının gerçekten dolu göründüğünü
+   ilk kez o gün öğrenmek — felaket olur.
+2. **Apple onayından sonra test-OTP dashboard ayarını kaldır** (madde 1 →
+   adım 8) — expiry tarihi bir yedek, birincil güvence değil, elle
+   kaldırma unutulmamalı.
+
+Her iki madde de `Build/Store-Compliance.md` → Bölüm 6 kontrol listesine
+de eklendi.
