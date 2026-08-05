@@ -313,7 +313,7 @@ Aylık: `recipe_views`, `recipe_saves`, `recipe_attributed_requests`, `recipe_at
 
 ### Edge function: `extract-recipe`
 `verify_jwt = true` (kullanıcı tetiklemeli — `sync-izmir-hal-prices`'taki cron istisnası burada geçerli değil).
-- Modaliteler: `mode='text'` (yapıştırma) ve `mode='photo'` (yazılı tarif fotoğrafı, vision+OCR). YouTube/link ve yemek fotoğrafından tahmin **yok** → M9.
+- Modaliteler: `mode='text'` (yapıştırma) ve `mode='photo'` (yazılı tarif fotoğrafı, vision+OCR). YouTube/link ve yemek fotoğrafından tahmin **yok** → M9 (konsolide: `TODO.md` → "M9 — Lansman Sonrası" madde 11).
 - **Sunucuda zorlananlar:** `visibility='private'`, `status='draft'`, `owner_id` = JWT `sub` claim'i. Client'ın gönderdiği `visibility`/`status`/`owner_id` **yok sayılır**.
 - `extraction_confidence` modelden gelir, 0..1'e clamp'lenir.
 - Kota: mevcut `can_send_ai_message` / `increment_ai_usage` (`ai_usage_tracking`). **Yeni kota altyapısı kurulmadı.**
@@ -458,7 +458,8 @@ crop'un kendisi değil, ayrı bir market ürünü oldukları için (aynı mantı
 `culinary_aliases` + `conversion_hints` (temel metrik birimde — kütle
 crop'larında gram, `zeytinyağı`da ml) tam dolduruldu; domates/kekik M2'den
 genişletildi (yeni birim eklenmedi, mevcut korunup teyit edildi). Kalan 56
-crop boş kaldı — M4/M9'da tamamlanacak.
+crop boş kaldı — M4/M9'da tamamlanacak. (Konsolide M9 listesi: `TODO.md` →
+"M9 — Lansman Sonrası" madde 8.)
 
 ### Doğrulama (kural #96, 2026-07-30, Claude Code + Supabase MCP)
 | Kontrol | Sonuç |
@@ -1315,6 +1316,8 @@ politikasını açıkça doğrula"):**
 
 ### F — Manuel eşleştirme verisinin sorgulanması (M9 için, Berkin kararı)
 
+> Konsolide listede: `TODO.md` → "M9 — Lansman Sonrası" madde 8.
+
 Alias eşleştirmesi yalnızca 14 crop'u kapsıyor; mobil önizleme ekranındaki
 manuel crop seçici kalan boşluğu kullanıcı eliyle kapatıyor (bkz.
 `Build/P23-Mobile.md` → "P23-M6-ek"). Bu manuel seçimler ayrı bir tabloya
@@ -1582,8 +1585,11 @@ kapatılmıyor:
    `profiles(id)`'e çevirmek (ya da `ON DELETE SET NULL` yapmak) —
    böylece `auth.users` normal `supabase.auth.admin.deleteUser()` yoluyla
    gerçekten silinebilir, scrub hack'ine hiç gerek kalmaz. **M9'a
-   ertelendi** (bkz. `TODO.md` → "SEZONLUK ÜRÜN YÖNETİMİ / SONRAKI
-   FAZLAR" altı, yeni madde): canlı şemada kullanımda olan bir FK'yi
+   ertelendi** (⚠️ 2026-08-05 düzeltmesi: bu satır `TODO.md` → "SEZONLUK
+   ÜRÜN YÖNETİMİ / SONRAKI FAZLAR" altını işaret ediyordu ama madde orada
+   değil — gerçek konum `TODO.md` → "Açık madde (M9) — `auth.users`
+   scrub'ını FK değişikliğiyle gereksizleştir" (P26 build log); konsolide
+   liste: `TODO.md` → "M9 — Lansman Sonrası" madde 5): canlı şemada kullanımda olan bir FK'yi
    lansıma ~2,5 hafta kala (25 Ağustos hedefi) değiştirmek —
    `offer_messages` RLS politikalarının ve olası uygulama kodunun yeniden
    doğrulanmasını gerektirir — bu turun riziko/getiri dengesinde değildi.

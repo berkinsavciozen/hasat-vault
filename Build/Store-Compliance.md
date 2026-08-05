@@ -258,12 +258,22 @@ değişmedi.
 
 ## 6. Submit öncesi kontrol listesi (M8)
 
+> **[2026-08-05 eklendi]** Cihaz-bağımlı testlerin ayrıntılı/genişletilebilir listesi
+> `TODO.md` → "🍎 Apple hesabı gelince koşulacak testler" başlığında tutulur (bu
+> doküman değil — isim burada geçse de liste orada yaşıyor); aşağıdaki kontrol
+> listesi submit-günü özetidir. M9 konsolidasyon taramasında (2026-08-05) her iki
+> liste karşılaştırıldı ve iki eksik bulunup her ikisine de eklendi: prefetch
+> atlama davranışı, native picker/modal/Linking akışları.
+
 - [ ] Uçak modu testi: uygulama açılıyor, kaydedilmiş tarifler görünüyor (**daha önce hiç açılmamış bir tarifin adımları da** — M5-b-ek'in bulk prefetch'i)
 - [ ] Pişirme modu + timer gerçek cihazda çalışıyor (**timer arka planda doğru sayıyor**, ekran kararmıyor, çıkışta keep-awake bırakılıyor)
 - [ ] AI import (metin + fotoğraf) gerçek cihazda çalışıyor (metin yolu M6'da sunucu tarafında doğrulandı; **kamera yolu cihaz bekliyor**)
 - [ ] Push bildirimi gerçek cihaza ulaşıyor (iOS + Android) — **önce FCM V1 anahtarı (Android) ve APNs anahtarı (iOS) EAS'a yüklenmeli**
 - [ ] App Review notları listesi yalnızca gerçek cihazda doğrulanmış maddelerden oluşuyor (bkz. bölüm 2 → "Durum tablosu")
 - [x] Uygulama içi hesap silme çalışıyor — DB/RPC seviyesinde doğrulandı (P26, 2026-08-04); gerçek tarayıcı/cihaz click-through'u submit öncesi Berkin tarafından yapılmalı (kural #103)
+- [ ] **[2026-08-05 eklendi]** Hesap silme — gerçek cihaz/tarayıcı click-through ("HESABIMI SİL" yazma onayı dahil) ayrı, açık bir madde olarak koşuldu (yukarıdaki [x] yalnızca DB/RPC seviyesini kapsıyor)
+- [ ] **[2026-08-05 eklendi]** Prefetch atlama davranışı gerçek cihazda doğrulandı (`cached_recipe_detail_meta` — önbellek tam ve 24 saatten yeniyse tarama başlamıyor)
+- [ ] **[2026-08-05 eklendi]** Native picker/modal/Linking akışları (`CropPickerModal`, teslim tarihi preset chip'leri, web/native yönlendirme geçişleri) gerçek cihazda denendi
 - [ ] Hiçbir yerde ödeme/checkout ekranı yok
 - [ ] Gizlilik metni yayında ve uygulamadan erişilebilir
 - [ ] API 36 hedefleniyor

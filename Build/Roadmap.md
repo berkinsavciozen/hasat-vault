@@ -140,7 +140,7 @@ gantt
 | **M6** | Native yetenekler | 28 Eyl – 11 Eki | Pişirme modu + timer, AI import (metin + foto), push (iOS + Android) — gerçek cihazda doğrulandı |
 | **M7** | Köprü + store varlıkları | 12 – 18 Eki | Keşfet → ürün → Talep Et → siparişlerim uçtan uca (**checkout yok**); hesap silme, gizlilik, ekran görüntüleri, review notları hazır |
 | **M8** | Store submit | 19 – 31 Eki | iOS + Android canlı |
-| **M9** | Sıraya alındı (silinmedi) | Kasım+ | YouTube/link import (hukuki kontrol) · yemek fotoğrafından tahmin · HoReCa porsiyon maliyeti · abonelik köprüsü · bildirim konsolidasyonu · organizasyon hesabına geçiş |
+| **M9** | Sıraya alındı (silinmedi) | Kasım+ | YouTube/link import (hukuki kontrol) · yemek fotoğrafından tahmin · HoReCa porsiyon maliyeti · abonelik köprüsü · bildirim konsolidasyonu · organizasyon hesabına geçiş — ⚠️ bu satır bayat: web Defterim ve sipariş takibi web köprüsü de M9'a eklendi ama bu tabloya hiç yansımamıştı; **tam ve güncel konsolide liste:** `TODO.md` → "M9 — Lansman Sonrası" |
 
 ---
 
@@ -148,7 +148,7 @@ gantt
 
 **Öteleme kuralı.** Bir taş süresinde bitmezse kapsam **kesilmez**, sonraki taş sağa kayar. 25 Ağustos lansman haftası bilinçli olarak boştur.
 
-**Lansman öncesi risk kuralı.** 25 Ağustos'tan önce yalnızca *ekleyici* (additive) işler. İki kez kırılmış bildirim hattına dokunan konsolidasyon refactor'ü M9'a bırakılmıştır.
+**Lansman öncesi risk kuralı.** 25 Ağustos'tan önce yalnızca *ekleyici* (additive) işler. İki kez kırılmış bildirim hattına dokunan konsolidasyon refactor'ü M9'a bırakılmıştır. (Konsolide liste: `TODO.md` → "M9 — Lansman Sonrası" madde 6.)
 
 **Faz kapanış ritüeli.**
 1. Uygulama biter → bağımsız doğrulama (gerçek SQL / `get_diff` / gerçek cihaz — Lovable'ın metnine güvenilmez, kural #96)
