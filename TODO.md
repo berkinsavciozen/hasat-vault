@@ -1,6 +1,6 @@
 ---
 title: Hasat — Master Roadmap & Build Log
-updated: 2026-07-31
+updated: 2026-08-05
 tags:
   - hasat
   - todo
@@ -3080,3 +3080,66 @@ tarafından çözülmeye çalışılmadı (görev talimatı).
 (kod) · mobilde ödeme/checkout · pazarlık yanıtı ekranı · yemek
 fotoğrafından tahmin/YouTube import/web Defterim · `unit_type` enum'u ·
 şema değişikliği yok (kural #115'in sıralaması bu turda gerekmedi).
+
+---
+
+## P23-M7-e — `buyer_type` Sessiz Veri Kaybı (2026-08-05)
+
+**Kapsam:** Orkestratörün canlı veride doğruladığı bulgu —
+`enforce_profile_self_update_restrictions_trg`, kullanıcı kendi profilini
+güncellediğinde `role`/`tier`/`premium` ile birlikte `buyer_type`'ı da
+sessizce `OLD` değerine geri çeviriyordu; bu yüzden 2026-07-08'den sonra
+kaydolan hiçbir alıcıda `profiles.buyer_type` kalıcı olmuyordu
+(`buyer_profiles.company_type` doğru yazılıyordu, yalnızca `profiles`
+tarafı etkileniyordu). Detaylı kök neden + trigger'ın önce/sonra hali +
+doğrulama: `Build/DB-Schema.md` → "P23-M7-e".
+
+### Yapılanlar
+
+1. **Trigger düzeltmesi** — yalnızca `NEW.buyer_type := OLD.buyer_type;`
+   satırı kaldırıldı. `role`/`tier`/`premium`/`referred_by` mantığına
+   dokunulmadı (Berkin kararı: role/tier/premium ayrıcalık yükseltme
+   vektörleridir ve korunmalı; `buyer_type` kullanıcının kendi segment
+   beyanıdır, fiyat/erişim kontrolü ona bağlı değil).
+2. **Geriye dönük backfill** — `profiles.buyer_type IS NULL AND
+   buyer_profiles.company_type IS NOT NULL` olan satırlarda `buyer_type`,
+   `company_type`'tan dolduruldu. **2 satır etkilendi** (2026-08-05'te
+   webden kaydolan iki buyer). `buyer_profiles` satırı olmayan veya
+   `company_type`'ı da `NULL` olan 1 satıra (2026-07-30 kaydı)
+   dokunulmadı — veri yoktu, uydurulmadı.
+3. **Doğrulama (kural #96):** (a) gerçek test buyer'ının (Zeynep Kaya)
+   impersonasyonuyla aynı UPDATE'te `buyer_type` + `role`/`tier`/`premium`
+   birlikte denendi, `ROLLBACK` ile geri alındı — `buyer_type` güncellendi,
+   `role`/`tier`/`premium` hâlâ engellendi (ayrıcalık yükseltme açığı
+   doğmadı); (b) atılabilir bir test numarasıyla (`905550001199`) gerçek
+   `auth.users`/`auth.identities` insert'i + web/mobil onboarding'in
+   birebir aynı iki yazımı (`profiles` upsert + `buyer_profiles` insert)
+   gerçek `authenticated` impersonasyonuyla çalıştırıldı —
+   `profiles.buyer_type` ve `buyer_profiles.company_type` ikisi de doldu,
+   test verisi silindi (`0/0/0/0/0` doğrulandı); (c) `get_advisors(security)`
+   yeni uyarı üretmedi; (d) gerçek kullanıcılara (Zeynep, Ahmet) dokunulmadı,
+   turun sonunda tekrar kontrol edildi. Tam SQL ve sonuçlar:
+   `Build/DB-Schema.md` → "P23-M7-e".
+
+### Açık madde (M9) — çift kaynak: `profiles.buyer_type` vs `buyer_profiles.company_type`
+
+Aynı bilgi iki tabloda ayrı ayrı tutuluyor — kural #106'nın uyardığı
+desen (`dispatch_sms`/`send-sms` sapmasının kardeşi). Bu turda kim neyi
+okuyor tespit edildi (tam tablo: `Build/DB-Schema.md` → "P23-M7-e" →
+"Çift kaynak"): web (`src/lib/hasat/queries.ts`, farmer'a teklif ekranında
+alıcı tipi) ve mobil (`app/profile.tsx`, alıcının kendi "İşletme Tipi"
+rozeti) `profiles.buyer_type` okuyor; admin KPI view'ı (`v_kpi_order_base`)
+`buyer_profiles.company_type` okuyor — ikinci bu bug'dan hiç etkilenmedi.
+Konsolidasyon (`profiles.buyer_type`'ı düşürüp herkesin `buyer_profiles`'a
+bakması, ya da tersi) **bu turda yapılmadı** — lansmana 3 hafta kala her
+iki tabloyu okuyan tüm web/mobil/admin kodunun yeniden gözden geçirilmesi
+riziko/getiri dengesinde değil (Berkin kararı). **M9'a ertelendi.**
+
+### Dokunulmayan (kapsam kuralı tutuldu)
+
+`src/lib/core/` (kural #105) · trigger'ın `role`/`tier`/`premium` koruması ·
+checkout · web Defterim/YouTube import/yemek fotoğrafı (→ M9) · çift kaynak
+konsolidasyonu (→ M9, yukarıya bkz.) · şema değişikliği `ADD COLUMN`
+seviyesinde değil, mevcut kolonun yazım kuralı değişti — kural #115'in
+migration→core-tip→sync sıralaması bu tur için gerekmedi (`hasat-core`'un
+ürettiği tipler zaten `company_type | null` idi, değişmedi).

@@ -1,6 +1,6 @@
 ---
 title: Hasat — DB Schema Referansı
-updated: 2026-07-30
+updated: 2026-08-05
 tags: [hasat, supabase, schema]
 ---
 
@@ -1600,3 +1600,146 @@ geçti ✅; buyer + 7 tablodan birer satır + IBAN/isim → hepsi 0 satıra
 düştü, `profiles` anonimleşti, `auth.users` scrub edildi ✅; aynı
 telefonla yeni `auth.users` insert'i → UNIQUE çakışması yok ✅. Test
 verisi (3 `auth.users` + `profiles` + `notif_prefs`) temizlendi.
+
+---
+
+## P23-M7-e — `buyer_type` Sessiz Veri Kaybı (2026-08-05)
+
+### Kök neden
+
+`enforce_profile_self_update_restrictions()` (`BEFORE UPDATE ON public.profiles`,
+2026-07-10 migration'ında oluşturuldu) kullanıcı kendi satırını
+güncellediğinde (`auth.uid() = NEW.id`) `role`/`tier`/`premium`'un yanına
+`buyer_type`'ı da `OLD` değerine geri çeviriyordu. `buyer_type` kolonu
+kendisi 2026-07-08'de eklenmişti; trigger iki gün sonra bu kolonu da
+role/tier/premium'la aynı ayrıcalık-koruma listesine kattı — **beyan alanı
+ile ayrıcalık alanı aynı korumaya tabi tutuldu.**
+
+Web'in (`src/routes/onboarding.buyer.tsx`) ve mobilin
+(`hasat-mobile/app/onboarding.tsx`) `finish()`'i `profiles.upsert({role,
+name, phone, buyer_type})` çağırıyor — kullanıcının `profiles` satırı
+kayıt anında `handle_new_user()` tarafından zaten oluşturulduğundan bu bir
+**INSERT değil UPDATE**'e denk geliyor, trigger'ı tetikliyor.
+`buyer_profiles.insert({..., company_type})` aynı turda başarıyla
+yazılıyor (bu tabloda self-update kısıtlaması yok) — sonuç: **onboarding
+başarılı görünüyor, `buyer_profiles.company_type` doğru dolu, ama
+`profiles.buyer_type` sessizce `OLD` değerine (ilk kayıtta hep `NULL`)
+geri çevriliyor.**
+
+**Etki (canlı veri, 2026-08-05):** 2026-07-08 15:02'den sonra kaydolan
+her `buyer`'da `profiles.buyer_type` `NULL`. Sınır satır (2026-07-08
+15:02:11, `buyer_type='diger'`) hâlâ doludur — trigger o günün ilerleyen
+saatlerinde/ertesi gün devreye girmiş. Bu turdan önce NULL olan 3 satırdan
+2'si (5 Ağustos'ta webden kaydolan iki kullanıcı) `buyer_profiles.company_type`
+dolu olduğu için geri dolduruldu (aşağıya bkz.); 1'i (2026-07-30 kaydı)
+`buyer_profiles` satırı hiç yok — onboarding hiç tamamlanmamış, dokunulmadı.
+
+### Karar — `buyer_type` korumadan çıkarıldı, `role`/`tier`/`premium` aynen kaldı
+
+Berkin kararı: **`role`/`tier`/`premium` ayrıcalık yükseltme vektörleridir**
+(bir alıcının kendini `premium=true` yapabilmesi ciddi bir açıktır) —
+korunmaya devam ediyor. **`buyer_type` kullanıcının kendi segment beyanıdır**
+(restoran/otel/bireysel/...) — fiyat veya erişim kontrolü ona bağlı değil,
+korumanın kapsamında olmasının hiçbir güvenlik gerekçesi yok, yalnızca
+onboarding'i sessizce kıran bir yan etkisi var.
+
+**Trigger'ın güncel hali** (`role`/`tier`/`premium`/`referred_by` mantığı
+değişmedi, yalnızca `NEW.buyer_type := OLD.buyer_type;` satırı kaldırıldı):
+
+```sql
+CREATE OR REPLACE FUNCTION public.enforce_profile_self_update_restrictions()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+  uid uuid := auth.uid();
+BEGIN
+  IF uid IS NULL OR uid <> NEW.id THEN
+    RETURN NEW;
+  END IF;
+
+  NEW.role       := OLD.role;
+  NEW.tier       := OLD.tier;
+  NEW.premium    := OLD.premium;
+
+  IF NEW.referred_by IS DISTINCT FROM OLD.referred_by THEN
+    IF OLD.referred_by IS NOT NULL THEN
+      NEW.referred_by := OLD.referred_by;
+    END IF;
+  END IF;
+
+  RETURN NEW;
+END;
+$function$
+```
+
+### Geriye dönük düzeltme
+
+```sql
+UPDATE public.profiles p
+SET buyer_type = bp.company_type
+FROM public.buyer_profiles bp
+WHERE bp.user_id = p.id
+  AND p.buyer_type IS NULL
+  AND bp.company_type IS NOT NULL;
+```
+
+**2 satır** etkilendi (her ikisi de 2026-08-05'te webden kaydolan
+buyer'lar — orkestratörün bulgusuyla birebir örtüşüyor). `buyer_profiles`
+satırı hiç olmayan veya `company_type`'ı da `NULL` olan satırlara
+dokunulmadı (2026-07-30 kaydı) — veri yoktu, uydurulmadı.
+
+### Doğrulama (kural #96, gerçek impersonation + gerçek insert)
+
+1. **Ayrıcalık koruması hâlâ çalışıyor mu:** gerçek test buyer'ı
+   (`032eb467-661d-4df4-adf5-3d277d9b6549`, Zeynep Kaya) `SET LOCAL ROLE
+   authenticated` + `request.jwt.claims` ile impersonate edilip aynı
+   UPDATE'te `buyer_type='diger', role='farmer', tier='premium',
+   premium=true` denendi, işlem `ROLLBACK` ile geri alındı (gerçek
+   kullanıcıya kalıcı dokunulmadı). Sonuç: `buyer_type` → `'diger'`
+   (güncellendi ✅), `role`/`tier`/`premium` → değişmedi, sırasıyla
+   `buyer`/`free`/`false` kaldı (trigger hâlâ engelliyor ✅) — ayrıcalık
+   yükseltme açığı doğmadı.
+2. **Yeni kayıt akışı uçtan uca:** atılabilir bir test numarasıyla
+   (`905550001199`) gerçek bir `auth.users`/`auth.identities` insert'i
+   yapıldı (Supabase Auth'un phone-OTP doğrulamasının ürettiği satırların
+   birebir aynısı — bu ortamda gerçek bir SMS/OTP alınamadığı için, ve
+   Supabase Auth'taki test-OTP ayarı yalnızca önceden dashboard'da
+   tanımlı iki sabit numarayı kapsadığı, MCP'den yeni bir test numarası
+   eklenemediği için; aynı yöntem bu dokümanın P23-M7-d bölümünde de
+   kullanıldı). `handle_new_user()` gerçekten tetiklendi,
+   `profiles.role='buyer'`/`buyer_type=NULL` doğru oluştu. Ardından web/mobil
+   `finish()`'in yaptığı **birebir aynı** iki yazım —
+   `profiles` upsert (`role`, `name`, `phone`, `buyer_type`) + `buyer_profiles`
+   insert (`company_name`, `company_type`, `monthly_volume`) — gerçek
+   `authenticated` impersonasyonuyla çalıştırıldı. Sonuç SQL ile kanıtlandı:
+   `profiles.buyer_type='restoran'` **ve** `buyer_profiles.company_type='restoran'`
+   ikisi de doldu. Test verisi (`buyer_profiles`, `notif_prefs`, `profiles`,
+   `auth.identities`, `auth.users`) silindi, `0/0/0/0/0` ile doğrulandı.
+3. `get_advisors(security)` bu migrasyondan kaynaklı yeni uyarı üretmedi
+   (mevcut, ilgisiz uyarılar değişmedi).
+4. Gerçek kullanıcılara dokunulmadı: `032eb467-661d-4df4-adf5-3d277d9b6549`
+   (Zeynep) ve `0868e4fe-86d2-4c5d-8ba5-f15fd4fac146` (Ahmet) turun sonunda
+   SQL ile tekrar kontrol edildi, rolleri/tier/premium/buyer_type değişmedi.
+
+### ⚠️ Çift kaynak — raporlanıyor, konsolide edilmedi (M9 açık maddesi)
+
+Aynı bilgi (alıcının segment tipi) iki tabloda ayrı ayrı tutuluyor —
+kural #106'nın uyardığı "iki kaynak, tek doğruluk" deseni (`dispatch_sms`/
+`send-sms` sapmasının kardeşi). Bu turda kod okunarak hangi tarafın
+hangisini okuduğu tespit edildi:
+
+| Okuyan | Kolon | Kullanım |
+|---|---|---|
+| Web `src/lib/hasat/queries.ts:1096` (offer/negotiation sorgusu) + `:580` (`buyerType` mapping) | `profiles.buyer_type` | Farmer'a, teklif/pazarlık ekranında alıcının işletme tipini gösterir (bu bug yüzünden 8 Temmuz sonrası kayıtlarda hep varsayılana — "bireysel" — düşüyordu) |
+| Mobil `src/lib/hasat/profile.ts` (select) + `app/profile.tsx:36` | `profiles.buyer_type` | Alıcının kendi profil ekranındaki "İşletme Tipi" rozeti (bu bug yüzünden hep `?? "diger"` varsayılanına düşüyordu) |
+| DB view `v_kpi_order_base` (`bpr.company_type AS buyer_company_type`) | `buyer_profiles.company_type` | Admin KPI — bu bug'dan **etkilenmedi**, çünkü kaynağı hep `buyer_profiles` |
+| Web + mobil onboarding `finish()` | ikisine birden yazar | Tek yazım noktası, iki farklı tablo |
+
+Konsolidasyon (örn. `profiles.buyer_type`'ı düşürüp her yerin
+`buyer_profiles.company_type`'a bakması, ya da tersi) bu turun kapsamı
+dışında — lansmana 3 hafta kala her iki tabloyu okuyan tüm kodun
+(web+mobil+admin) yeniden gözden geçirilmesi riziko/getiri dengesinde
+değil (Berkin kararı). **M9'a açık madde olarak yazıldı** (bkz. `TODO.md`).
