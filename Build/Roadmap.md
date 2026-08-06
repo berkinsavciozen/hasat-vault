@@ -1,6 +1,6 @@
 ---
 title: Hasat — P23 Görsel Yol Haritası
-updated: 2026-07-29
+updated: 2026-08-06
 tags:
   - hasat
   - roadmap
@@ -11,8 +11,13 @@ tags:
 # P23 — Buyer Mobile & Recipe App · Görsel Yol Haritası
 
 > Onaylandı: 2026-07-28 · Kural: **kapsam kesilmez, tarih ötelenir**
-> Hedef: Store'da canlı ≈ **31 Ekim 2026**
-> Detaylar: `Build/P23-Mobile.md` · `Build/Shared-Architecture.md` · `Build/Store-Compliance.md`
+> Hedef: Store'da canlı ≈ **15 Ekim 2026** *(2026-08-06'da güncellendi — önceki
+> hedef 31 Ekim'di; Apple bireysel hesabı planlanandan erken, 2026-08-05'te
+> onaylandı, M8 öne çekildi. Gerekçe ve tam takvim: "⏱️ 2026-08-06 güncellemesi"
+> bölümü aşağıda.)*
+> Lansman kritik yolu: **web marketplace, 25 Ağustos 2026.** Mobil (M8) bu
+> yolun üzerinde değil — bkz. `Build/Launch-Plan.md`.
+> Detaylar: `Build/P23-Mobile.md` · `Build/Shared-Architecture.md` · `Build/Store-Compliance.md` · `Build/Launch-Plan.md`
 
 ---
 
@@ -63,15 +68,20 @@ Escrow ile başkasının parası tutulacağı için sorumluluk sınırı ayrıca
 
 ## 📊 Gantt
 
+> ⚠️ **Bu Gantt 2026-08-06'da gerçek duruma göre düzeltildi** — önceki hali
+> M0-M7'yi hâlâ gelecek tarihli/planlanmış gösteriyordu, oysa hepsi build
+> log'larda (`TODO.md`) çoktan tamamlanmıştı; asıl plandan 6-8 hafta önde
+> koşulmuştu. Detay: aşağıdaki "⏱️ 2026-08-06 güncellemesi" bölümü.
+
 ```mermaid
 gantt
-    title Hasat P23 — Buyer Mobile & Recipe App
+    title Hasat P23 — Buyer Mobile & Recipe App (2026-08-06 itibariyle)
     dateFormat YYYY-MM-DD
     axisFormat %d %b
     todayMarker stroke-width:3px,stroke:#b45309
 
     section Hesaplar bagimsiz
-    Apple bireysel hesap             :crit, a1, 2026-07-28, 10d
+    Apple bireysel hesap (onaylandi) :done, crit, a1, 2026-07-30, 2026-08-05
     EAS Apple kimlik dogrulama       :a2, after a1, 2d
     Play hesap tipi karari           :a3, 2026-09-14, 3d
 
@@ -80,49 +90,91 @@ gantt
     iyzico basvurusu                 :crit, c2, after c1, 14d
     D-U-N-S opsiyonel org gecisi     :c3, 2026-11-02, 21d
 
-    section M0 Kapanis
-    P22 tarayici QA 15 adim          :active, m0a, 2026-07-28, 5d
-    Expo EAS kurulum + API36 kontrol :m0b, 2026-08-02, 3d
+    section M0-M4 (tamamlandi)
+    M0 Acik isler + hesaplar         :done, m0, 2026-07-28, 2026-07-29
+    M1 hasat-core + drift guard      :done, m1, 2026-07-29, 2026-07-29
+    M2 Tarif backend RLS/RPC         :done, m2, 2026-07-29, 2026-07-29
+    M3 Icerik 18 tarif + gorseller   :done, m3, 2026-07-29, 2026-07-30
+    M4 Web tarif yuzeyi + Gap 9      :done, m4, 2026-07-30, 2026-07-30
 
-    section M1 Paylasilan cekirdek
-    hasat-core subtree + drift guard :m1a, 2026-08-04, 7d
-    Kucuk sema borclari              :m1b, 2026-08-04, 3d
+    section M5 Mobil iskelet (tamamlandi)
+    M5-a iskelet + hasat-core        :done, m5a, 2026-07-30, 2026-07-30
+    M5-a-ek test altyapisi           :done, m5aek, 2026-07-30, 2026-07-31
+    M5-b ekranlar + offline onbellek :done, m5b, 2026-07-31, 2026-08-03
 
-    section M2 Tarif backend
-    Sema RLS RPC funnel device_tokens:m2a, 2026-08-11, 7d
-    AI cikarma edge function         :m2b, 2026-08-18, 5d
+    section M6 Native yetenekler (tamamlandi)
+    M6 pisirme modu+AI import+push   :done, m6, 2026-08-03, 2026-08-03
+    M6-ek crop eslestirme duzeltme   :done, m6ek, 2026-08-03, 2026-08-04
 
-    section M3 Icerik
-    15-20 ozgun tarif + gorseller    :m3a, 2026-08-18, 14d
-    Glossary insan gozden gecirme    :m3b, 2026-08-25, 7d
+    section M7 Kopru + store varliklari (kismi)
+    M7-a teklif olusturma native     :done, m7a, 2026-08-04, 2026-08-04
+    M7-c reviewer test girisi        :done, m7c, 2026-08-04, 2026-08-05
+    M7-d kayit akisi + acil UI       :done, m7d, 2026-08-05, 2026-08-05
+    M7-e buyer_type veri kaybi fix   :done, m7e, 2026-08-05, 2026-08-05
+    M7-b Kesfet + store varliklari (ACIK, tarih belirsiz) :active, m7b, 2026-08-06, 10d
 
     section LANSMAN
-    Soft launch                      :milestone, L1, 2026-08-25, 0d
+    Soft launch (web marketplace)    :milestone, L1, 2026-08-25, 0d
     Lansman buffer haftasi           :done, L2, 2026-08-25, 7d
 
-    section M4 Web tarif yuzeyi
-    /tarifler + Talep Et akisi       :m4a, 2026-09-01, 10d
-    Parselden tabaga QR Gap 9        :m4b, 2026-09-08, 5d
-
-    section M5 Mobil iskelet
-    Expo auth tarif ekranlari        :m5a, 2026-09-14, 10d
-    Offline onbellek                 :m5b, 2026-09-21, 5d
-
-    section M6 Native yetenekler
-    Pisirme modu + timer             :m6a, 2026-09-28, 7d
-    AI import metin + foto           :m6b, 2026-10-05, 7d
-    Push Android FCM                 :m6c, 2026-10-05, 3d
-    Push iOS APNs                    :m6d, 2026-10-08, 2d
-
-    section M7 Kopru + store varliklari
-    Kesfet urun talep siparisler     :m7a, 2026-10-12, 5d
-    Hesap silme gizlilik gorseller   :m7b, 2026-10-15, 4d
-
-    section M8 Store
-    iOS submit + review              :m8a, 2026-10-19, 8d
-    Play production basvurusu        :m8b, 2026-10-19, 8d
-    Store canli                      :milestone, m8c, 2026-10-31, 0d
+    section M8 Store submit (Apple onayi sonrasi yeni takvim)
+    M8-a gercek cihaz test altyapisi :crit, m8a, 2026-08-06, 2026-08-08
+    M8-b gercek cihaz dogrulama oturumu (Berkine bagli) :m8b, 2026-09-15, 1d
+    M8-c APNs anahtari + push dogrulama :m8c, 2026-09-20, 1d
+    M8-d store submit                :crit, m8d, 2026-09-30, 1d
+    Store canli                      :milestone, m8e, 2026-10-15, 0d
 ```
+
+**M7-b'nin tarihi (2026-08-06, +10g) bir yer tutucudur, onaylı değil** —
+Berkin'den net bir tarih gelmedi; yalnızca M8-a'dan önce bitmesi gerektiği
+varsayıldı (store submit için gizlilik metni/ekran görüntüleri/review notları
+şart). Netleşince buraya ve `Build/Launch-Plan.md`'ye işlenmeli.
+
+---
+
+## ⏱️ 2026-08-06 güncellemesi — Gantt gerçek duruma göre düzeltildi
+
+**Neden:** Bu Gantt'ın önceki hali M0-M7'yi hâlâ ileri tarihli gösteriyordu
+(ör. M5 "14-27 Eylül", M7 "12-18 Ekim"), ama `TODO.md`'deki build log'ları
+hepsinin çoktan bittiğini gösteriyor — **M0-M7 (M7-b hariç), planın 6-8 hafta
+önünde, Temmuz sonu ile 5 Ağustos arasında tamamlandı.** Eski Gantt bu
+turda `Build/Launch-Plan.md` hazırlanırken fark edildi (görev metninin M8
+tarihleri — ~30 Eylül store submit, ~15 Ekim store canlı — bu Gantt'ın eski
+M8 tarihleriyle, 19-31 Ekim, çelişiyordu); kök neden araştırılınca çelişkinin
+kaynağının M8 değil, M5-M7'nin yanlış "gelecek" görünmesi olduğu ortaya çıktı.
+
+**Yapılan düzeltme:**
+1. M0, M1, M2, M3, M4, M5(-a/-a-ek/-b/-b-ek), M6(+ek) `done` olarak
+   işaretlendi — tarihler `TODO.md`'deki ilgili build log başlıklarından
+   alındı (ör. "P23-M5-a — TAMAMLANDI (2026-07-30)"). Bar başlangıç tarihleri
+   **yaklaşık** (bir önceki taşın bitişine zincirlendi) — yalnızca **bitiş/
+   tamamlanma tarihleri** build log'larından kesin.
+2. M7, kısmi tamamlandı olarak işaretlendi: **M7-a/M7-c/M7-d/M7-e uygulandı**
+   (2026-08-04 – 2026-08-05, gerçek SQL/RLS ile doğrulandı; bazıları
+   simülatör/cihaz QA bekliyor). **M7-b (Keşfet + store varlıkları: gizlilik
+   metni, ekran görüntüleri, review notları) hâlâ AÇIK** — `TODO.md`'de
+   tamamlandığına dair kayıt yok. Bu, "M5/M6/M7 tamamlandı" varsayımının
+   M7 için tam doğru olmadığı anlamına geliyor; kayda böyle geçirildi.
+3. **Apple bireysel hesap** `done` işaretlendi — başvuru 2026-07-30/31,
+   onay 2026-08-05 (bkz. görev bağlamı + `Build/Store-Compliance.md` →
+   Bölüm 1; TODO.md bu onayı henüz kaydetmiyor, en güncel bilgi budur).
+4. **M8, Apple onayına göre yeniden konumlandırıldı** — M8-a (gerçek cihaz
+   test altyapısı, 6-8 Ağu) · M8-b (gerçek cihaz doğrulama oturumu, 15 Eyl,
+   Berkin'e bağlı, lansman sonrası) · M8-c (APNs anahtarı + push doğrulama,
+   20 Eyl) · M8-d (store submit, 30 Eyl) · Store canlı (~15 Eki). Tam
+   döküm: `Build/Launch-Plan.md` → lansman sonrası milestone tablosu.
+5. **Şirket tescili kritik yol çubuğu değişmedi** (`c1`, 2026-07-28 +10g =
+   ~7 Ağustos hedefi) — bu doğruydu, dokunulmadı. Şirket tescili **henüz
+   yapılmadı** (bu güncelleme tarihi itibariyle) ve iyzico (`c2`) ile P17-A
+   escrow ona bağlı — kritik yol hâlâ burada, mobilde değil.
+6. **Lansman haftası (25 Ağustos) bilinçli olarak boş** — web marketplace
+   lansmanı kritik yol; mobil (M8) Ekim'e uzanıyor ama lansman yolunun
+   üzerinde değil (bkz. `Build/P23-Mobile.md` → "Şirket gecikirse ne olur").
+
+**Kapsam notu:** Görev metni yalnızca M8 tarihlerini vermişti; M0-M4'ün de
+aynı şekilde bayat olduğu bu turda fark edildiği için tutarlılık adına
+onlar da düzeltildi — aksi halde Gantt kendi içinde çelişik kalırdı (erken
+taşlar geç taşlardan sonra bitmiş görünürdü).
 
 ---
 
@@ -132,15 +184,15 @@ gantt
 |---|---|---|---|
 | **M0** | Açık işler + hesaplar — ✅ **TAMAMLANDI (2026-07-29)** | 28 Tem – 3 Ağu | **P22 tarayıcı QA (15 adım) kapandı**; Apple bireysel hesap başvurusu yapıldı; şirket tescili başladı; Expo/EAS hazır; API 36 desteği doğrulandı |
 | **M1** | Paylaşılan çekirdek — ✅ **TAMAMLANDI (2026-07-29)** | 4 – 10 Ağu | `hasat-core` + subtree + drift guard kuruldu; **web'de sıfır regresyon**; küçük şema borçları kapandı |
-| **M2** | Tarif backend'i (ekleyici) — 🔵 **Başlıyor** | 11 – 22 Ağu | Şema + RLS + RPC'ler gerçek SQL ve RLS simülasyonuyla doğrulandı; **3 crop testi** (mainstream + niş + yenilemez filtresi) |
-| **M3** | İçerik | 18 Ağu – 1 Eyl | 15–20 özgün tarif; culinary meta seed; ~20 crop görseli; glossary insan gözden geçirmesi |
-| — | **Soft launch** | **25 Ağu** | Lansman haftası **buffer** — yeni özellik yazılmaz |
-| **M4** | Web tarif yüzeyi | 1 – 13 Eyl | `/tarifler` misafire açık ve SEO'lu; Talep Et çalışıyor; huni ölçümü veri üretiyor; **Gap #9 kapandı** |
-| **M5** | Mobil iskelet | 14 – 27 Eyl | **Uçak modunda app açılıyor ve tarifler görünüyor** (Apple 4.2'nin asıl testi); Play hesap tipi kararı verildi |
-| **M6** | Native yetenekler | 28 Eyl – 11 Eki | Pişirme modu + timer, AI import (metin + foto), push (iOS + Android) — gerçek cihazda doğrulandı |
-| **M7** | Köprü + store varlıkları | 12 – 18 Eki | Keşfet → ürün → Talep Et → siparişlerim uçtan uca (**checkout yok**); hesap silme, gizlilik, ekran görüntüleri, review notları hazır |
-| **M8** | Store submit | 19 – 31 Eki | iOS + Android canlı |
-| **M9** | Sıraya alındı (silinmedi) | Kasım+ | YouTube/link import (hukuki kontrol) · yemek fotoğrafından tahmin · HoReCa porsiyon maliyeti · abonelik köprüsü · bildirim konsolidasyonu · organizasyon hesabına geçiş — ⚠️ bu satır bayat: web Defterim ve sipariş takibi web köprüsü de M9'a eklendi ama bu tabloya hiç yansımamıştı; **tam ve güncel konsolide liste:** `TODO.md` → "M9 — Lansman Sonrası" |
+| **M2** | Tarif backend'i (ekleyici) — ✅ **TAMAMLANDI (2026-07-29)**, tarayıcı QA (S20-B) bekliyor | 11 – 22 Ağu | Şema + RLS + RPC'ler gerçek SQL ve RLS simülasyonuyla doğrulandı; **3 crop testi** (mainstream + niş + yenilemez filtresi) |
+| **M3** | İçerik — ✅ **TAMAMLANDI (2026-07-30)**, tarayıcı QA (S21) bekliyor | 18 Ağu – 1 Eyl | 15–20 özgün tarif; culinary meta seed; ~20 crop görseli; glossary insan gözden geçirmesi (**glossary insan gözden geçirmesi hâlâ açık** — bkz. `Build/Launch-Plan.md` E6) |
+| — | **Soft launch (web marketplace)** | **25 Ağu** | Lansman haftası **buffer** — yeni özellik yazılmaz; kritik yol burası, mobil (M8) değil |
+| **M4** | Web tarif yüzeyi — ✅ **TAMAMLANDI (2026-07-30, a+b+c)** | 1 – 13 Eyl | `/tarifler` misafire açık ve SEO'lu; Talep Et çalışıyor; huni ölçümü veri üretiyor; **Gap #9 kapandı** |
+| **M5** | Mobil iskelet — ✅ **TAMAMLANDI (2026-07-30 a, 07-31 a-ek, 08-03 b/b-ek)**, simülatör/cihaz QA (S26) bekliyor | 14 – 27 Eyl | **Uçak modunda app açılıyor ve tarifler görünüyor** (Apple 4.2'nin asıl testi, kod tarafı hazır — gerçek cihaz doğrulaması M8-b'de); Play hesap tipi kararı hâlâ M5'e ait, verilmedi |
+| **M6** | Native yetenekler — ✅ **TAMAMLANDI (2026-08-03, 08-04 ek)**, simülatör/cihaz QA (S27) bekliyor | 28 Eyl – 11 Eki | Pişirme modu + timer, AI import (metin + foto), push token kaydı — kod tarafı hazır; **gerçek cihazda doğrulama M8-b/M8-c'de** |
+| **M7** | Köprü + store varlıkları — 🟡 **KISMEN TAMAMLANDI**: M7-a/c/d/e uygulandı (2026-08-04 – 08-05); **M7-b (Keşfet + store varlıkları) AÇIK** | 12 – 18 Eki | Teklif oluşturma uçtan uca native (**checkout yok**) ✅; hesap silme ✅ (P26); Keşfet, gizlilik metni, ekran görüntüleri, review notları **hâlâ hazır değil** — M7-b |
+| **M8** | Store submit — 🔵 **Apple hesabı onaylandı (2026-08-05), yeni takvim başladı** *(önceki hedef 19-31 Ekim'di, öne çekildi)* | M8-a 6-8 Ağu · M8-b 15 Eyl · M8-c 20 Eyl · M8-d 30 Eyl → Store canlı ~15 Eki | iOS + Android canlı — tam döküm: `Build/Launch-Plan.md` |
+| **M9** | Sıraya alındı (silinmedi) | Kasım+ | YouTube/link import (hukuki kontrol) · yemek fotoğrafından tahmin · HoReCa porsiyon maliyeti · abonelik köprüsü · bildirim konsolidasyonu · organizasyon hesabına geçiş — ⚠️ bu satır bayat: web Defterim ve sipariş takibi web köprüsü de M9'a eklendi ama bu tabloya hiç yansımamıştı; **tam ve güncel konsolide liste:** `TODO.md` → "M9 — Lansman Sonrası" (17 madde, özet: `Build/Launch-Plan.md`) |
 
 ---
 

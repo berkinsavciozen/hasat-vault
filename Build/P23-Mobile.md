@@ -12,6 +12,10 @@ tags:
 
 > Onaylandı: 2026-07-28 · Görsel takvim: `Build/Roadmap.md`
 > **Kural: kapsam kesilmez, tarih ötelenir.**
+> **[2026-08-06 eklendi]** Lansman öncesi epic takvimi + lansman sonrası
+> milestone takvimi + açık kararlar: `Build/Launch-Plan.md`. Kritik yol web
+> marketplace (25 Ağustos) — mobil (M8) bu yolun üzerinde değil, bkz.
+> aşağıda "Şirket gecikirse ne olur".
 
 ---
 
@@ -745,6 +749,10 @@ Gerçek cihaz/simülatör click-through'u bu turda **doğrulanamadı** (kural
 ### M8 — Store submit
 - API 36 doğrulaması, iOS submit + review, Play production
 - **Çıkış:** iOS + Android canlı
+- **[2026-08-06 eklendi]** Apple hesabı onaylandığı (2026-08-05) için M8
+  alt kırılımı ve yeni takvim netleşti: `Build/Launch-Plan.md` → lansman
+  sonrası milestone tablosu (M8-a/b/c/d, Store canlı ~15 Ekim). Aynı
+  düzeltme `Build/Roadmap.md` Gantt'ına da işlendi.
 
 ### M9 — Sıraya alındı (silinmedi)
 

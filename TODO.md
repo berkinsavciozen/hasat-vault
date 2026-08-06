@@ -731,8 +731,15 @@ P22 serisi (A/B/C/D/E/F) + P22-F'nin yan etki düzeltmeleri + P22-G (tarih/filtr
 > - `Build/P23-Mobile.md` — kapsam, Expo gerekçesi, şema, AI import matrisi, M0–M9
 > - `Build/Shared-Architecture.md` — web+mobil paylaşım mimarisi
 > - `Build/Store-Compliance.md` — Apple 4.2, hesap tipleri, IAP, submit checklist
+> - `Build/Launch-Plan.md` — **[2026-08-06 eklendi]** lansman öncesi epic
+>   tablosu, lansman sonrası milestone takvimi, takvimin kırılgan noktaları,
+>   Berkin'den bekleyen açık kararlar
 
-**Hedef:** Store'da canlı ≈ 31 Ekim 2026. **Kural: kapsam kesilmez, tarih ötelenir.**
+**Hedef:** Store'da canlı ≈ ~~31 Ekim 2026~~ **[2026-08-06 düzeltildi] ~15
+Ekim 2026** — Apple bireysel hesabı planlanandan erken (2026-08-05)
+onaylandı, M8 öne çekildi; gerekçe ve tam takvim: `Build/Launch-Plan.md` +
+`Build/Roadmap.md` → "⏱️ 2026-08-06 güncellemesi". **Kural: kapsam kesilmez,
+tarih ötelenir.**
 
 #### Onaylanan temel kararlar (2026-07-28)
 
