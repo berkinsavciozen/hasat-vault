@@ -1,6 +1,6 @@
 ---
 title: Hasat — Master Roadmap & Build Log
-updated: 2026-08-05
+updated: 2026-08-09
 tags:
   - hasat
   - todo
@@ -1647,6 +1647,13 @@ altyapısı + bir bayat-veri düzeltmesi + doküman güncellemesi. `unit_type`
 enum'una, `offers`/`orders`/`listings` akışlarına dokunulmadı.
 
 #### 🍎 Apple hesabı gelince koşulacak testler
+
+> **[2026-08-09 eklendi, P23-M8-a]** Apple hesabı onaylandı, gerçek cihaza
+> dağıtım altyapısı (TestFlight + Android APK) kuruldu — bu liste artık
+> tek turda `Build/E2E-QA.md` → **S33**'te koşulabilir. Aşağıdaki
+> maddelerin hiçbiri bu değişiklikle **otomatik kapanmadı** — kutucuklar
+> yalnızca Berkin gerçek cihazda koşup sonucu raporladıktan sonra
+> işaretlenmeli.
 
 Bu dördü simülatör/Appetize.io yoluyla **doğrulanamaz** — Apple Developer
 hesabı onaylanıp gerçek cihaza kurulum mümkün olunca tek turda koşulacak:
@@ -3419,3 +3426,174 @@ migration→core-tip→sync sırası gerekmedi).
 fotoğrafı (yukarıya bkz., madde 1) · `farmer.storefront.tsx` (yukarıya bkz.,
 madde 3) · mobil Keşfet ekranı (henüz yok, M7-b) · mobil pazarlık/checkout
 akışları.
+
+---
+
+## P23-M8-a — Gerçek Cihaz Test Altyapısı (2026-08-09)
+
+**Kapsam:** Apple Developer bireysel hesabı 2026-08-05'te onaylandı — bundle
+ID `com.hasat.app` kayıtlı, Push Notifications capability açık, App Store
+Connect'te uygulama oluşturuldu (adı **"Hasat-AI"** — "Hasat" alınmıştı).
+Bu tura kadar tüm mobil doğrulama iOS Simulator + Appetize.io ile
+yapılıyordu; büyük bir doğrulama borcu birikmişti (`TODO.md` → "🍎 Apple
+hesabı gelince koşulacak testler", `Build/Store-Compliance.md`'de
+özetleniyor). Bu turun işi: gerçek cihaza dağıtım altyapısını kurmak (kod
++ CI), APNs/FCM kredansiyel yükleme adımlarını yazmak, ve M5-M7'de biriken
+tüm cihaz-bağımlı test borcunu tek bir QA senaryosunda (S33) toplamak.
+
+### 1 — Dağıtım yolu kararı: (b) TestFlight
+
+Görev metni iki seçenek sundu ve gerekçeli olarak birini seçip uygulamayı
+istedi (kural #107 kapsamında değil — talimat açıkça karar vermeyi istedi,
+"bana sun, kendin karar verme" değil). Karşılaştırma ve tam gerekçe:
+`Build/Store-Compliance.md` → "Gerçek cihaza dağıtım yolu". Özet: (a) EAS
+internal distribution'ın `eas device:create` adımı interaktif terminal
+gerektiriyor, GitHub Actions'tan tetiklenemez, ve M8-d'de submit için ayrı
+bir build tipi daha kurmayı gerektirirdi; (b) TestFlight UDID kaydı
+istemiyor ve M8-d'de doğrudan kullanılacak aynı prodüksiyon-imzalı build
+profilini şimdiden kuruyor — altyapı iki kez kurulmuyor.
+
+### 2 — Build profili ve workflow
+
+**`hasat-mobile/eas.json`** — iki yeni profil eklendi, mevcut `simulator`
+profili **silinmedi**:
+```
+"ios-testflight": { "distribution": "store", "autoIncrement": true, "ios": { "simulator": false } }
+"android-device": { "distribution": "internal", "autoIncrement": true, "android": { "buildType": "apk" } }
+```
+`android-device` görev metninde açıkça istenmedi ama S33'ün "Push
+teslimatı — Android FCM" adımını koşabilmek için gerekli bir ön koşul —
+Android'de iOS'taki UDID kaydı kavramı yok, doğrudan sideload edilebilen
+bir APK üretmek en az sürtünmeli yol. Bu, kural #107 anlamında bir
+kapsam/mimari kararı değil (ürün davranışını değiştirmiyor, salt test
+altyapısı) ama şeffaflık için burada açıkça not ediliyor.
+
+**Yeni workflow'lar** (`eas-build-simulator.yml` **bozulmadı**, ayrı
+dosyalar tercih edildi — mevcut workflow'u `workflow_dispatch` girdisiyle
+dallandırmak yerine, çünkü kota-koruma yorumlarının/adımlarının her
+profil için ayrı ayrı doğru kalması daha kolay doğrulanabiliyordu):
+- `.github/workflows/eas-build-testflight.yml` — `ios-testflight`
+  profiliyle yalnızca **build** yapıyor (submit interaktif, ayrı adım,
+  aşağıda). Aynı kota-koruma yorumu + artifact-link-to-summary deseni
+  `eas-build-simulator.yml`'den birebir taşındı.
+- `.github/workflows/eas-build-android-device.yml` — `android-device`
+  profiliyle APK build'i, aynı desen.
+
+**Kota koruması korundu:** her iki yeni workflow da yalnızca
+`workflow_dispatch`, otomatik tetikleyici yok. `eas-build-testflight.yml`
+iOS'un 15/ay'lık havuzunu `eas-build-simulator.yml` ile **paylaşıyor**
+(~6 zaten kullanılmış, 9 kalıyor) — workflow yorumunda açıkça yazıldı.
+`eas-build-android-device.yml` Android build'i olduğu için bu 15'lik alt
+limitin dışında, yalnızca 30'luk toplam kotaya giriyor.
+
+**Berkin'in yapacakları — adım adım (tam liste, ekran/buton adlarıyla):
+`Build/Store-Compliance.md` → "Gerçek cihaza dağıtım yolu"** (burada
+tekrarlanmıyor, kural #106'nın ruhu — tek doğruluk kaynağı). Özet akış:
+GitHub Actions → "EAS TestFlight Build (iOS)" → Run workflow → build
+bitince terminalden `eas submit -p ios --profile ios-testflight --latest`
+(interaktif, tek seferlik) → App Store Connect → TestFlight → Internal
+Testing → telefonda TestFlight uygulaması → kur.
+
+### 3 — APNs bağlama
+
+Key ID `246F7SPF74`, Team ID `XM562PFC7F`, `.p8` Berkin'de. Yükleme adım
+adım (tarayıcıdan, expo.dev → Credentials — interaktif, bu oturumda
+yapılamaz): `Build/Store-Compliance.md` → "APNs — kredansiyel yükleme".
+
+**Sandbox/Production sorusu — araştırılıp doğrulandı (kod değişikliği
+gerektirmiyor):** Apple'ın token-tabanlı APNs kimlik doğrulaması (`.p8`)
+environment'a özel değildir — aynı anahtar hem sandbox hem production
+sunucusuna karşı geçerlidir; environment'ı belirleyen build'in
+provisioning profile'ındaki `aps-environment` entitlement'ı (development
+vs. distribution). `ios-testflight` profili prodüksiyon imzası kullandığı
+için otomatik `aps-environment: production` alır. **İkinci bir anahtara
+gerek yok.** Bu, Apple'ın 2016'dan beri değişmeyen resmi platform
+davranışına dayanıyor; gerçek bir prodüksiyon push teslimatıyla bu
+oturumda doğrulanamadı (kural #103) — S33'te koşulacak.
+
+### 4 — Android FCM
+
+Firebase projesi henüz kurulmadı. Adım adım talimat (Firebase Console →
+proje → Android app `com.hasat.app` → `google-services.json` indir →
+repoya ekle → servis hesabı anahtarı → EAS'a yükle):
+`Build/Store-Compliance.md` → "Android FCM — Firebase kurulumu".
+
+**Kod tarafı:** `hasat-mobile/app.json` →
+`expo.android.googleServicesFile: "./google-services.json"` eklendi.
+Dosyanın kendisi repoda henüz **yok** (Berkin'in adımı) — yalnızca Android
+build zamanında okunuyor, `tsc --noEmit`/Metro'yu etkilemiyor, iOS
+build'lerini hiç etkilemiyor.
+
+**`google-services.json` gizli değil, bilinçli olarak public repoda
+tutulacak** — `.env`'deki Supabase anon key kararıyla (`Build/P23-Mobile.md`
+→ "M5-a-ek" → ".env içerik bekçisi") aynı gerekçe: Google'ın resmi
+kılavuzuna göre bu bir client config dosyası, gizliliği API
+kısıtlarına/paket imzasına dayanıyor. Gerçek sır olan FCM V1 **servis
+hesabı anahtarı** repoya asla girmiyor, yalnızca EAS credentials'a
+yükleniyor.
+
+### 5 — 🔴 S33 — gerçek cihaz doğrulama senaryosu
+
+`Build/E2E-QA.md` → **S33** eklendi (49 adım, kural #104 uyarınca
+kullanıcı-akışı dilinde, her adım için "ne görülmeli" yazıldı). Kaynak
+liste (aşağıda, "🍎 Apple hesabı gelince koşulacak testler", 12 madde)
+tamlık kontrolünden geçirildi: görev metninin kendi enumerasyonunda
+**olmayan iki madde** kaynak listede bulundu ve S33'e eklendi — **Keychain/
+SecureStore'un cihazdaki gerçek davranışı** ve **Performans** (S33 → Bölüm
+K). Ayrıca kaynak 12-madde listesinde **olmayan** bir madde görev metninin
+kendi talebiyle eklendi — **"Tariften Sipariş Ver → `offers.
+source_recipe_id` kanıtı"** (S33 → Bölüm I, huni atfının/`v_kpi_recipe_
+funnel`'ın tek gerçek mobil-kaynaklı kanıtı).
+
+S33 ayrıca şunları da kapsıyor: reviewer hesabıyla tam uçtan uca gezinti
+(S33 → Bölüm B — daha önce yalnızca giriş test edilmişti), atılabilir yeni
+bir test numarasıyla kayıt→onboarding→hesap silme (S33 → Bölüm J — **kesin
+uyarı:** Berkin'in kendi numarası `905421241011`, mevcut test hesapları
+(`905001234567`/`905009876543`), reviewer hesabı (`905552223344`) ile
+**ASLA** çalıştırılmamalı, `rpc_delete_own_account` geri alınamaz), ve
+S28-S31'den kalan cihaz-bağımlı adımların hepsi (native picker/modal/
+Linking, timer arka plan doğruluğu, ekranı uyanık tutma, kamera akışı,
+prefetch atlama davranışı).
+
+### 🍎 Apple hesabı gelince koşulacak testler — kaynak liste (12 madde, S33'ün dayandığı)
+
+Bu liste M5-a-ek'ten beri birikiyordu (bkz. yukarıda "🍎 Apple hesabı
+gelince koşulacak testler" başlığı) — artık dağıtım altyapısı hazır
+olduğu için S33'te tek turda koşulacak. Liste burada **tekrar
+kopyalanmadı** (kural #106'nın ruhu, tek doğruluk kaynağı) — S33'ün giriş
+paragrafı tamlık kontrolünün sonucunu özetliyor.
+
+### Doğrulama (kural #96)
+
+| Kontrol | Sonuç |
+|---|---|
+| `eas.json` JSON geçerliliği, mevcut `simulator` profili değişmedi | ✅ `json.load` + `git diff` ile doğrulandı |
+| `app.json` JSON geçerliliği | ✅ `json.load` ile doğrulandı |
+| İki yeni workflow YAML sözdizimi | ✅ PyYAML ile parse edildi |
+| İki yeni workflow'da yalnızca `workflow_dispatch` | ✅ Doğrulandı |
+| `eas-build-simulator.yml` dokunulmadı | ✅ `git diff` boş |
+| `tsc --noEmit` (`hasat-mobile`, `npm ci` sonrası) | ✅ Temiz |
+| Gerçek `eas build`/`eas submit` çalıştırması | 🔴 **Doğrulanamadı (kural #103)** — bu oturumun ağ politikası `expo.dev`'e erişimi engelliyor (M5-a-ek-2'den beri aynı kısıt). Berkin'in Actions'tan tetiklemesi gerekiyor. |
+| APNs/FCM gerçek kredansiyel yükleme + push teslimatı | 🔴 **Doğrulanamadı (kural #103)** — interaktif tarayıcı işlemi + gerçek cihaz gerekiyor, ikisi de bu oturumda yok. |
+| S33'ün 49 adımının hiçbiri | 🔴 **Doğrulanamadı (kural #103)** — tanım gereği, tamamı gerçek cihaz/kredansiyel/kural. |
+
+### Dokunulan dosyalar
+
+**`hasat-mobile`:** `eas.json` · `app.json` ·
+`.github/workflows/eas-build-testflight.yml` (yeni) ·
+`.github/workflows/eas-build-android-device.yml` (yeni)
+
+**`hasat-vault`:** `Build/Store-Compliance.md` · `Build/P23-Mobile.md` ·
+`Build/E2E-QA.md` · bu build log
+
+**`hasat-core`, Supabase şeması, web reposu:** dokunulmadı.
+
+### Dokunulmayan (kapsam kuralı tutuldu)
+
+`src/lib/core/` elle düzenlenmedi (kural #105) · checkout eklenmedi ·
+web reposuna (`hasat-d2c-marketplace`) dokunulmadı · Supabase şemasına
+dokunulmadı (kural #115'in sırası bu tur için gerekmedi) ·
+`eas-build-simulator.yml` değiştirilmedi · bundle identifier/Push
+capability zaten Berkin tarafından Apple tarafında ayarlanmıştı, bu turda
+değiştirilmedi.
+

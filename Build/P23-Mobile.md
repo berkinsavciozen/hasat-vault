@@ -1,6 +1,6 @@
 ---
 title: Hasat — P23 Buyer Mobile & Recipe App
-updated: 2026-08-03
+updated: 2026-08-09
 tags:
   - hasat
   - p23
@@ -753,6 +753,65 @@ Gerçek cihaz/simülatör click-through'u bu turda **doğrulanamadı** (kural
   alt kırılımı ve yeni takvim netleşti: `Build/Launch-Plan.md` → lansman
   sonrası milestone tablosu (M8-a/b/c/d, Store canlı ~15 Ekim). Aynı
   düzeltme `Build/Roadmap.md` Gantt'ına da işlendi.
+
+#### M8-a — Gerçek cihaz test altyapısı — ✅ **UYGULANDI (2026-08-09, Claude Code doğrudan), Berkin'in kredansiyel yükleme + gerçek build/test adımları bekliyor**
+
+**Dağıtım yolu kararı: (b) TestFlight** (gerekçe + karşılaştırma tablosu:
+`Build/Store-Compliance.md` → "Gerçek cihaza dağıtım yolu"). Özet: (a) EAS
+internal distribution'ın `eas device:create` adımı interaktif terminal
+gerektiriyor ve M8-d'de submit için ayrı bir build tipi daha kurmayı
+gerektirirdi; (b) TestFlight hem UDID kaydı istemiyor hem de M8-d'de
+doğrudan kullanılacak aynı prodüksiyon-imzalı build profilini şimdiden
+kuruyor.
+
+**`hasat-mobile` değişiklikleri:**
+- `eas.json` → `ios-testflight` (`distribution: "store"`, `autoIncrement:
+  true`) ve `android-device` (`distribution: "internal"`, `buildType:
+  "apk"`) profilleri eklendi. Mevcut `simulator` profili **silinmedi**.
+- `app.json` → `expo.android.googleServicesFile: "./google-services.json"`
+  eklendi (dosyanın kendisi Berkin'in Firebase kurulumunu bekliyor, bkz.
+  `Store-Compliance.md`).
+- `.github/workflows/eas-build-testflight.yml` (yeni) — `eas-build-simulator.yml`
+  ile aynı kota-korumalı `workflow_dispatch` deseni, `ios-testflight`
+  profiliyle yalnızca **build** yapıyor (submit interaktif, ayrı adım).
+- `.github/workflows/eas-build-android-device.yml` (yeni) — aynı desen,
+  Android'de UDID kaydı kavramı olmadığı için doğrudan sideload edilebilir
+  bir APK üretiyor; S33'ün Android FCM adımı için gerekli.
+
+**APNs (iOS push):** Key ID `246F7SPF74` / Team ID `XM562PFC7F` / `.p8`
+Berkin'de — EAS'a tarayıcıdan yüklenmesi gerekiyor (adım adım:
+`Store-Compliance.md`). **Doğrulandı:** `.p8` anahtarları environment'a
+özel değildir, aynı anahtar hem sandbox hem production APNs sunucusuna
+karşı geçerlidir — hangi environment kullanılacağını build'in
+provisioning profile'ındaki `aps-environment` entitlement'ı belirler
+(`ios-testflight` = production). İkinci bir anahtara gerek yok.
+
+**Android FCM:** Firebase projesi henüz kurulmadı — adım adım talimat
+(`Store-Compliance.md`) Berkin'e bırakıldı, bundle/paket adı `com.hasat.app`
+ile birebir eşleşmesi şart.
+
+**Doğrulama (kural #96):**
+| Kontrol | Sonuç |
+|---|---|
+| `eas.json` JSON geçerliliği + mevcut `simulator` profili değişmedi | ✅ `json.load` ile doğrulandı, diff yalnızca ekleme |
+| `app.json` JSON geçerliliği | ✅ `json.load` ile doğrulandı |
+| İki yeni workflow YAML sözdizimi | ✅ PyYAML ile parse edildi, geçerli |
+| İki yeni workflow'da yalnızca `workflow_dispatch` tetikleyicisi | ✅ Doğrulandı |
+| `eas-build-simulator.yml` değişmedi | ✅ `git diff` ile doğrulandı, dosya dokunulmadı |
+| `tsc --noEmit` (`hasat-mobile`) | ✅ Temiz — `app.json`/`eas.json` değişiklikleri TypeScript derlemesini etkilemiyor |
+| Gerçek `eas build`/`eas submit` çalıştırması | 🔴 **Doğrulanamadı** — bu oturumun ağ politikası `expo.dev`'e erişimi engelliyor (kural #103, M5-a-ek-2'den beri aynı kısıt). Berkin'in Actions'tan tetiklemesi gerekiyor. |
+| APNs/FCM gerçek push teslimatı | 🔴 **Doğrulanamadı (kural #103)** — kredansiyel yüklemesi ve gerçek cihaz gerekiyor, ikisi de bu oturumda yok. |
+
+**Kapsam kuralı tutuldu:** `src/lib/core/` elle düzenlenmedi (kural #105,
+değişiklik yok), checkout eklenmedi, web reposuna dokunulmadı, Supabase
+şemasına dokunulmadı. Bundle identifier/Push capability zaten Berkin
+tarafından Apple tarafında ayarlanmıştı — bu turda değiştirilmedi, sadece
+kullanıldı.
+
+**Sonraki adım:** Berkin'in adım adım yapacakları (`Store-Compliance.md`
+ve `TODO.md` → "P23-M8-a" build log) tamamlanınca `Build/E2E-QA.md` → S33
+koşulur — bu, M5/M6/M7'den biriken tüm cihaz-bağımlı test borcunun tek
+oturumda kapatılacağı senaryo.
 
 ### M9 — Sıraya alındı (silinmedi)
 

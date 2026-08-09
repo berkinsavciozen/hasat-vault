@@ -1,6 +1,6 @@
 ---
 title: Hasat — E2E QA Test Dokümanı
-updated: 2026-07-31
+updated: 2026-08-09
 tags:
   - hasat
   - qa
@@ -996,6 +996,191 @@ edilemedi.
 
 ---
 
+### S33 — 🔴 P23-M8-a Sonrası: Gerçek Cihaz Konsolide Doğrulama
+
+> **Bu, M5-M7'de biriken tüm "kod hazır, gerçek cihazda doğrulanmadı"
+> borcunun tek oturumda koşulacağı senaryo.** Ön koşul: `Build/P23-Mobile.md`
+> → "M8-a" ve `Build/Store-Compliance.md`'deki dağıtım altyapısı (TestFlight
+> + Android APK build profilleri) kurulu, APNs/FCM kredansiyelleri EAS'a
+> yüklenmiş, iPhone'da TestFlight'tan kurulu bir build + Android telefonda
+> `android-device` profiliyle alınmış bir APK var.
+
+**Kaynak liste tamlık kontrolü:** `TODO.md` → "🍎 Apple hesabı gelince
+koşulacak testler" **12 madde** içeriyor. Aşağıdaki senaryo bunların
+**hepsini** kapsıyor — görev metninin kendi maddeleri 10'unu birebir
+adlandırıyordu, kontrol sırasında kaynak listede olup görev metninde adı
+geçmeyen **iki madde daha bulundu** ve eklendi: **Keychain/SecureStore'un
+cihazdaki gerçek davranışı** (Bölüm K) ve **Performans** (Bölüm K, aynı
+yerde — ikisi de Appetize/simülatörün yapısal olarak taklit edemediği
+şeyler, ayrı adımlar gerektirmiyor, tüm senaryo boyunca gözlemleniyor).
+Ayrıca görev metninin kendi eklediği, kaynak 12-madde listesinde **olmayan**
+bir madde var — **"Tariften Sipariş Ver → `offers.source_recipe_id`
+kanıtı"** (Bölüm I) — bu huni atfının (`v_kpi_recipe_funnel`) tek gerçek
+kanıtı, Apple 4.2 savunmasından bağımsız ama P23'ün North Star ölçümü için
+kritik, bu yüzden dahil edildi.
+
+**Kural #104 uyarınca her adımın beklenen sonucu "çalışıyor mu" değil, "ne
+görülmeli" dilinde yazıldı.**
+
+---
+
+#### A — Ön koşullar
+
+| # | Kontrol | Beklenen |
+|---|---|---|
+| 1 | iPhone'da TestFlight uygulaması kurulu, Hasat-AI en son build'de | Uygulama açılıyor, çökme yok |
+| 2 | Android telefonda `android-device` APK'sı kurulu | Uygulama açılıyor, çökme yok |
+| 3 | Her iki cihaz da gerçek hücresel/Wi-Fi ağa bağlı (test başlamadan önce) | Normal internet erişimi var |
+
+---
+
+#### B — Reviewer hesabıyla uçtan uca gezinti
+
+> Reviewer'ın **girişi** daha önce ayrı doğrulanmıştı (Berkin raporu,
+> `Store-Compliance.md`). Bu bölüm **tam akışı** kapsıyor — Apple
+> reviewer'ının göreceği her şey.
+
+| # | Adım | Beklenen |
+|---|---|---|
+| 4 | iPhone'daki TestFlight build'inde, App Store Connect → App Review Information'daki test telefon numarası + OTP ile giriş yap | Giriş başarılı, tarif listesi açılıyor |
+| 5 | Bir tarife dokun, **pişirme moduna** gir, birkaç adım ilerlet | Adım adım ekran, ilerleme çubuğu, büyük punto metin normal çalışıyor |
+| 6 | "+ Tarif Ekle" → galeriden yazılı bir tarif fotoğrafı seç → çıkar | AI import metin+malzeme çıkarıyor, önizleme ekranı açılıyor |
+| 7 | Eşleşen bir malzemede "Sipariş Ver →"e dokun | Native teklif ekranı açılıyor (Safari'ye ATILMIYOR) — bu adım tam olarak Apple 4.2 savunmasının kanıtı |
+| 8 | Teklif ekranını geri çıkıp Profil'e git, "Hesabımı Sil"in **var olduğunu** gör ama **dokunma** (reviewer hesabı silinmeyecek) | Buton görünüyor, silme akışının kendisi Bölüm J'de ayrı bir atılabilir numarayla test ediliyor |
+
+---
+
+#### C — Gerçek uçak modu (Apple 4.2'nin çekirdek testi)
+
+| # | Adım | Beklenen |
+|---|---|---|
+| 9 | iPhone'u **Kontrol Merkezi'nden gerçekten uçak moduna al** (Appetize'ın "Wi-Fi kapatma"sı değil — radyo tamamen kapanmalı) | Uçuş simgesi görünüyor |
+| 10 | Hasat uygulamasını tamamen kapat, yeniden aç | Uygulama açılıyor — beyaz ekran veya ağ hatası **yok** |
+| 11 | Tarif listesine bak | Kaydedilmiş tarifler görünüyor (kapak görseliyle) |
+| 12 | **Daha önce hiç açılmamış** bir tarife dokun (bulk prefetch'in asıl kanıtı) | Adımlar + malzeme listesi görünüyor — "yükleniyor" spinner'ında takılı kalmıyor |
+| 13 | Malzeme kartlarına bak | "Çevrimdışı — fiyat ve stok bilgisi gösterilmiyor" nötr metni; Sipariş Ver/Talep Et butonları **yok** (ağ gerektiren aksiyon gizli) |
+| 14 | Uçak modunu kapat | Birkaç saniye içinde malzeme kartları fiyat/stok bilgisiyle güncelleniyor |
+
+---
+
+#### D — Pişirme modu: timer arka plan + ekranı uyanık tutma + yerel bildirim
+
+| # | Adım | Beklenen |
+|---|---|---|
+| 15 | `timer_seconds` olan bir adımı olan tarife gir (örn. 5 dk'lık kısa bir adım — test için kısa bir adım seç), pişirme moduna gir, o adıma gel, timer'ı başlat | Geri sayım başlıyor, ekran **kararmıyor** |
+| 16 | Telefonu masaya bırakıp ~1 dakika hiç dokunma | Ekran hâlâ açık (kararma/kilitlenme yok) |
+| 17 | Ana ekrana çık (uygulamayı arka plana al), ~1-2 dakika bekle, geri dön | Kalan süre **doğru** — arka planda geçen süre kadar azalmış (tick sayımıyla değil, `endsAt - Date.now()` ile hesaplanan gerçek değer) |
+| 18 | Uygulamayı tamamen kapat (task switcher'dan sil), timer bitmeden önce yeniden aç, aynı adıma dön | Geri sayım kaldığı yerden (doğru süreyle) devam ediyor — sıfırlanmadı |
+| 19 | Timer'ın bitmesini bekle (uygulama ön planda) | Ekranda titreşim + "⏰ Süre doldu" uyarısı |
+| 20 | Bir dahaki adımda timer'ı başlat, uygulamayı arka plana al/kilitli ekrana geç, süre dolana kadar bekle | **Yerel bildirim** kilit ekranında/bildirim merkezinde görünüyor — ses/titreşim tetikleniyor |
+| 21 | Pişirme modundan çık (ana ekrana/listeye dön) | Ekran artık normal kararma davranışına dönüyor (keep-awake bırakılıyor) — birkaç dakika dokunmadan bekleyip ekranın karardığını doğrula |
+
+---
+
+#### E — Kamera ile AI import
+
+| # | Adım | Beklenen |
+|---|---|---|
+| 22 | "+ Tarif Ekle" → kamera ikonuna dokun (galeri değil) | Cihazın kamera arayüzü açılıyor |
+| 23 | Yazılı bir tarifin (kitap sayfası, el yazısı not) fotoğrafını **gerçekten çek** | Fotoğraf çekildi önizlemesi, "Kullan"a dokun |
+| 24 | Çıkarımı bekle | Malzeme + adım listesi geldi (metnin okunabilirliğine göre kalite değişebilir — tamamen boş/hatasız çökme olmaması asıl kontrol) |
+| 25 | Sonucu kaydetmeden önce bir alanı elle düzelt | Düzenleme çalışıyor, kaydet sonrası değişiklik kalıcı |
+
+---
+
+#### F — Native picker/modal/Linking akışları
+
+| # | Adım | Beklenen |
+|---|---|---|
+| 26 | AI import "Kontrol Et" ekranında eşleşmeyen bir malzemenin rozetine dokun (`CropPickerModal`) | Ürün seçici modal'ı açılıyor, arama kutusu klavye ile birlikte doğru konumlanıyor, liste kaydırılabiliyor |
+| 27 | Listeden bir ürün seç, modal'ı kapat | Seçim malzeme satırına yansıyor, modal native animasyonla kapanıyor |
+| 28 | Teklif ekranında teslim tarihi preset chip'lerinden birine dokun | Chip seçili görünüyor, dokunma hedefi rahat (yanlış chip'e basma riski yok) |
+| 29 | Eşleşen bir malzemede "Sipariş Ver →"e dokun (ilan yoksa "Talep Et") | Native ekran açılıyor — **hiçbir noktada** cihaz tarayıcısı (Safari) açılmıyor |
+| 30 | Siparişlerim ekranında bir teklife dokunup geri dön (`router.push`/geri navigasyonu) | Geçişler akıcı, geri tuşu/gesture'ı doğru ekrana dönüyor |
+
+---
+
+#### G — Prefetch atlama davranışı
+
+| # | Adım | Beklenen |
+|---|---|---|
+| 31 | Uygulamayı aç, tarif listesine gir (önbellek zaten 24 saatten yeniyse) | Liste anında görünüyor, arka planda görünür bir "tarama" göstergesi **yok** |
+| 32 | Uygulamayı kapatıp hemen yeniden aç (birkaç kez art arda) | Her açılışta gereksiz bir yeniden-indirme/tarama başlamıyor (pil/veri tüketimi yok) — `cached_recipe_detail_meta`'nın "önbellek tam ve yeni" kısayolu çalışıyor |
+| 33 | Bir gün+ bekletilmiş (veya cihaz saatini ileri alınmış) bir kurulumda tekrar aç | Bu kez arka planda yeniden bir prefetch taraması başladığı gözlemlenebiliyor (24 saat eşiği çalışıyor) |
+
+---
+
+#### H — Push teslimatı (iOS APNs + Android FCM)
+
+> Ön koşul: APNs anahtarı + FCM servis hesabı anahtarı EAS'a yüklenmiş
+> olmalı (`Store-Compliance.md`).
+
+| # | Adım | Beklenen |
+|---|---|---|
+| 34 | iPhone'da push izni iste (bağlam kartından) → izin ver | Sistem izin dialogu açılıyor, "İzin Ver" sonrası `device_tokens`'a bir satır yazıldığı (Supabase Dashboard'dan kontrol edilebilir) |
+| 35 | Android'de aynısını yap (Android'de izin akışı önce gösteriliyor, M6 kararı) | Aynı şekilde token kaydediliyor |
+| 36 | Zeynep (buyer) hesabına bir teklif/talep durumu değişikliği tetikle (örn. çiftçi tarafında bir teklifi kabul et/reddet — Supabase MCP ile veya web'den) | **iPhone'a gerçek bir push bildirimi düşüyor** (uygulama arka planda/kapalıyken de) |
+| 37 | Aynı senaryoyu Android hesabında tekrarla | **Android telefona gerçek bir FCM bildirimi düşüyor** |
+| 38 | Bildirime dokun | Uygulama açılıp ilgili ekrana (teklif/sipariş) yönlendiriyor |
+
+---
+
+#### I — Tariften Sipariş Ver → teklif oluştur → `offers.source_recipe_id` kanıtı
+
+> Zeynep (test hesabı) ile yapılmalı — reviewer hesabıyla **gerçek** bir
+> teklif oluşturmak reviewer hesabını kirletir, ayrıca gerçek bir çiftçiye
+> gerçek Twilio SMS'i gider (bkz. `Store-Compliance.md` → Bölüm 7 riskler).
+
+| # | Adım | Beklenen |
+|---|---|---|
+| 39 | Zeynep (`905009876543`, OTP `123456`) ile giriş yap, malzemesi eşleşen bir tarife git (örn. kekik/domates içeren) | Tarif detayı açılıyor |
+| 40 | Malzeme kartında "Sipariş Ver →"e dokun, bir parti seç, min_order üstü bir miktar gir, teslimat + tarih seç, "Teklif Gönder" | "✅ Teklif Gönderildi!" onayı |
+| 41 | Supabase Dashboard → `offers` tablosu → az önce oluşan satır | `source_recipe_id` **dolu** (o tarifin ID'si) — huni atfının (`v_kpi_recipe_funnel`) gerçek bir mobil-kaynaklı kanıtı |
+| 42 | `v_kpi_recipe_funnel_by_recipe` → o tarifin satırı | `recipe_offers` sayacı bu teklifle **1 arttı** |
+
+---
+
+#### J — Yeni kullanıcı kaydı → onboarding → gezinti → hesap silme (atılabilir numara)
+
+> ⚠️ **Yalnızca bu adım için oluşturulmuş, daha önce hiç kullanılmamış,
+> atılabilir bir test numarasıyla.** Berkin'in kendi numarası
+> (`905421241011`), Ahmet/Zeynep (`905001234567`/`905009876543`) ve
+> reviewer hesabı (`905552223344`) ile **ASLA** — hesap silme geri
+> alınamaz (`rpc_delete_own_account`, P26).
+
+| # | Adım | Beklenen |
+|---|---|---|
+| 43 | Atılabilir yeni bir numarayla mobilden "Kod Gönder" → OTP'yi gir | Giriş başarılı, **onboarding ekranı** açılıyor |
+| 44 | Onboarding'i tamamla ("Bireysel", ad gir, "Keşfetmeye Başla") | Tarif listesi açılıyor |
+| 45 | Kısaca gezin: bir tarif kaydet, Profil ekranını aç | Kaydetme çalışıyor, profil bilgileri doğru |
+| 46 | Profil → "Hesabımı Sil" → "HESABIMI SİL" yaz → onayla | Silme akışı tamamlanıyor, giriş ekranına dönüyor |
+| 47 | Aynı numarayla tekrar giriş yapmayı dene | Yeni bir kayıt gibi davranıyor (önceki veriler gitmiş/anonimleşmiş) — `rpc_delete_own_account`'ın gerçek çalıştığının kanıtı |
+
+---
+
+#### K — Keychain/SecureStore gerçek davranışı + Performans (niteliksel)
+
+> Bu ikisi kaynak listede (`TODO.md`) var ama ayrı bir adım dizisi
+> gerektirmiyor — tüm senaryo (A-J) boyunca gözlemlenip sonunda tek
+> satırla raporlanıyor.
+
+| # | Kontrol | Beklenen |
+|---|---|---|
+| 48 | Bölüm A-J boyunca uygulama arka plana alınıp/kapatılıp yeniden açıldığında oturum her seferinde korundu mu (Keychain/Keystore'a yazılan şifreli oturum token'ı) | Hiçbir noktada beklenmedik bir "tekrar giriş yap" ekranı çıkmadı (çıkış/hesap silme dışında) |
+| 49 | Genel akıcılık — liste kaydırma, ekran geçişleri, pişirme modu animasyonları | Appetize'daki bulut-simülatör gecikmesine kıyasla gözle görülür bir fark var mı (pil ısınması, takılma) — serbest metin not |
+
+**Beklenen sonuç: 49/49.** Bir adım başarısız olursa `TODO.md`'ye bug olarak
+girilmeli, düzeltme sonrası bu S33 yeniden koşulup ✅ işaretlenmeli.
+
+**Bu S33'ün tamamı Claude Code tarafından doğrulanamaz (kural #103) —
+tanım gereği:** hepsi native modül + gerçek cihaz + gerçek kredansiyel
+gerektiriyor, bu oturumda üçü de yok (ağ politikası `expo.dev`'e erişimi
+engelliyor, gerçek iPhone/Android cihaz yok, APNs/FCM kredansiyelleri
+henüz yüklenmedi). Bu senaryo tamamen Berkin'in koşup sonucu bu dosyaya
+(veya `TODO.md`'ye) not düşmesi için yazıldı.
+
+---
+
 ## Feature Sonrası Süreç
 
 1. Yeni prompt tamamlanınca yeni S-numarası eklenir
@@ -1036,3 +1221,4 @@ edilemedi.
 - **2026-08-03:** **S27 eklendi (P23-M6 native yetenekler — pişirme modu, AI import, push).** İlk adım yeni bir simulator build alıp Appetize'a yüklemek (S26'nın build'inde bu turun kodu ve dört yeni native modül yok). Sunucu tarafı bu turda gerçekten doğrulandı: `device_tokens` UNIQUE(token) devri gerçek insert/update ile (önce arıza birebir üretildi: client'ın düz upsert'ü RLS USING'e takılıp `42501` veriyor), `extract-recipe` gerçek bir kullanıcı JWT'siyle `pg_net` üzerinden çağrıldı ve kaydın `visibility='private'`/`author_type='kullanici'` olduğu, client'ın gönderdiği `public` değerinin yok sayıldığı, kota aşımında 429 döndüğü kanıtlandı; test verisi temizlendi. Kamera, push teslimatı ve gerçek uçak modu ayrı bir tabloda "simülatörde test edilemez" olarak tutuluyor — S27'nin 26 adımına dahil değil.
 - **2026-08-04:** **S28 eklendi (P23-M6-ek — AI import crop eşleştirmesi, isim alanı, manuel eşleştirme, dört-durumlu malzeme kartı).** Berkin'in canlı testinde bulundu: import edilen tarifte 12 malzemenin 0'ı `crop`'a bağlanıyordu. Deterministik (fuzzy değil, birebir alias lookup) bir DB fonksiyonu + `recipe_ingredients` üzerinde BEFORE INSERT trigger eklendi; gerçek SQL ile 11 test cümlesi (kısmi/çoklu eşleşme, yenilemez crop, boş girdi) doğrulandı; Berkin'in canlı tarifi geriye dönük eşleştirildi (12'nin 3'ü bağlandı), editoryal 18 tarife dokunulmadı. Önizleme ekranına manuel crop seçici + tarımsal/platform-dışı sınıflandırma anahtarı eklendi. Malzeme kartı dört duruma çıkarıldı (Sipariş Ver dış link · üç ayrı Talep Et durumu), yeni bir native "Talep Et" formu (web'in `useCreateCropRequest`'inin birebir portu) eklendi. `extract-recipe` gerçek bir kullanıcı JWT'siyle iki kez çağrıldı: isim ipucuyla adım uydurmadığı (`step_count=0` kaynakta adım yokken) ve sunucu tarafı zorlamanın (visibility/author_type/owner_id) hâlâ çalıştığı kanıtlandı; bir gerçek AI sınıflandırma hatası da gözlemlendi ("tuz" yanlışlıkla tarımsal döndü — önizleme düzeltmesinin tam olarak var olma sebebi). `tsc --noEmit` hem `hasat-mobile` hem `hasat-core`'da temiz.
 - **2026-08-05:** **S31 eklendi (P23-M7-d — mobil kayıt rolü düzeltmesi, onboarding, profil ekranı, salt-okunur Siparişlerim).** Berkin'in canlı testinde bulundu: mobil kayıtlar `farmer` rolüyle açılıyordu (kök neden: `hasat-mobile/app/login.tsx` `signInWithOtp`'e `raw_user_meta_data.role` göndermiyordu, `handle_new_user()` boşsa `'farmer'`a düşüyor), onboarding hiç yoktu, çıkış butonu oturumu temizliyor ama hiçbir zaman yönlendirmiyordu (Hesabımı Sil'in yanında durması veri kaybı riskiydi). Rol düzeltmesi + `buyer_profiles` oluşumu gerçek `auth.users` insert'i + impersonasyonla doğrulandı, test verisi temizlendi, dört gerçek/test hesabına dokunulmadı. Yeni bulgu: `enforce_profile_self_update_restrictions_trg` onboarding'in `buyer_type` yazımını sessizce geri çeviriyor (hem web hem mobilde, bu turdan önce de) — düzeltilmedi, kural #107 gereği Berkin'e bırakıldı. Ayrıca M5-a/M5-b'den kalan yanlış bir teşhis düzeltildi: "`123456` web'de çalışıyor mobilde çarpıyor" değil, `SMS_TEST_OTP_VALID_UNTIL`'ın 1 Ağustos'ta dolmuş olması — istemciden bağımsız, ikisini de aynı şekilde kırıyordu.
+- **2026-08-09:** **S33 eklendi (P23-M8-a sonrası — gerçek cihaz konsolide doğrulama, 49 adım).** Apple hesabı onaylandı, TestFlight + Android APK dağıtım altyapısı kuruldu (`Build/P23-Mobile.md` → M8-a) — bu, M5-M7'de biriken tüm "kod hazır, cihazda doğrulanmadı" borcunun tek oturumda koşulacağı senaryo. Kaynak liste (`TODO.md` → "Apple hesabı gelince koşulacak testler", 12 madde) tamlık kontrolünden geçirildi: görev metninde adı geçmeyen iki madde (Keychain/SecureStore gerçek davranışı, Performans) bulunup Bölüm K'ya eklendi; ayrıca kaynak listede olmayan bir madde (Bölüm I — Tariften Sipariş Ver → `offers.source_recipe_id` kanıtı, huni atfının tek gerçek kanıtı) görev metninin talebiyle dahil edildi. Hesap silme adımı (Bölüm J) atılabilir yeni bir test numarasıyla, Berkin'in kendi numarası/mevcut test hesapları/reviewer hesabıyla ASLA çalıştırılmaması gerektiği açıkça işaretlendi. Bu S33'ün tamamı bu oturumda doğrulanamaz (kural #103) — tanım gereği gerçek cihaz + kredansiyel + kural.
