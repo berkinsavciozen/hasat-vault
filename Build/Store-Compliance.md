@@ -1,6 +1,6 @@
 ---
 title: Hasat — App Store & Play Store Uyumluluk
-updated: 2026-08-05
+updated: 2026-08-09
 tags:
   - hasat
   - mobile
@@ -48,10 +48,178 @@ bağımsız olarak. Onay bekleniyor. Onay gelene kadar mobil doğrulama gerçek
 cihaz yerine iOS Simulator + Appetize.io ile yapılıyor (bkz. `P23-Mobile.md`
 → "M5-a-ek" ve `Build/E2E-QA.md` → S25).
 
+**Durum güncellemesi (2026-08-05/09, P23-M8-a):** Hesap **onaylandı**
+(2026-08-05). Bundle ID `com.hasat.app` Apple Developer'da kayıtlı, **Push
+Notifications capability açık**. App Store Connect'te uygulama oluşturuldu
+— **satıcı/uygulama adı "Hasat-AI"** ("Hasat" alınmıştı, bkz. Bölüm 7 →
+"'Hasat' adı App Store'da alınmış" riski, gerçekleşti). App Review
+Information dolduruldu; reviewer test hesabının **girişi** (OTP ile oturum
+açma) gerçek bir mobil build'de denendi ve çalıştı (Berkin raporu) — bu,
+Bölüm 6'daki "Reviewer test hesabıyla uçtan uca gezinti" maddesinin
+**yalnızca giriş kısmını** kapsıyor; pişirme modu/AI import/teklif
+oluşturma dahil tam akış hâlâ ayrı bir madde (bkz. `Build/E2E-QA.md` →
+S33, adım "Reviewer hesabıyla uçtan uca gezinti"). Gerçek cihaza dağıtım
+altyapısı (bu bölümün devamı) ve APNs/FCM kurulum adımları P23-M8-a'da
+eklendi — kod tarafı hazır, kredansiyel yükleme ve gerçek cihaz
+doğrulaması Berkin'e kalıyor (kural #103).
+
 **Pratik notlar:**
 - Kayıt **iPhone üzerinden** (Apple Developer uygulaması, kimlik doğrulama süreç boyunca aynı cihazda kalmalı). Mac şirket bilgisayarı olduğu için telefon en temiz yol.
 - Hesap açılınca App Store Connect'te **"Hasat" adının müsaitliğini hemen kontrol et** — alınmışsa alternatif için erken haber almak iyi.
 - Hesap gelir gelmez **~1 saatlik doğrulama işi:** EAS'ın Apple kimlik bilgileriyle konuşup sertifika/provisioning üretebildiğini test et. Bunu M6'da değil, hemen yap.
+
+### Gerçek cihaza dağıtım yolu — TestFlight (P23-M8-a, 2026-08-09)
+
+**Karar: (b) TestFlight.** Görev metninde iki seçenek sunulmuştu; gerekçeli
+değerlendirme aşağıda, görev talimatı gereği ("gerekçeli olarak birini
+seç ve uygula") karar bu turda uygulandı — kural #107 kapsamında değil,
+çünkü talimat açıkça karar vermeyi istedi ("bana sun, kendin karar verme"
+değil, tam tersi).
+
+| Kriter | (a) EAS internal distribution | (b) TestFlight |
+|---|---|---|
+| Cihaz kaydı | `eas device:create` — **interaktif terminal akışı** gerekiyor, GitHub Actions'tan tetiklenemez | Gerekmiyor |
+| Kurulum karmaşıklığı | Berkin'in terminalinden `eas device:create` çalıştırması + telefonda bir sayfa açması + her yeni test cihazı için tekrarı gerekiyor | TestFlight uygulamasını telefona kurup davete/internal tester bağlantısına tıklamak yeterli |
+| M8-d (submit) ile paylaşım | Ayrı bir build tipi (`distribution: internal`, ad-hoc imza) — submit için **yine ayrı bir store build'i** gerekecek, altyapı iki kez kurulur | Aynı yol (`distribution: store`, prodüksiyon imzası) — M8-d'de doğrudan submit edilecek build ile **aynı profil** |
+| Build süresi/kota | Aynı EAS iOS kuyruğu, aynı 15/ay kota | Aynı |
+| Apple hesabı zaten var (App Store Connect'te "Hasat-AI" oluşturuldu) | Kullanılmıyor — ad-hoc profil ayrı bir yol | Doğrudan kullanılıyor, ikinci bir kurulum yok |
+
+**Sonuç:** (b) hem kurulumu daha az adımlı hem de M8-d'nin altyapısını
+şimdiden kurmuş oluyor — orkestratörün eğilimiyle aynı sonuca varıldı, ama
+gerekçe kurulum karmaşıklığı + altyapı tekrarı önleme üzerinden, sadece
+"öneri buydu" değil. (a)'nın tek avantajı (build başına bekleme
+gerektirmeden anlık kurulum) submit-sonrası App Store Connect işleme
+süresiyle (genelde birkaç dakika–yarım saat) karşılaştırıldığında önemsiz.
+
+**Uygulanan altyapı (`hasat-mobile`):**
+- `eas.json` → yeni `ios-testflight` profili (`distribution: "store"`,
+  `autoIncrement: true`) — mevcut `simulator` profili silinmedi.
+- `eas.json` → yeni `android-device` profili (`distribution: "internal"`,
+  `buildType: "apk"`) — Android'de UDID kaydı kavramı yok, doğrudan APK
+  sideload ile gerçek cihaza kurulabiliyor; S33'ün Android FCM adımı için
+  gerekli.
+- `.github/workflows/eas-build-testflight.yml` (yeni, `eas-build-simulator.yml`
+  bozulmadı) — yalnızca `workflow_dispatch`, aynı kota-koruma deseni.
+  Yalnızca **build** yapıyor; **submit** ayrı, tek seferlik ve interaktif
+  (aşağıda).
+- `.github/workflows/eas-build-android-device.yml` (yeni) — aynı desen,
+  Android APK.
+
+**Berkin'in yapacakları — adım adım:**
+1. GitHub → `hasat-mobile` reposu → **Actions** sekmesi → **"EAS TestFlight
+   Build (iOS)"** workflow'u → **"Run workflow"** butonu → `main` dalıyla
+   çalıştır.
+2. Build bitince (kuyruk + derleme genelde 10–30 dk) workflow'un özet
+   sayfasında (Actions → ilgili run → Summary) build linki görünür.
+3. Kendi terminalinden (Berkin'in terminali var, bu adım interaktif olduğu
+   için Actions'tan çalıştırılamıyor):
+   ```
+   cd hasat-mobile
+   eas submit -p ios --profile ios-testflight --latest
+   ```
+   İlk çalıştırmada Apple ID (veya App Store Connect API key) ile giriş
+   isteyecek — App Store Connect'te "Hasat-AI" uygulaması zaten var,
+   bundle ID `com.hasat.app` ile otomatik eşleşmeli, ekstra bir uygulama
+   oluşturmaya gerek yok.
+4. App Store Connect → **TestFlight** sekmesi → build "İşleniyor"dan
+   "Hazır"a geçince (birkaç dakika – yarım saat) kendi Apple hesabını
+   **Internal Testing** grubuna ekle (App Store Connect'te zaten hesap
+   sahibi/team member olduğun için otomatik uygun olman gerekiyor,
+   ayrıca davet göndermene gerek kalmayabilir — ekranda "Test Bilgisi"
+   doldurman istenebilir, iç test için App Review'a gitmez).
+5. Telefonuna **TestFlight** uygulamasını App Store'dan kur, bildirimi/linki
+   aç, "Yükle"ye bas.
+6. Uygulama telefona kurulunca `Build/E2E-QA.md` → **S33**'ü koş.
+
+**Android (FCM/genel gerçek cihaz testi için, opsiyonel — TestFlight'tan
+bağımsız):**
+1. GitHub → `hasat-mobile` → Actions → **"EAS Android Device Build (APK)"**
+   → Run workflow.
+2. Build bitince özet sayfasındaki APK linkini Android telefonda aç, indir,
+   kur (bilinmeyen kaynak izni istenebilir).
+
+**Bu oturumda doğrulanamayan kısım (kural #103):** Gerçek `eas build`/`eas
+submit` çalıştırması — bu oturumun ağ politikası `expo.dev`'e erişimi
+engelliyor (aynı kısıt M5-a-ek-2'den beri geçerli). Yalnızca YAML
+sözdizimi (`PyYAML`) ve `eas.json`/`app.json` JSON geçerliliği + `tsc
+--noEmit` bu oturumda doğrulandı, aşağıdaki tabloya bkz.
+
+### APNs — kredansiyel yükleme (Key ID `246F7SPF74`, Team ID `XM562PFC7F`)
+
+**Adım adım (Berkin, tarayıcıdan — interaktif, bu oturumda yapılamaz):**
+1. [expo.dev](https://expo.dev) → hesabına giriş → **hasat-mobile** projesi
+   → **Credentials** sekmesi.
+2. **iOS** → **Push Notifications** → "Add a Push Notifications Key" (veya
+   mevcut bir anahtarı bağla).
+3. `.p8` dosyasını yükle, **Key ID**: `246F7SPF74`, **Team ID**:
+   `XM562PFC7F` gir.
+4. Kaydet — bundan sonra `ios-testflight` profiliyle yapılan her build bu
+   anahtarı otomatik kullanır (build sırasında ayrıca bir şey seçmen
+   gerekmiyor, EAS bundle ID + capability'den anahtarı otomatik eşliyor).
+
+Bu adım **tarayıcı üzerinden** de yapılabiliyor — `eas credentials` CLI'ı
+şart değil, M5-a-ek-2'de bulunan "terminal zorunlu değil" deseniyle
+tutarlı (Berkin şirket Mac'inde CLI araç zincirini yönetemiyor).
+
+**Sandbox/Production sorusu — doğrulandı:** Apple'ın token-tabanlı APNs
+kimlik doğrulaması (`.p8` anahtar) **environment'a özel değildir** — aynı
+anahtar hem `api.sandbox.push.apple.com` hem `api.push.apple.com`'a karşı
+geçerli bir JWT üretir (bu, eski sertifika-tabanlı `.p12` modelinin
+aksine, Apple'ın 2016'dan beri değişmeyen resmi token-tabanlı kimlik
+doğrulama tasarımı). Hangi environment'ın kullanılacağını anahtar değil,
+**uygulamanın imzalandığı provisioning profile**'daki `aps-environment`
+entitlement'ı belirler: geliştirme profili → sandbox, dağıtım (App
+Store/TestFlight) profili → production. `ios-testflight` profili
+(`distribution: "store"`) EAS'ta prodüksiyon imzası ve dolayısıyla
+`aps-environment: production` ile build alır — bu yüzden **ikinci bir
+APNs anahtarına gerek yok**, aynı `246F7SPF74` hem sandbox (gelecekteki
+development build'ler) hem production (TestFlight/App Store) için
+kullanılabilir. Berkin'in gördüğü "Sandbox" etiketi muhtemelen henüz
+hiçbir prodüksiyon-imzalı build yapılmamış olmasından kaynaklanıyor —
+kodda bir eksiklik değil. **Bu, Apple'ın resmi, uzun süredir değişmeyen
+platform davranışına dayanan bir çıkarım; gerçek bir prodüksiyon push
+teslimatıyla bu oturumda doğrulanamadı (kural #103) — S33'te doğrulanacak.**
+
+### Android FCM — Firebase kurulumu (Berkin, tarayıcıdan)
+
+Firebase projesi henüz yok. Adım adım:
+1. [Firebase Console](https://console.firebase.google.com) → **Add
+   project** → isim (örn. "Hasat") → Google Analytics'i istersen kapat
+   (gerekmiyor) → oluştur.
+2. Proje içinde **Add app** → **Android** ikonu → paket adı olarak
+   **birebir** `com.hasat.app` gir (bundle identifier ile aynı olmalı,
+   uyuşmazsa push token alınamaz) → uygulama takma adı (opsiyonel) →
+   kaydet.
+3. **`google-services.json`**'ı indir → `hasat-mobile/google-services.json`
+   olarak repoya ekle (kod tarafında `app.json` zaten bu yolu bekliyor —
+   aşağıya bkz.). Bu dosya **gizli değil** — Google'ın resmi kılavuzuna
+   göre client config dosyasıdır, `.env`'deki Supabase anon key kararıyla
+   aynı gerekçeyle (`Build/P23-Mobile.md` → "M5-a-ek" → ".env içerik
+   bekçisi") **bilinçli olarak public repoda** tutulacak; API key'in
+   kendisi paket adı/imza kısıtlarıyla korunuyor.
+4. Firebase Console → proje ayarları (⚙️) → **Service accounts** sekmesi →
+   **Generate new private key** → indirilen JSON'ı **repoya EKLEME** (bu,
+   `google-services.json`'ın aksine gerçek bir sunucu sırrı — FCM V1 API'yi
+   Hasat adına kullanabilen bir servis hesabı anahtarı).
+5. [expo.dev](https://expo.dev) → **hasat-mobile** → **Credentials** →
+   **Android** → **FCM V1 Service Account Key** → adım 4'te indirilen
+   JSON'ı yükle. (Bu da tarayıcı üzerinden, CLI gerekmiyor.)
+6. `android-device` profiliyle build alındığında `google-services.json`
+   (adım 3) uygulamaya gömülür, push gönderiminde de adım 5'teki servis
+   hesabı kullanılır.
+
+**Kod tarafında yapılan değişiklik:** `hasat-mobile/app.json` →
+`expo.android.googleServicesFile: "./google-services.json"` eklendi.
+Dosyanın kendisi henüz repoda **yok** (Berkin adım 3'ü yapana kadar) —
+bu, yalnızca Android push testini etkiler; iOS build'leri ve mevcut
+Android UI/uçak modu/timer testleri bu dosya olmadan da çalışır (alan
+yalnızca Android build zamanında okunuyor, `tsc`/Metro'yu etkilemiyor —
+`tsc --noEmit` bu turda temiz kaldığı doğrulandı).
+
+**Bu oturumda doğrulanamayan kısım (kural #103):** Firebase projesi
+oluşturma, `google-services.json`/servis hesabı anahtarı yükleme ve gerçek
+FCM teslimatı — hepsi interaktif tarayıcı/hesap işlemleri, Berkin'e
+kalıyor.
 
 ### ⚠️ Şahıs şirketi organizasyon hesabına uygun DEĞİL
 
@@ -111,14 +279,23 @@ Tarif katmanı bu testi geçmek için **doğal ve güçlü** özellikler getiriy
 | AI import — **galeri** (yazılı tarif fotoğrafı, galeriden seçilerek) | ✅ M6 | ✅ **Evet — Appetize'da galeriden seçilen gerçek bir tarif fotoğrafıyla uçtan uca doğrulandı (Berkin, 2026-08-04)** |
 | AI import — **kamera** (yazılı tarif fotoğrafı, canlı çekim) | ✅ M6 | 🔴 Hayır — `expo-image-picker`'ın kamera akışı simülatör/Appetize'da gerçek çekim üretmiyor, gerçek cihaz bekliyor |
 | Push token kaydı + `device_tokens` devri | ✅ M6 (`rpc_register_device_token`) | ✅ DB tarafı gerçek SQL ile · 🔴 gerçek token/teslimat hayır (kredansiyel + cihaz yok) |
-| Push **teslimatı** (Android FCM / iOS APNs) | 🔴 Kredansiyel yok | 🔴 Hayır |
+| Push **teslimatı** (Android FCM / iOS APNs) | 🟡 P23-M8-a'da altyapı hazırlandı, kredansiyel henüz yüklenmedi | 🔴 Hayır |
 | Teklif oluşturma (`rpc_create_offer` — çoklu-parti, ürün/parti detay ekranı) | ✅ P23-M7-a | ✅ RPC gerçek SQL/RLS simülasyonuyla · 🟡 Ekrandaki akış (routing, miktar clamp, teslimat seçimi) cihazda koşulmadı |
 
-**Kredansiyel engelleri (kod değil, hesap işi):**
+**Kredansiyel engelleri (kod değil, hesap işi) — P23-M8-a durumu (2026-08-09):**
 - **Android:** FCM V1 servis hesabı anahtarı + `google-services.json` — Firebase
-  projesi açılıp EAS'a yüklenmeli. Apple'dan bağımsız, **şimdi yapılabilir.**
-- **iOS:** APNs anahtarı — ücretli Apple Developer hesabı gerekiyor, hesap
-  başvurusu onay bekliyor. **iOS push bu yüzden doğrulanamaz durumda.**
+  projesi henüz açılmadı. Apple'dan bağımsız, **şimdi yapılabilir.** Adım
+  adım talimat + gerekli kod değişikliği (`app.json` →
+  `googleServicesFile`) tamamlandı, bkz. yukarıda "Android FCM — Firebase
+  kurulumu".
+- **iOS:** APNs anahtarı **Berkin'de mevcut** (Key ID `246F7SPF74`, Team ID
+  `XM562PFC7F`, `.p8` dosyası) — Apple hesabı 2026-08-05'te onaylandığı
+  için artık engel değil, yalnızca **EAS'a yüklenmesi** kaldı (interaktif,
+  tarayıcıdan — bkz. yukarıda "APNs — kredansiyel yükleme"). Sandbox/
+  production için ayrı anahtar gerekmediği doğrulandı (aynı bölüm).
+- **İkisi de** gerçek cihaza dağıtım altyapısı olmadan test edilemiyordu —
+  bu artık çözüldü (TestFlight + Android APK build profilleri, yukarıda).
+  Kalan iş tamamen Berkin'in kredansiyel yükleme + gerçek cihaz adımları.
 
 ### Submit sırasında App Review notlarına yazılacak liste (M8'de kopyalanacak)
 
@@ -268,7 +445,7 @@ değişmedi.
 - [ ] Uçak modu testi: uygulama açılıyor, kaydedilmiş tarifler görünüyor (**daha önce hiç açılmamış bir tarifin adımları da** — M5-b-ek'in bulk prefetch'i)
 - [ ] Pişirme modu + timer gerçek cihazda çalışıyor (**timer arka planda doğru sayıyor**, ekran kararmıyor, çıkışta keep-awake bırakılıyor)
 - [ ] AI import (metin + fotoğraf) gerçek cihazda çalışıyor (metin yolu M6'da sunucu tarafında doğrulandı; **kamera yolu cihaz bekliyor**)
-- [ ] Push bildirimi gerçek cihaza ulaşıyor (iOS + Android) — **önce FCM V1 anahtarı (Android) ve APNs anahtarı (iOS) EAS'a yüklenmeli**
+- [ ] Push bildirimi gerçek cihaza ulaşıyor (iOS + Android) — **önce FCM V1 anahtarı (Android) ve APNs anahtarı (iOS) EAS'a yüklenmeli** (adım adım: yukarıda "APNs — kredansiyel yükleme" ve "Android FCM — Firebase kurulumu", P23-M8-a); dağıtım altyapısı (TestFlight + Android APK build profilleri) hazır, `Build/E2E-QA.md` → S33'te koşulacak
 - [ ] App Review notları listesi yalnızca gerçek cihazda doğrulanmış maddelerden oluşuyor (bkz. bölüm 2 → "Durum tablosu")
 - [x] Uygulama içi hesap silme çalışıyor — DB/RPC seviyesinde doğrulandı (P26, 2026-08-04); gerçek tarayıcı/cihaz click-through'u submit öncesi Berkin tarafından yapılmalı (kural #103)
 - [ ] **[2026-08-05 eklendi]** Hesap silme — gerçek cihaz/tarayıcı click-through ("HESABIMI SİL" yazma onayı dahil) ayrı, açık bir madde olarak koşuldu (yukarıdaki [x] yalnızca DB/RPC seviyesini kapsıyor)
