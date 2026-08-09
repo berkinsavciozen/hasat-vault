@@ -3285,3 +3285,137 @@ konsolidasyonu (→ M9, yukarıya bkz.) · şema değişikliği `ADD COLUMN`
 seviyesinde değil, mevcut kolonun yazım kuralı değişti — kural #115'in
 migration→core-tip→sync sıralaması bu tur için gerekmedi (`hasat-core`'un
 ürettiği tipler zaten `company_type | null` idi, değişmedi).
+
+---
+
+## P23-M7-f — Marketplace'te Crop Fotoğraf Fallback Eksikliği (2026-08-09)
+
+**Kapsam:** Orkestratör 27 crop görselini üretip `crop-photos` bucket'ına
+yükledi ve `crop_config.default_photo_url`'ü 27/27 doldurdu, ama Keşfet'te
+kartlar hâlâ çizgili placeholder gösteriyordu. Kök neden: fallback zinciri
+(`listing.photo_urls[0] ?? crop_config.default_photo_url ?? nötr
+placeholder`) ve "Temsili görsel" etiketi kararı **M3'te alındı**
+(`Build/DB-Schema.md` → "P23-M3" → "'Temsili görsel' etiketi kararı") ama
+**yalnızca M4-a'nın tarif yüzeylerine** (`RepresentativePhoto` component'i,
+tarif kapak fotoğrafı) uygulandı — karar metni bunu zaten öngörmüştü ("bu
+M4'in işi... ama karar burada kayıt altına alınıyor") fakat M4-a/M4-b/M7-a
+turlarının hiçbiri marketplace yüzeylerine (Keşfet, ürün/parti/teklif
+sayfaları, public vitrin) dönmedi — şema (`default_photo_url` sütunu, 14
+görsel) hazırdı, UI tarafı unutulmuştu. Bu şema değişikliği **değil**, salt
+client-taraf bir tur; `crop_config`'e dokunulmadı (kural #115'in
+migration→core-tip→sync sırası gerekmedi).
+
+### Yapılanlar
+
+1. **Paylaşılan fallback + etiket mantığı** — web'de
+   `src/lib/hasat/crop-config.ts`'e `resolveListingPhoto(photos, cfg)`
+   eklendi (gerçek foto → `default_photo_url` → `null`, `isRepresentative`
+   bayrağıyla), `CropConfig` tipine `default_photo_url` eklendi (`select("*")`
+   zaten çekiyordu, yalnızca TS tipi eksikti). Mobilde aynı mantık yeni
+   `src/lib/hasat/crop-photo.ts` (`useCropDefaultPhoto` + aynı imzalı
+   `resolveListingPhoto`) — iki platform ayrı dosya ama her platformda **tek**
+   yer, kopyala-yapıştır yok.
+2. **`RepresentativePhoto` (web) genişletildi** — M4-a'da tarif kapak
+   fotoğrafı için yazılmıştı (bkz. `Build/DB-Schema.md` → "P23-M3" →
+   "'Temsili görsel' etiketi kararı"), artık marketplace kartlarının
+   (gradient overlay, "N parti"/"Tükendi" rozetleri) üstüne de oturabiliyor:
+   opsiyonel `children` (overlay içeriği) + ayrı export edilen
+   `RepresentativeBadge` (etiketin kendisi, tek stil kaynağı). `children`
+   verilmezse eski davranış (sağ-alt köşe otomatik etiket) değişmedi — tarif
+   sayfaları dokunulmadan çalışmaya devam ediyor.
+3. **Web marketplace yüzeyleri düzeltildi:**
+   - `buyer.discover.tsx` → `ListingGroupCard` — kök neden buradaydı, çizgili
+     placeholder kaldırıldı, fallback zinciri + etiket (parti rozetiyle aynı
+     köşede, dikey istiflenmiş) eklendi.
+   - `buyer.producer.$id.tsx` — üretici profilindeki ilan kartları: gerçek
+     foto varsa değişmedi, yoksa artık boş bırakmak yerine crop fallback +
+     etiket gösteriyor (önceden foto yoksa hiçbir görsel alanı yoktu).
+   - `batch.$listingId.tsx` (parti sayfası) — aynı desen; ayrıca burada
+     `useCropConfigMap()` early-return'lerden **sonra** çağrılıyordu (React
+     Hooks kuralı ihlali, önceden vardı) — dokunduğum satırlara bitişik
+     olduğu için hook çağrısını diğer hook'ların yanına taşıdım.
+   - `buyer.product.$farmerId.$crop.tsx`, `buyer.offer.$listingId.tsx` — bu
+     iki sayfada **hiç** foto gösterilmiyordu (görev metninin "aynı eksik
+     başka yerlerde de olabilir" uyarısı buradaydı, ama farklı bir sınıf: eksik
+     fallback değil, eksik UI). Discover kartından bir tık ötesinde foto
+     kaybolması güven tezini tutarsızlaştırırdı, bu yüzden her ikisine de
+     header banner eklendi (fallback zinciri + etiketle).
+4. **Mobil:** `src/lib/hasat/offers.ts`'teki `FarmerCropListing`'e
+   `photoUrls` eklendi (`listings.photo_urls` artık seçiliyor),
+   `app/product/[farmerId]/[crop].tsx`'e aynı banner deseni eklendi. **Mobil
+   Keşfet ekranı YOK** — `TODO.md` içindeki "Açık maddeler (M7-a'dan
+   sonraya)" tablosu (yukarıda) Keşfet'i açıkça **M7-b'ye** bırakmış, henüz
+   inşa edilmedi — "mobil keşfet ekranı" için düzeltilecek bir şey yoktu, bu
+   bilinçli bir "no-op", unutma değil.
+
+### Otonom alınan kararlar (kural #107)
+
+1. **`s.$slug.tsx`'teki 56px'lik ilan avatarı (`h-14 w-14`) bilinçli
+   dokunulmadı.** O boyutta "Temsili görsel" etiketi okunaklı basamayacak
+   kadar küçük — etiketsiz bir stok fotoğrafı göstermek, hiç foto
+   göstermemekten (mevcut davranış: gerçek foto varsa göster, yoksa
+   `cropEmoji`) daha kötü bir tez ihlali olurdu. Aynı ilke public vitrin hero
+   fotoğrafı için de geçerli (yalnızca gerçek parsel/ilan fotoğrafı
+   kullanıyor, hiç fallback yok) — orada zaten stok foto gösterilmediği için
+   değişiklik gerekmedi. **Genel kural (yeni turlara not):** etiket
+   sığmayacak kadar küçük bir foto alanında crop fallback'i atla, nötr
+   placeholder'da (emoji/ikon) kal.
+2. **`buyer.product.$farmerId.$crop.tsx` ve `buyer.offer.$listingId.tsx`'e
+   foto eklemek** görev metninin "fallback zincirini kontrol et" talimatının
+   ötesine geçti (bu sayfalarda hiç foto yoktu, eklenecek bir fallback zaten
+   yoktu) — yukarıda madde 3'te gerekçelendirildiği gibi tutarlılık için
+   eklendi. Berkin bunu istemiyorsa (örn. bu sayfaların foto olmadan kalması
+   bilinçli bir tasarım kararıysa) kolayca geri alınabilir, iki dosyadaki tüm
+   ekleme tek bloklarda (`<RepresentativePhoto>...</RepresentativePhoto>`).
+3. **`farmer.storefront.tsx`'e (çiftçinin kendi ilan yönetim ekranı)
+   dokunulmadı.** Marketplace = alıcı yüzeyleri; çiftçinin kendi listing'ini
+   düzenlerken bir stok fotoğrafın "zaten fotoğraflanmış" gibi görünmesi
+   çiftçiyi yanıltıp gerçek foto yüklemeyi unutturabilirdi — bu ekran
+   kapsam dışı bırakıldı.
+
+### Doğrulama (kural #96) — kısmi, ağ politikası kısıtladı
+
+- `tsc --noEmit` üç repoda da temiz: `hasat-d2c-marketplace`, `hasat-mobile`,
+  `hasat-core` (üçüncüsü zaten değişmedi, kontrol amaçlı çalıştırıldı).
+- `hasat-d2c-marketplace`: `npm run build` (Vite + SSR) başarıyla tamamlandı.
+- `eslint` (web, değiştirilen 6 dosya + `RepresentativePhoto.tsx`): yeni
+  `@typescript-eslint/no-explicit-any` veya mantık hatası yok; kalan hatalar
+  (prettier formatlama + dokunulmayan satırlardaki önceden var olan `as any`)
+  turdan önce de vardı, dosyanın tamamını yeniden formatlamak gereksiz büyük
+  bir diff çıkarırdı (aynı gerekçe M7-c/M7-d'de de kullanıldı).
+- `hasat-mobile`: `expo lint` bu oturumun ağ politikası ESLint config
+  otomatik-kurulumunu (network fetch gerektiriyor) engellediği için hiç
+  çalışmadı — M7-c'de de aynı kısıt kayıtlı, tekrarı.
+- **Gerçek tarayıcı/canlı-veri testi yapılamadı** — bu oturumun ağ politikası
+  `efuqpiaavrzimvstpdpm.supabase.co`'ya `CONNECT` ile 403 dönüyor (curl ile
+  doğrulandı), P24/M4-a/M5-a/M7-a/M7-c'de kayıtlı olan aynı kısıt. Görev
+  metninde verilen canlı durum (9 aktif crop'un `default_photo_url`'ü
+  27/27'nin içinde dolu, `photo_urls`'ü hiçbirinde dolu değil) koda göre
+  akıl yürütülerek doğrulandı: `resolveListingPhoto` her durumda
+  `photoUrl=default_photo_url`, `isRepresentative=true` döner — yani
+  Keşfet'teki her kart artık crop fotoğrafı + "Temsili görsel" etiketi
+  göstermeli. **Berkin'e kalan:** kendi tarayıcısında Keşfet + ürün/parti/
+  teklif/vitrin sayfalarını açıp (a) 9 crop'un hepsinde foto+etiket göründüğünü,
+  (b) bir ilana gerçek foto eklendiğinde etiketin kaybolduğunu doğrulamak.
+
+### Dokunulan dosyalar
+
+**`hasat-d2c-marketplace`:** `src/lib/hasat/crop-config.ts` ·
+`src/components/hasat/RepresentativePhoto.tsx` · `src/routes/buyer.discover.tsx` ·
+`src/routes/buyer.producer.$id.tsx` · `src/routes/batch.$listingId.tsx` ·
+`src/routes/buyer.product.$farmerId.$crop.tsx` ·
+`src/routes/buyer.offer.$listingId.tsx`
+
+**`hasat-mobile`:** `src/lib/hasat/offers.ts` (yeni) ·
+`src/lib/hasat/crop-photo.ts` (yeni dosya) ·
+`app/product/[farmerId]/[crop].tsx`
+
+**`hasat-core`, Supabase şeması:** dokunulmadı.
+
+### Dokunulmayan (kapsam kuralı tutuldu)
+
+`src/lib/core/` (kural #105) · checkout · Supabase şeması/migration (kural
+#115'in sırası bu tur için gerekmedi) · `s.$slug.tsx`'in 56px avatarı ve hero
+fotoğrafı (yukarıya bkz., madde 1) · `farmer.storefront.tsx` (yukarıya bkz.,
+madde 3) · mobil Keşfet ekranı (henüz yok, M7-b) · mobil pazarlık/checkout
+akışları.
