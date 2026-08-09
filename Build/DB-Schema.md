@@ -565,29 +565,48 @@ listesi yok, hepsi eksik.
 
 #### "Temsili görsel" etiketi kararı
 UI'da bir crop görseli (ya da tarif kapağı fallback'i) **temsili** olarak
-kullanıldığında ekranda **"temsili görsel"** etiketi zorunlu — bu M4'in işi
-(tarif/ürün yüzeyleri o fazda kuruluyor), ama karar burada kayıt altına
+kullanıldığında ekranda **"temsili görsel"** disclosure'ı zorunlu — bu M4'in
+işi (tarif/ürün yüzeyleri o fazda kuruluyor), ama karar burada kayıt altına
 alınıyor: stok fotoğrafını çiftçinin ürünüymüş ya da tarifin kendi çekimi
 gibi göstermek, Hasat'ın menşe/güven tezini içeriden çürütür (bkz.
 `Build/P23-Mobile.md` → "Fotoğraf stratejisi"). Kural hem crop
 `default_photo_url` fallback'i hem de tarif kapak fotoğrafı fallback'i için
 aynı şekilde geçerli.
 
-⚠️ **Uygulama durumu (P23-M7-f, 2026-08-09 itibarıyla) — hangi yüzeyde var,
+⚠️ **P23-M7-g'de format değişti (2026-08-09) — etiket kaldırılmadı, küçültüldü.**
+Berkin kararı: tam metinli "Temsili görsel" rozeti Keşfet kartlarında görseli
+boğuyordu. M3'ün dürüstlük gerekçesi (yukarıda) hâlâ geçerli — kaldırma seçeneği
+yoktu — ama sunum şekli değişti: köşede küçük bir ⓘ ikonu
+(`RepresentativeBadge`, web'de `@radix-ui/react-popover` üzerine kurulu, mobilde
+Unicode ⓘ glifi + `Pressable`), hover'da (masaüstü) veya dokunuşta (mobil, hover
+yok) "Temsili görsel" tooltip'i açılıyor. İkon tek başına anlam taşımıyor
+sayılmaz: `aria-label="Temsili görsel"` (web) / `accessibilityLabel="Temsili
+görsel"` (mobil) ekran okuyucuya tooltip hiç açılmasa da bunu duyuruyor; ayrıca
+gerçek görsel `<img alt>` / `accessibilityLabel` metnine de "(temsili görsel)"
+ekleniyor. Web'de tooltip Radix Popover'ın `Portal`'ı üzerinden
+`document.body`'ye render ediliyor — küçük `overflow-hidden` foto kutularının
+(44px tarif malzeme kartı gibi) içine hapsolup kırpılmıyor; mobilde eşdeğer bir
+portal mekanizması yok, o yüzden 44px malzeme kartında yuvarlatma sarmalayıcı
+`View`'dan değil doğrudan `Image`'dan geliyor (sarmalayıcının
+`overflow-hidden`'ı kaldırıldı, aksi halde tooltip kırpılırdı).
+
+⚠️ **Uygulama durumu (P23-M7-g, 2026-08-09 itibarıyla) — hangi yüzeyde var,
 hangisinde yok:**
 
-| Yüzey | Repo | Fallback zinciri + etiket |
+| Yüzey | Repo | Disclosure |
 |---|---|---|
-| Tarif listesi/detayı (`/tarifler`, `/tarifler/$slug`) | web | ✅ M4-a'dan beri (`RepresentativePhoto`) |
-| Keşfet — `buyer.discover.tsx` (`ListingGroupCard`) | web | ✅ P23-M7-f'de eklendi — **kök neden buradaydı**, önceden çizgili placeholder, hiç fallback yoktu |
-| Üretici profili — `buyer.producer.$id.tsx` | web | ✅ P23-M7-f'de eklendi (önceden foto yoksa boş kalıyordu) |
-| Parti sayfası — `batch.$listingId.tsx` | web | ✅ P23-M7-f'de eklendi |
-| Ürün/çoklu-parti sayfası — `buyer.product.$farmerId.$crop.tsx` | web | ✅ P23-M7-f'de eklendi (önceden **hiç foto yoktu**, sadece bu turda foto+fallback birlikte geldi) |
-| Teklif sayfası — `buyer.offer.$listingId.tsx` | web | ✅ P23-M7-f'de eklendi (aynı not — hiç foto yoktu) |
-| Public vitrin — `s.$slug.tsx` (56px ilan avatarı) | web | ⛔ **Bilinçli atlandı** — etiket o boyutta okunaklı basmıyor; yalnızca gerçek foto/emoji, crop stok fotoğrafı hiç gösterilmiyor (bkz. `TODO.md` → "P23-M7-f" → kural #107 madde 1) |
-| Public vitrin hero fotoğrafı — `s.$slug.tsx` | web | N/A — yalnızca gerçek parsel/ilan fotoğrafı kullanıyor, crop fallback'i hiç yok, dolayısıyla etiket sorunu da yok |
+| Tarif listesi/detayı (`/tarifler`, `/tarifler/$slug`) | web | ✅ M4-a'dan beri (`RepresentativePhoto`), M7-g'de ikon formatına geçti |
+| Tarif malzeme kartları (`/tarifler/$slug` — `crop_photo_url` küçük görsel) | web | ✅ **P23-M7-g'de eklendi** — daha önce hiç etiket yoktu; bu görsel her zaman `crop_config`'in stok fotoğrafı (malzeme belirli bir ilana değil crop'a bağlı), yani göründüğü her yerde temsili |
+| Keşfet — `buyer.discover.tsx` (`ListingGroupCard`) | web | ✅ P23-M7-f'de eklendi, M7-g'de ikon formatına geçti |
+| Üretici profili — `buyer.producer.$id.tsx` | web | ✅ P23-M7-f'de eklendi, M7-g'de ikon formatına geçti |
+| Parti sayfası — `batch.$listingId.tsx` | web | ✅ P23-M7-f'de eklendi, M7-g'de ikon formatına geçti |
+| Ürün/çoklu-parti sayfası — `buyer.product.$farmerId.$crop.tsx` | web | ✅ P23-M7-f'de eklendi, M7-g'de ikon formatına geçti |
+| Teklif sayfası — `buyer.offer.$listingId.tsx` | web | ✅ P23-M7-f'de eklendi, M7-g'de ikon formatına geçti |
+| Public vitrin hero fotoğrafı — `s.$slug.tsx` | web | ✅ **P23-M7-g'de eklendi** — M7-f'de hero bilinçli dışarıda bırakılmıştı ama gerekçe ("56px'te etiket okunaklı basmıyor") aslında yalnızca aşağıdaki avatara aitti, hero'ya uygulanmıyordu; artık gerçek foto yoksa crop fallback + ⓘ gösteriyor, Keşfet'le tutarlı |
+| Public vitrin — `s.$slug.tsx` (56px ilan avatarı) | web | ⛔ **Hâlâ bilinçli atlandı** — o boyutta ikon bile sıkışık kalıyor (avatar zaten 56px'in tamamı); yalnızca gerçek foto/emoji, crop stok fotoğrafı hiç gösterilmiyor (bkz. `TODO.md` → "P23-M7-f" → kural #107 madde 1, M7-g'de yeniden teyit edildi) |
 | Çiftçinin kendi ilan yönetimi — `farmer.storefront.tsx` | web | ⛔ **Bilinçli kapsam dışı** — alıcı yüzeyi değil, çiftçiye kendi ilanını stok fotoğrafla "fotoğraflanmış" göstermek yanıltıcı olurdu |
-| Ürün/parti sayfası — `app/product/[farmerId]/[crop].tsx` | mobil | ✅ P23-M7-f'de eklendi (önceden hiç foto yoktu) |
+| Ürün/parti sayfası — `app/product/[farmerId]/[crop].tsx` | mobil | ✅ P23-M7-f'de eklendi, M7-g'de ikon formatına geçti |
+| Tarif detayı — `app/recipe/[slug].tsx`, `app/cook/[slug].tsx`, `app/home.tsx` | mobil | ✅ M7-g'de ikon formatına geçti (`RepresentativePhoto` üzerinden, otomatik); `recipe/[slug].tsx`'teki malzeme kartına (44px `crop_photo_url`) M7-g'de ayrıca eklendi — web'in tarif malzeme kartıyla aynı gerekçe |
 | Genel Keşfet ekranı | mobil | **Ekran henüz yok** (M7-b'ye bırakıldı, `TODO.md` → "Açık maddeler (M7-a'dan sonraya)") — uygulanacak bir yüzey yok |
 
 ---
