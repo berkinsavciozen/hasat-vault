@@ -3597,3 +3597,181 @@ dokunulmadı (kural #115'in sırası bu tur için gerekmedi) ·
 capability zaten Berkin tarafından Apple tarafında ayarlanmıştı, bu turda
 değiştirilmedi.
 
+---
+
+## P23-M7-g — Temsili Görsel Etiketi → İkon + Kayan Nokta Formatlama (2026-08-09)
+
+**Kapsam:** Web ağırlıklı küçük tur, üç ayrı düzeltme: (1) "Temsili görsel"
+tam-metinli rozetini küçük bir ⓘ ikonuna çevirmek (Berkin: görseli boğuyordu),
+(2) M7-f'de bilinçli dışarıda bırakılan public vitrin hero fotoğrafına aynı
+deseni uygulamak, (3) teklif sayfasındaki `Mevcut: 59.599999999999994 g` kayan
+nokta hatasının kökünü bulup düzeltmek. `hasat-core`'a dokunulmadı (kural
+#105), checkout/Supabase şemasına dokunulmadı, M8-a'nın kapsamına (EAS/APNs/
+FCM/S33) girilmedi.
+
+### 1 — Kayan nokta hatası: kök neden gösterim, hesaplama değil
+
+`useListingStock` (web `src/lib/hasat/queries.ts`, mobil
+`src/lib/hasat/offers.ts`) `available = Math.max(0, base - reserved)`
+hesabını düz JS float aritmetiğiyle yapıyor — `base` (`harvest_entries.
+quantity` toplamı) ve `reserved` (`offers.quantity` toplamı) ikisi de gerçek
+ondalık hasat/sipariş miktarları, IEEE754 ikili gösterimde tam
+temsil edilemiyor. `100 - 40.400000000000006 = 59.599999999999994` türünden
+artıklar klasik float çıkarma/toplama davranışı — **hesaplanan değer
+matematiksel olarak doğru**, yalnızca ekrana çıplak basılıyordu.
+`convertQuantity`'nin kendisi (`hasat-core/core/units.ts`) sadece `qty *
+toGrams[from] / toGrams[to]` yapıyor, ayrıca bir hata eklemiyor — sorunun
+kaynağı değil, dokunulmadı (kural #105 zaten dokunmayı yasaklıyordu, ama
+teşhis de bunu doğruladı). **Sonuç: bu bir gösterim sorunu, hesaplama
+sorunu değil** — görev metninin iki dallı talimatının "gösterim" dalı
+geçerli.
+
+**Düzeltme:** `formatQuantity(qty, unit)` — web `src/lib/hasat/format.ts`,
+mobil `src/lib/hasat/format.ts` (ikisi de hâlihazırda birbirinin elle
+kopyası, `formatTRY` ile aynı desen — bkz. mobil dosyasının başındaki not,
+M5-b/M9'a kadar `hasat-core`'a taşınması ertelenmiş). Birime göre
+`Intl.NumberFormat("tr-TR", { maximumFractionDigits })`: g → 1, kg/L → 2,
+adet → 0, bilinmeyen birim → 2. `qty` sayı değilse (`null`/`undefined`/
+`NaN`) boş string döner — önceki `${x ?? ""}` desenlerinin davranışını
+korumak için (bazı RPC alanları `null` olabiliyor, ör.
+`shop.scaled_quantity`).
+
+**Uygulandığı yerler** (miktar+birim gösterilen her yer — Keşfet, ürün
+detay, teklif, parti, siparişler, tarif alışveriş listesi, mobil ekranlar):
+- **Web:** `StockBadge.tsx` (paylaşılan — `farmer.storefront.tsx` da dahil
+  otomatik düzeldi, dosyaya dokunulmadı), `OfferBatchBreakdown.tsx`,
+  `buyer.discover.tsx` (Keşfet kart toplamı), `buyer.offer.$listingId.tsx`
+  (bug'ın orijinal raporlandığı yer — Mevcut satırı, min-sipariş toast'ı,
+  toplam satırı), `buyer.product.$farmerId.$crop.tsx` (parti mevcut/toplam,
+  hasat kayıtları), `batch.$listingId.tsx` (Toplam Parti/Rezerve/Mevcut
+  döşemeleri, hasat kayıtları, ilgili siparişler), `buyer.orders.tsx`,
+  `buyer.orders.$orderId.tsx`, `farmer.orders.index.tsx` (siparişler),
+  `tarifler.$slug.tsx` (malzeme miktarı, min-sipariş/gerekli/satın-alınacak
+  kanonik miktarlar), `s.$slug.tsx` (vitrin ilan satırı).
+- **Mobil:** `app/product/[farmerId]/[crop].tsx` (parti mevcut/min-sipariş/
+  toplam), `app/orders.tsx` (teklif/sipariş satırları), `app/recipe/
+  [slug].tsx` (malzeme miktarı, min-sipariş/gerekli/satın-alınacak).
+
+**Tarandı, bu turda düzeltilmedi (görev metninin "başka yerlerde de
+göründüğünü tara ve raporla" talebi) — Berkin'e kalan, küçük tur kapsamı
+dışında tutuldu çünkü görev metninin adlandırdığı yüzeylerin (Keşfet, ürün
+detay, teklif, parti, siparişler, tarif alışveriş listesi) hiçbirine
+girmiyor:**
+`buyer.subscriptions.tsx`/`farmer.subscriptions.tsx` (`deliveredQty`/
+`target`/`estimatedQty`), `farmer.journal.$entryId.tsx`/`farmer.journal.
+index.tsx`, `farmer.storefront.tsx`'in `StockBadge` dışındaki kendi
+`{listing.quantity}`/`{b.quantity}` satırları, `buyer.requests.tsx`,
+`buyer.negotiation.$offerId.tsx`/`NegotiationTimeline.tsx`,
+`ProvenanceTimeline.tsx`, `farmer.home.tsx`, `Stepper.tsx`'in ham `value`
+girişi. Hepsi aynı sınıf (`.quantity`/`.unit` ham gösterimi), hiçbiri
+`useListingStock`'un `base`/`reserved` hesaplaması kadar yüksek riskli değil
+(çoğu doğrudan çiftçi/alıcı girdisi, toplama/çıkarma zinciri yok) ama aynı
+merkezi `formatQuantity`'yi kullanmaları tutarlılık için mantıklı olur —
+ayrı bir tur.
+
+### 2 — "Temsili görsel" rozeti → ⓘ ikonu (Berkin kararı)
+
+M3'ün dürüstlük gerekçesi (`Build/DB-Schema.md` → "'Temsili görsel' etiketi
+kararı") korunuyor — kaldırma seçeneği yoktu. `RepresentativePhoto.tsx`
+(web `src/components/hasat/`, mobil `src/components/hasat/`) içindeki
+`RepresentativeBadge` tam-metinli rozetten küçük bir ⓘ ikonuna çevrildi:
+
+- **Web:** `@radix-ui/react-popover` üzerine kurulu (proje zaten
+  `components/ui/popover.tsx`'te kullanıyor, yeni bağımlılık yok).
+  `open`/`onOpenChange` ile kontrollü; `onMouseEnter`/`onMouseLeave`
+  hover'da açıp kapatıyor (masaüstü), `onClick` (yalnızca
+  `stopPropagation` — kartın kendi tıklamasını tetiklememesi için, asıl
+  aç/kapa Radix Trigger'ın kendi click-toggle'ı) dokunuşta açıyor
+  (mobil web, hover yok). Popover'ın `Portal`'ı içerik `document.body`'ye
+  render ediyor — bu **bilinçli bir seçim**: tooltip'i barındıran küçük
+  `overflow-hidden` foto kutuları (44px tarif malzeme kartı gibi) içine
+  hapsedip kırpmıyor, `tooltip.tsx`'teki düz Radix Tooltip primitive'i
+  yerine bunun seçilme sebebi de bu — Radix Tooltip touch'ta bilinçli
+  olarak açılmıyor (a11y gerekçesiyle), Popover açılıyor.
+- **Mobil (RN):** İkon kütüphanesi eklenmedi — proje hiçbir yerde ikon
+  kütüphanesi kullanmıyor (`app/home.tsx`'teki not: `lucide-react-native`
+  `react-native-svg` native bağımlılığı getirir, EAS build kotası
+  kısıtlıyken risk). Unicode ⓘ glifi + `Pressable`, `onPress` ile
+  aç/kapa. RN'de web'in Portal'ına eşdeğer bir mekanizma yok — bu yüzden
+  44px malzeme kartında (`app/recipe/[slug].tsx`) yuvarlatma sarmalayıcı
+  `View`'ın `overflow-hidden`'ından değil doğrudan `Image`'ın kendi
+  `rounded-lg`'inden geliyor; sarmalayıcının `overflow-hidden`'ı kaldırıldı
+  (aksi halde tooltip kırpılırdı). `RepresentativePhoto`'nun asıl fotoğraf
+  sarmalayıcısı (176px+ tarif kapağı, 96px tarif kartı) yeterince yüksek
+  olduğu için aynı sorunu yaşamıyor, dokunulmadı.
+- **Erişilebilirlik (ikisinde de):** `aria-label`/`accessibilityLabel="Temsili
+  görsel"` — tooltip hiç açılmasa bile ekran okuyucu bunu duyuruyor, ikon
+  tek başına anlamsız kalmıyor. Ayrıca gerçek `<img alt>`/
+  `accessibilityLabel` metnine `isRepresentative` true'yken "(temsili
+  görsel)" ekleniyor — çift güvence.
+
+**Yeni yüzey: tarif malzeme kartları.** `tarifler.$slug.tsx` (web) ve
+`app/recipe/[slug].tsx` (mobil) malzeme listesindeki 44px `crop_photo_url`
+küçük görseline daha önce **hiç** disclosure yoktu (`rpc_recipe_
+availability`'nin `crop_photo_url`'ü her zaman `crop_config`'in stok
+fotoğrafı — malzeme belirli bir ilana değil crop'a bağlı, yani göründüğü
+her yerde temsili). Görev metninin açıkça istediği yüzey; eski tam-metinli
+rozet formatıyla 44px'e hiç sığmazdı, ikon formatı sığıyor.
+
+### 3 — Public vitrin hero'suna disclosure eklendi (Berkin kararı)
+
+M7-f'de `s.$slug.tsx` bilinçli dışarıda bırakılmıştı ama tek bir gerekçeyle
+("56px'te etiket okunaklı basmıyor") **iki farklı yüzey** (56px ilan
+avatarı + hero fotoğrafı) birlikte hariç tutulmuştu — gerekçe yalnızca
+avatara aitti, hero zaten hiç crop fallback'i kullanmıyordu (yalnızca
+gerçek parsel/ilan fotoğrafı). Bu turda hero'ya Keşfet'teki aynı fallback
+zinciri (`resolveListingPhoto`, ilk aktif ilanın crop'una göre) + ⓘ ikonu
+eklendi — gerçek foto yoksa artık boş koyu arkaplan yerine crop stok
+fotoğrafı + disclosure gösteriyor, Keşfet'le tutarlı.
+
+**56px ilan avatarı hâlâ bilinçli dışarıda** — bu karar değişmedi, yeniden
+teyit edildi: o boyutta ikon bile (20px) kutunun büyük kısmını kaplar,
+avatar zaten "gerçek foto yoksa emoji" davranışıyla dürüst.
+
+### Doğrulama (kural #96)
+
+| Kontrol | Sonuç |
+|---|---|
+| `tsc --noEmit` — `hasat-d2c-marketplace` | ✅ Temiz |
+| `tsc --noEmit` — `hasat-mobile` | ✅ Temiz |
+| `tsc --noEmit` — `hasat-core` (değişmedi, kontrol amaçlı) | ✅ Temiz |
+| `npm run build` (web, Vite + SSR) | ✅ Başarıyla tamamlandı |
+| `eslint` (web, değiştirilen tüm dosyalar) | Yeni `@typescript-eslint/no-explicit-any` veya mantık hatası yok (`git diff` ile pre-existing `any` satırlarına dokunulmadığı doğrulandı); kalan hatalar salt prettier formatlama, dosyaların tamamı turdan önce de prettier-temiz değildi (M7-c/M7-f'deki aynı gerekçe — tüm dosyayı yeniden formatlamak gereksiz büyük diff çıkarır) |
+| `expo lint` (mobil) | 🔴 Çalışmadı — bu oturumun ağ politikası ESLint config otomatik-kurulumunu engelliyor (M7-c/M7-f'de kayıtlı aynı kısıt, tekrarı) |
+| 59.599999999999994 g repro | ✅ Node'da izole simülasyon: `base=100, reserved=40.400000000000006 → available=59.599999999999994` (ham değer **değişmedi**, hesap doğru) → `formatQuantity(available, "g")` → `"59,6"`. Gerçek Supabase verisiyle canlı doğrulama bu oturumun ağ politikası yüzünden yapılamadı (`efuqpiaavrzimvstpdpm.supabase.co`'ya `CONNECT` 403 — P24/M4-a/M5-a/M7-a/M7-c/M7-f'de kayıtlı aynı kısıt). **Berkin'e kalan:** teklif sayfasını (`buyer.offer.$listingId.tsx`) orijinal raporu tetikleyen ilanla açıp "Mevcut" satırının artık temiz bir ondalık gösterdiğini doğrulamak. |
+| Etiket → ikon geçişi, crop fallback'i **olan** ilanlarda | ✅ Kod okumasıyla doğrulandı: `resolveListingPhoto`'nun `isRepresentative=true` döndüğü her yerde `RepresentativeBadge` render ediliyor (Keşfet, ürün, teklif, parti, üretici, vitrin hero, tarif/malzeme). Canlı tarayıcı testi ağ kısıtı yüzünden yapılamadı. |
+| Etiket → ikon geçişi, crop fallback'i **olmayan** ilanlarda (gerçek foto var) | ✅ Kod okumasıyla doğrulandı: `isRepresentative=false` olduğunda `RepresentativeBadge` hiç render edilmiyor, yalnızca gerçek foto gösteriliyor — M7-f'den beri değişmeyen dal, bu turda dokunulmadı. |
+| Tooltip'in `overflow-hidden` foto kutularında kırpılmaması | ✅ Web: Radix Popover `Portal`'ı DOM ağacında farklı bir noktaya (`document.body`) render ediyor, ata `overflow-hidden`'dan etkilenmiyor (mimari olarak kırpılamaz). Mobil: 44px malzeme kartında sarmalayıcının `overflow-hidden`'ı kaldırıldı, `RepresentativePhoto`'nun kendi büyük foto kutularında (96px+) zaten yeterli boşluk var. Canlı tarayıcı/cihaz testi yapılamadı. |
+
+### Dokunulan dosyalar
+
+**`hasat-d2c-marketplace`:** `src/components/hasat/RepresentativePhoto.tsx`
+· `src/components/hasat/StockBadge.tsx` ·
+`src/components/hasat/OfferBatchBreakdown.tsx` · `src/lib/hasat/format.ts`
+· `src/routes/tarifler.$slug.tsx` · `src/routes/s.$slug.tsx` ·
+`src/routes/batch.$listingId.tsx` · `src/routes/buyer.offer.$listingId.tsx`
+· `src/routes/buyer.product.$farmerId.$crop.tsx` ·
+`src/routes/buyer.discover.tsx` · `src/routes/buyer.orders.tsx` ·
+`src/routes/buyer.orders.$orderId.tsx` ·
+`src/routes/farmer.orders.index.tsx`
+
+**`hasat-mobile`:** `src/components/hasat/RepresentativePhoto.tsx` ·
+`src/lib/hasat/format.ts` · `app/product/[farmerId]/[crop].tsx` ·
+`app/orders.tsx` · `app/recipe/[slug].tsx`
+
+**`hasat-vault`:** `Build/DB-Schema.md` · bu build log
+
+**`hasat-core`, Supabase şeması:** dokunulmadı.
+
+### Dokunulmayan (kapsam kuralı tutuldu)
+
+`src/lib/core/` elle düzenlenmedi (kural #105 — `convertQuantity` teşhis
+sonrası suçsuz bulundu, dokunulmadı) · checkout · Supabase şeması/migration
+· M8-a'nın kapsamı (EAS/APNs/FCM/S33, o ayrı bir turda yürüdü) ·
+`hasat-mobile`'da build/altyapı dosyaları · 56px ilan avatarı
+(`s.$slug.tsx`, yukarıya bkz.) · `farmer.storefront.tsx` (kendi
+`{listing.quantity}` satırları hariç tutuldu — bkz. yukarıda "tarandı,
+düzeltilmedi"; `StockBadge` üzerinden dolaylı olarak düzeldi) ·
+subscriptions/journal/requests/negotiation sayfalarındaki kayan nokta
+gösterimi (yukarıya bkz., ayrı tur önerisi).
+
