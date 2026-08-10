@@ -1179,6 +1179,32 @@ engelliyor, gerçek iPhone/Android cihaz yok, APNs/FCM kredansiyelleri
 henüz yüklenmedi). Bu senaryo tamamen Berkin'in koşup sonucu bu dosyaya
 (veya `TODO.md`'ye) not düşmesi için yazıldı.
 
+### Sonuç — ilk koşum (Berkin, TestFlight, 2026-08-09/10) ve düzeltmeler (P23-M8-b)
+
+**44/49 geçti, 5 kritik başarısızlık bulundu.** Kök nedenler teşhis edilip
+düzeltildi (`TODO.md` → "P23-M8-b" build log, 2026-08-10) — aşağıdaki
+adımlar yeniden koşulmalı, bu S33 henüz tamamen ✅ işaretlenmedi:
+
+| Adım | Bölüm | Sonuç | Kök neden (özet) | Düzeltme |
+|---|---|---|---|---|
+| 11-14 | C — Gerçek uçak modu | 🔴 Başarısız — uygulama giriş ekranına düşüyordu, Apple 4.2'nin çekirdek testi hiç görülemedi | `app/index.tsx`'in `getSession()`'ı offline'da ağ hatasını (`AuthRetryableFetchError`) gerçek oturum yokluğuyla aynı sayıyordu | `app/index.tsx` — ağ hatası/gerçek red ayrımı + yerel önbelleğe (`useHasatMobileSession`) güvenme. Malzeme kartlarının (adım 13-14) kendi offline UI'ı zaten doğruydu, dokunulmadı. |
+| 36-38 | H — Push teslimatı | 🔴 Başarısız — hiçbir push gelmedi (ne iOS ne Android) | 11 edge function'ın hiçbiri push göndermiyordu (M6'da token kaydı yapıldı, gönderim hiç kurulmadı) | `dispatch_push` (SQL, yeni) + `send-push` (edge function, yeni) — `dispatch_sms`/`send-sms`'in kardeşi. Adım 38 (dokunma→yönlendirme) için `attachNotificationTapRouting()` eklendi. |
+| 46 | J — Hesap silme | 🔴 Başarısız — silme sonrası giriş ekranına dönmüyordu, "Silinmiş Kullanıcı" profili görünmeye devam ediyordu | `supabase.auth.signOut()` varsayılan `global` scope'la banned hesaba karşı ağ isteği atıyordu, hata yutuluyor ama Supabase'in kendi oturum kaydı + query cache + offline sqlite temizlenmiyordu | `scope: "local"` + merkezi `sessionGuard.ts` (zustand + query cache + offline sqlite + yönlendirme tek yerde) |
+| 49 | K — Performans (niteliksel) | ⬜ Bu adımla ilgili bir başarısızlık S33'te kayıtlı değil | — | — |
+
+> ⚠️ **Numaralandırma notu:** Görev metni "parsel ekleme kırık" bulgusunu
+> "S33 adım 49, bağımsız" olarak andı, ama bu doküman(daki gerçek S33
+> script)'da adım 49 **"Genel akıcılık" (performans, Bölüm K)** — parsel
+> bulgusuyla ilgisi yok. Görev metni zaten bu bulguyu "bağımsız" (S33
+> akışının bir parçası değil) olarak işaretlemişti — web tarafında,
+> mobil script'in dışında, ayrıca bulunmuş canlı bir bug. Sessizce
+> S33'ün 49. adımıyla eşleştirilmedi; kök neden + düzeltme `TODO.md` →
+> "P23-M8-b" → Bölüm 4'te.
+
+**Ayrıca (S33 kapsamı dışında, aynı S33 oturumunda web'de bulundu):** web'de
+"Çıkış Yap" fatal hata veriyordu (canlı sistemde) — kök neden + düzeltme
+`TODO.md` → "P23-M8-b" → Bölüm 2.
+
 ---
 
 ## Feature Sonrası Süreç

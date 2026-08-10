@@ -1,6 +1,6 @@
 ---
 title: Hasat — App Store & Play Store Uyumluluk
-updated: 2026-08-09
+updated: 2026-08-10
 tags:
   - hasat
   - mobile
@@ -270,7 +270,7 @@ Tarif katmanı bu testi geçmek için **doğal ve güçlü** özellikler getiriy
 
 | Native yetenek | Kod | Gerçek cihazda doğrulandı mı |
 |---|---|---|
-| Offline tarif listesi + detayı (`expo-sqlite`, 18/18 tarif arka planda önbelleğe alınıyor) | ✅ M5-b + M5-b-ek | 🟡 Hayır — simülatörde Wi-Fi kapatma yaklaşık test; **gerçek uçak modu yalnızca cihazda** |
+| Offline tarif listesi + detayı (`expo-sqlite`, 18/18 tarif arka planda önbelleğe alınıyor) | ✅ M5-b + M5-b-ek | 🔴 **Gerçek cihazda başarısız oldu (S33 adım 11-14, 2026-08-10)** — kök neden `app/index.tsx`'in `getSession()`'ı offline'da ağ hatasını "oturum yok" sayıp `/login`'e düşürmesiydi (malzeme kartlarının kendi offline UI'ı zaten doğruydu, hiç görülemedi). **P23-M8-b'de düzeltildi** (`TODO.md` build log), **yeniden test bekliyor** — Berkin, `Build/E2E-QA.md` → S33 Bölüm C |
 | Pişirme modu (tam ekran, adım adım) | ✅ M6 | 🟡 Hayır — simülatör/cihaz yok |
 | Timer (zaman-damgası tabanlı, arka planda doğru) | ✅ M6 | 🟡 Hayır — **arka plan doğruluğu tam olarak cihazda ölçülmeli** |
 | Süre dolunca yerel bildirim | ✅ M6 | 🟡 Hayır — planlama kodu doğru, teslimat cihaz işi |
@@ -279,7 +279,7 @@ Tarif katmanı bu testi geçmek için **doğal ve güçlü** özellikler getiriy
 | AI import — **galeri** (yazılı tarif fotoğrafı, galeriden seçilerek) | ✅ M6 | ✅ **Evet — Appetize'da galeriden seçilen gerçek bir tarif fotoğrafıyla uçtan uca doğrulandı (Berkin, 2026-08-04)** |
 | AI import — **kamera** (yazılı tarif fotoğrafı, canlı çekim) | ✅ M6 | 🔴 Hayır — `expo-image-picker`'ın kamera akışı simülatör/Appetize'da gerçek çekim üretmiyor, gerçek cihaz bekliyor |
 | Push token kaydı + `device_tokens` devri | ✅ M6 (`rpc_register_device_token`) | ✅ DB tarafı gerçek SQL ile · 🔴 gerçek token/teslimat hayır (kredansiyel + cihaz yok) |
-| Push **teslimatı** (Android FCM / iOS APNs) | 🟡 P23-M8-a'da altyapı hazırlandı, kredansiyel henüz yüklenmedi | 🔴 Hayır |
+| Push **teslimatı** (Android FCM / iOS APNs) | 🔴 **Gerçek cihazda başarısız oldu (S33 adım 36-38, 2026-08-10)** — kök neden: 11 edge function'ın hiçbiri push göndermiyordu (M6'da token kaydı yapıldı, gönderim hiç kurulmadı). **P23-M8-b'de kuruldu** (`dispatch_push` + `send-push`, `dispatch_sms`/`send-sms`'in kardeşi, `TODO.md` build log) — Expo API'ye gerçek bir test çağrısıyla doğrulandı (`status:"ok"` ticket üretildi), **fiziksel cihaza teslimat henüz yeniden test edilmedi**, Berkin bekleniyor | 🔴 Hayır |
 | Teklif oluşturma (`rpc_create_offer` — çoklu-parti, ürün/parti detay ekranı) | ✅ P23-M7-a | ✅ RPC gerçek SQL/RLS simülasyonuyla · 🟡 Ekrandaki akış (routing, miktar clamp, teslimat seçimi) cihazda koşulmadı |
 
 **Kredansiyel engelleri (kod değil, hesap işi) — P23-M8-a durumu (2026-08-09):**
