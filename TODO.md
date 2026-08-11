@@ -4116,3 +4116,263 @@ kontrolü eksikliği (tespit edildi, raporlandı, düzeltilmedi — görev
 metninin kendi kapsam kararı) · Expo push receipt polling (bilinen sınır,
 raporlandı).
 
+---
+
+## P23-M8-b-2 — T1'in Kendi Düzeltmesinin Açtığı Canlı Oturum Regresyonu (2026-08-11)
+
+**Kapsam:** Berkin'in P23-M8-b sonrası gerçek cihaz/tarayıcı testinde
+(2026-08-10) bulduğu yeni regresyon: sürekli `Onboarding/Buyer`'a düşme,
+çıkış yapamama, "oturumunuz sonlandı" mesajının tekrar tekrar çıkması,
+buyer/onboarding sayfasında kilitlenme (web); arka plan/foreground geçişi
+veya kapat-aç sonrası onboarding'e düşme + gerçek girişli kullanıcıda
+"oturum bulunamadı" hatası (mobil). Ek üç bulgu (ayrı kök neden): sipariş
+durumu web↔mobil senkron değildi, "teklif kabul edildi" senaryosunda push
+gitmedi, "Ödeme bekleniyor" durumunda mobilde web'e yönlendiren CTA yoktu.
+
+### ⚠️ Bu regresyonun kayda geçirilmesi gereken doğası
+
+**Önceki hata ağ hatasını oturum-yok sandı; bu turun düzeltmesi geçici ağ
+hatasını gerçek-çıkış saydı — ikisi de aynı ayrımın eksikliğiydi.**
+P23-M8-b (T1), `getSession()`'ın offline'da/token yenileme ağ kaynaklı
+başarısız olduğunda `session:null` döndürdüğünü (storage'daki token'ı
+SİLMEDEN) doğru teşhis edip **yalnızca mobilin `app/index.tsx`'inde**
+düzeltti — ve aynı turda web'de "çıkış fatal hata" bug'ını çözmek için
+`SIGNED_OUT` event'ini web'de (`AuthBootstrap`) ve mobilde
+(`sessionGuard.ts`, yeni dosya) TEK bir merkezi noktada topladı. Bu ikinci
+kısım doğru bir mimari karardı (kural #106'nın client-içi simetriği) AMA
+bir varsayımı sessizce taşıyordu: **her `SIGNED_OUT` event'i gerçek bir
+çıkıştır.** gotrue-js kaynağı bu turda satır satır incelendi
+(`_callRefreshToken`/`_recoverAndRefresh`/`_autoRefreshTokenTick`,
+`auth-js` GitHub reposu) — saf ağ hatalarında (`AuthRetryableFetchError`)
+gotrue zaten `SIGNED_OUT` yayınlamıyor/session silmiyor, bu iddia doğru.
+Ama **mobilde gerçek kök neden başka bir yerdeydi**: gotrue-js'in kendi
+belgelenmiş davranışı — "tarayıcı dışı platformlarda autoRefresh ticker'ı
+SÜREKLİ arka planda çalışır, uygulamanın kendi foreground/background
+mekanizmasına kancalanmak GEREKİR" — hiç uygulanmamıştı
+(`AppState`/`startAutoRefresh`/`stopAutoRefresh` hiçbir dosyada yoktu).
+Bunun sonucu: uygulama arka plandayken token'ın rotasyon penceresine denk
+gelen bir yenileme denemesi (ağ geçişi/arka plana alma anına denk
+gelirse) sunucu tarafında refresh token'ın GERÇEKTEN geçersiz sayılmasına
+yol açabiliyordu (Supabase her refresh'te token'ı rotalıyor) — bu durumda
+gotrue-js **haklı olarak** `SIGNED_OUT` yayınlıyor (gerçek red, ağ hatası
+değil) ama kullanıcı hiç bilinçli çıkış yapmamıştı. Merkezi
+`sessionGuard.ts`, T1'de bu event'i her zaman "gerçek çıkış" sayıp
+sessizce temizlik yapıyordu — kullanıcı deneyiminde "arka plandan
+dönünce/kapat-aç sonrası oturum gitti" olarak görünüyordu.
+
+Web tarafında ayrı bir katman daha vardı: `index.tsx`/
+`onboarding.buyer.tsx`/`onboarding.farmer.tsx` mobilin **T1-öncesi**
+hatasının birebir aynısını (naif `getSession()` → `session:null` = "oturum
+yok") hâlâ taşıyordu — T1 bu düzeltmeyi yalnızca mobil `app/index.tsx`'e
+uygulamıştı, web'e hiç taşınmamıştı. Bu, geçici bir ağ hatasında giriş
+yapmış bir web kullanıcısının `/onboarding/buyer`'a düşmesinin ayrı (ama
+aynı köke bağlı) bir nedeniydi.
+
+### 1 — Web: `AuthBootstrap`'ın `SIGNED_OUT` dinleyicisi + tekrar eden toast
+
+**Kök neden (doğrulandı, kod okuması + gotrue-js kaynağı):** Merkezi
+dinleyici her `SIGNED_OUT`'ta koşulsuzca `reset()` + `queryClient.clear()`
++ toast + `navigate("/")` yapıyordu. Her başarısız yenileme denemesi kendi
+`SIGNED_OUT`'unu üretebildiği için (özellikle art arda birden fazla sayfa/
+sekme aynı anda `getSession()` çağırdığında), ilk temizlikten sonraki HER
+YENİ event de aynı toast'ı + navigasyonu tekrar tetikliyordu — "oturumunuz
+sonlandı" mesajının tekrar tekrar çıkması ve TanStack Router'ın üst üste
+`navigate()` çağrılarıyla kilitlenmesi buradan geliyordu.
+
+**Düzeltme (`src/routes/__root.tsx`, `src/lib/hasat/sessionGuard.ts`):**
+İki savunma eklendi: (a) `useHasat.getState().user` zaten `null`'sa (önceki
+bir `SIGNED_OUT`'ta ya da hiç giriş yapılmadıysa) temizlenecek/bildirilecek
+bir şey yok — event sessizce yok sayılıyor; (b) `navigator.onLine === false`
+ise (captive-portal/geçici bağlantı sorunu — gotrue saf ağ hatalarında
+zaten event yayınlamıyor ama sunucudan gelen tuhaf bir yanıt yine de
+yanlışlıkla non-retryable sayılabilir) temizlik atlanıyor, token
+storage'da kalıyor. `isNetworkAuthError()` yardımcı fonksiyonu
+`sessionGuard.ts`'e eklendi (mobil `app/index.tsx`'teki aynı adlı
+fonksiyonun web karşılığı).
+
+### 2 — Web: `index.tsx`/`onboarding.buyer.tsx`/`onboarding.farmer.tsx` — T1-öncesi hatanın web karşılığı
+
+**Düzeltme:** Üçü de artık `getSession()`'ın `error`'ını okuyup
+`isNetworkAuthError()` ile ağ kaynaklı başarısızlığı ayırt ediyor; ağ
+kaynaklıysa ve `useHasat.getState().user` önbellekte bilinen bir kullanıcı
+gösteriyorsa (rol eşleşmesiyle) o kullanıcıya güvenip devam ediliyor —
+`/login`'e veya yanlış onboarding'e düşülmüyor. Bu, mobil `app/index.tsx`
+(P23-M8-b) ile aynı desenin web'e taşınmış hali.
+
+### 3 — Web: `buyer/onboarding` sayfasında kilitlenme — çıkış butonu hiç yoktu
+
+**Kök neden doğrulandı (kod okuması):** `onboarding.buyer.tsx` ve
+`onboarding.farmer.tsx`'in hiçbirinde çıkış/sign-out butonu render
+edilmiyordu — yalnızca "Zaten hesabın var mı? Giriş Yap" linki vardı (henüz
+kayıt tamamlanmamış bir kullanıcı için işe yaramaz). Bir kullanıcı bu
+sayfaya (geçici bir ağ hatasıyla ya da başka bir nedenle) yanlışlıkla
+düşerse ne devam edebiliyor ne çıkabiliyordu — "sayfada tamamen kilitlenme"
+bulgusunun kök nedeni buydu.
+
+**Düzeltme:** İki sayfaya da `markExpectedSignOut()` + `supabase.auth.
+signOut()` çağıran bir "Çıkış Yap" butonu eklendi (kural #106 deseni —
+sayfa kendi `reset()`/`navigate()`'ini çağırmıyor, merkezi `AuthBootstrap`
+dinleyicisine bırakıyor, T1'in kurduğu mimariyle tutarlı).
+
+### 4 — Mobil: kök neden — `AppState` hiç kablolanmamıştı
+
+**Kök neden (gotrue-js kaynağı + kod incelemesi ile doğrulandı):**
+`_startAutoRefresh()`'in kendi kod yorumu: *"On non-browser platforms the
+refresh process works continuously in the background... You should hook
+into your platform's foreground indication mechanism."* `hasat-mobile`'da
+(`app/_layout.tsx`, `src/lib/supabase/client.ts`, hiçbir dosyada)
+`AppState`/`startAutoRefresh`/`stopAutoRefresh` hiç yoktu — resmi Expo/RN
+deseni hiç uygulanmamıştı. Sonuç: autoRefresh ticker'ı uygulama arka
+plandayken de çalışmaya devam ediyor, tam arka plana geçiş/ağ değişimi
+anına denk gelen bir yenileme denemesi refresh token rotasyonunu
+bozabiliyor, sunucu bunu GERÇEK bir red olarak görüyor, gotrue-js haklı
+olarak `SIGNED_OUT` yayınlıyor — ama kullanıcı hiç çıkış yapmamış oluyor.
+
+**Düzeltme (`app/_layout.tsx`):** `AppState.addEventListener("change", ...)`
+eklendi — `"active"` olunca `supabase.auth.startAutoRefresh()`, aksi
+halde `supabase.auth.stopAutoRefresh()`. Bu, Expo/Supabase'in resmi
+React Native deseni; ticker artık yalnızca uygulama ön plandayken çalışıyor.
+
+### 5 — Mobil: `sessionGuard.ts` — aynı dedupe + offline savunması
+
+**Düzeltme:** Web'deki 1. maddeyle aynı iki savunma mobile de eklendi:
+(a) önbellekte bilinen bir kullanıcı yoksa event yok sayılıyor; (b)
+`expo-network`'ün `getNetworkStateAsync()`'i ile o anki bağlantı durumu
+kontrol ediliyor, `isConnected===false` veya `isInternetReachable===false`
+ise temizlik atlanıyor. Bilinçli çıkış (`markExpectedSignOut()` ile
+işaretli) her iki savunmayı da atlıyor — bilinçli çıkış hiçbir zaman
+gecikmiyor/engellenmiyor.
+
+**Mobildeki "oturum bulunamadı" hatası (teklif oluştururken) — ayrı bir
+kod değişikliği gerekmedi:** `rpc_create_offer`'ın kendisi `auth.uid() is
+null` olduğunda `raise exception 'Oturum bulunamadı'` üretiyor (SQL
+kaynağı doğrulandı) — yani bu, RPC çağrısının JWT'siz gittiği anlamına
+geliyor, ki bu tam olarak 4. maddedeki yanlış-`SIGNED_OUT` → local session
+wipe zincirinin bir belirtisiydi (client'ın Supabase oturumu sessizce
+temizlenmiş, kullanıcı ekranda hâlâ "giriş yapmış" görünüyor). 4-5. madde
+bu zinciri kapattığı için ayrı bir düzeltme gerekmedi; gerçek cihazda
+yeniden test edilmesi gerekiyor (aşağıya bkz.).
+
+### 6 — Sipariş durumu web↔mobil senkron değildi
+
+**Tespit:** Web `useRealtimeSync()` (`hasat-d2c-marketplace/src/lib/hasat/
+queries.ts`) ile `offers`/`orders`/`notifications` tablolarında gerçek
+zamanlı `postgres_changes` aboneliği kullanıyor. Mobilin salt-okunur
+Siparişlerim ekranı (`hasat-mobile/app/orders.tsx`,
+`src/lib/hasat/orders.ts`) bunların **hiçbirini** kullanmıyordu — ne
+realtime ne öne gelince yeniden çekme.
+
+**Düzeltme (`app/orders.tsx`):** Websocket aboneliğini mobile taşımak
+(arka plana alma sırasında bağlantı kopması aynı auth-refresh ailesinden
+bir risk ekler) yerine, ekran her odaklandığında (`useFocusEffect`, mevcut
+`expo-router` API'si) `["buyerOffersReadonly"]`/`["buyerOrdersReadonly"]`
+sorgularını invalidate eden bir refetch-on-focus eklendi — mevcut
+`useBuyerOffers`/`useBuyerOrders` hook'ları genişletildi, yeni bir mimari
+kurulmadı.
+
+### 7 — Push: "teklif kabul edildi" senaryosu — hipotez kısmen çürütüldü, gerçek bir bulgu bulundu
+
+**Hipotez ("trigger'ın event'i ile dispatcher'ın dinlediği event
+eşleşmiyor") gerçek SQL testiyle ÇÜRÜTÜLDÜ:** `rpc_create_offer` ile
+gerçek bir pending teklif oluşturulup web'in yaptığı aynı `UPDATE offers
+SET status='accepted'` çalıştırıldı (tek transaction, `ROLLBACK` ile geri
+alındı) — `trg_offer_status` → `notify_offer_accepted()` → `dispatch_push
+('offer_accepted', ...)` → `notif_prefs.offer_accepted_push` kontrolü →
+`net.http_request_queue`'ya doğru payload'la (`event:"offer_accepted"`,
+doğru token, doğru mesaj) gerçekten kuyruklandığı kanıtlandı. **Standart
+akışta (çiftçi buyer'ın pending teklifini kabul ediyor) event adı eşleşmesi
+ve dispatch mekanizması doğru çalışıyor** — bu turda bulunamayan bir bug.
+
+**Gerçek bulunan bug — yanlış alıcı:** `notify_offer_accepted()`'in
+`accepted` dalı, teklifi kim kabul ederse etsin HER ZAMAN `NEW.buyer_id`'yi
+bildiriyordu. Bu, "çiftçi buyer'ın pending teklifini kabul ediyor"
+senaryosunda doğru (buyer'a bildirilmeli) ama "buyer çiftçinin karşı
+teklifini kabul ediyor" senaryosunda YANLIŞTI — bildirim kabul EDEN
+tarafa (buyer'a, ki zaten biliyor, kendisi tıkladı) gidiyordu, karşı taraf
+(çiftçi, ki bilmesi gereken taraf) hiçbir kanaldan (in-app/SMS/push)
+haber almıyordu. Gerçek SQL testiyle (iki senaryo da `rpc_create_offer` +
+gerçek UPDATE'lerle, `ROLLBACK`'le) doğrulandı: düzeltme öncesi Case B
+(çiftçi counter → buyer kabul) bildirimi yanlışlıkla `buyer_id`'ye
+yazıyordu; düzeltme sonrası doğru şekilde `farmer_id`'ye yazıldığı
+kanıtlandı (`notifications.user_id` = çiftçinin ID'si, Case A/mevcut akış
+değişmedi).
+
+**Düzeltme (migration `p23_m8b2_fix_offer_accepted_notify_recipient`):**
+`notify_offer_accepted()`'in `accepted` dalı artık `OLD.ball_side`'a göre
+(kabul enforcement trigger'ının — `enforce_offer_accept_turn` — kullandığı
+aynı alan) karşı tarafı hesaplıyor: `ball_side='farmer'` ise buyer'a
+(değişmedi), `ball_side='buyer'` ise çiftçiye (yeni, önceden hiç
+bildirilmiyordu) bildiriliyor. `dispatch_sms` çağrısı da aynı alıcıya
+düzeltildi (önceden aynı yanlış alıcıya gidiyordu, ama SMS tercihi kapalı
+olduğu için görünmüyordu).
+
+**Berkin'in gerçek testinde neden "gitmedi" görüldüğü — kesin
+kanıtlanamadı, dürüstçe işaretleniyor (kural #103):** Canlı DB'de
+`created_at == updated_at` olan (yani UPDATE değil doğrudan INSERT ile
+`status='accepted'` doğmuş) bir test teklifi bulundu — `trg_offer_status`
+`AFTER UPDATE`'tir, `AFTER INSERT` değil, bu yüzden böyle bir satır hiçbir
+zaman bildirim tetiklemez. Bu satırın gerçek uygulama akışından mı (ki
+`rpc_create_offer` HER ZAMAN `status='pending'` yazıyor, doğrulandı) yoksa
+bir test/seed script'inden mi geldiği bu oturumdan tespit edilemedi. Bu
+yüzden hem "yanlış alıcı" (kanıtlı, düzeltildi) hem de bu ihtimal
+raporlanıyor — Berkin'in gerçek bir "kabul et" aksiyonuyla yeniden test
+etmesi gerekiyor.
+
+### 8 — Eksik CTA: "Ödeme bekleniyor" durumu (mobil)
+
+**Tespit:** `offerStatusLabel()` (`hasat-mobile/src/lib/hasat/orders.ts`)
+`status==='accepted'` için "Ödeme Bekleniyor (web'de tamamlanır)" etiketini
+zaten gösteriyordu ama `app/orders.tsx`'teki `OfferRow`'un `needsWebAction`
+koşulu yalnızca `ballSide==='buyer' && (pending|counter)` durumunu
+kapsıyordu — "Ödeme bekleniyor" durumunda buton yoktu.
+
+**Düzeltme (`app/orders.tsx`):** `needsPayment = status==='accepted' &&
+paymentStatus!=='paid'` eklendi, aynı `Linking.openURL(WEB_APP_URL +
+"/buyer/negotiation/" + offer.id)` linkine (aynı sayfa hem pazarlık hem
+ödeme akışını taşıyor) "Web'de Öde →" etiketiyle bağlandı — "yanıtınız
+bekleniyor" durumundaki mevcut desenin birebir uygulanması, yeni bir
+mimari kurulmadı.
+
+### Doğrulama (kural #96)
+
+| Kontrol | Sonuç |
+|---|---|
+| gotrue-js kaynağı (`_callRefreshToken`/`_recoverAndRefresh`/`_autoRefreshTokenTick`/`_onVisibilityChanged`) satır satır okundu | ✅ `auth-js` GitHub reposundan doğrudan indirilip incelendi |
+| Push — standart akış (çiftçi kabul) gerçek RPC+UPDATE ile, `ROLLBACK` | ✅ `net.http_request_queue`'da doğru event/token/payload görüldü |
+| Push — yanlış alıcı bug'ı, iki senaryo (Case A/B) gerçek RPC+UPDATE ile, `ROLLBACK` | ✅ Düzeltme öncesi Case B yanlış (`buyer_id`), sonrası doğru (`farmer_id`) — `notifications` tablosundan kanıtlandı |
+| SMS hâlâ çalışıyor mu (aynı migration, `dispatch_sms` çağrısı) | ✅ Alıcı düzeltmesi SMS çağrısına da uygulandı, event adı/kolon eşlemesi değişmedi |
+| `tsc --noEmit` — `hasat-mobile`/`hasat-d2c-marketplace`/`hasat-core` | Aşağıya bkz. |
+| Web "oturumunuz sonlandı" döngüsü — gerçek tarayıcı click-through | 🔴 **Doğrulanamadı (kural #103)** — bu oturumun ağ politikası Supabase host'una doğrudan erişimi engelliyor. Kök neden analizi statik kod okuması + gotrue-js kaynağıyla yapıldı. |
+| Mobil arka plan/foreground + uçak modu kısa kesinti senaryosu — gerçek cihaz | 🔴 **Doğrulanamadı (kural #103)** — simülatör/cihaz yok. `Build/E2E-QA.md` → S33 Bölüm C (adım 11) + Bölüm A-J boyunca (adım 48) yeniden koşulmalı. |
+| Bilinçli çıkışın hâlâ çalıştığı | 🟡 Kod okumasıyla doğrulandı (`markExpectedSignOut()` her iki savunmayı da atlıyor) — gerçek cihaz/tarayıcıda S33 adım 46 + genel "Çıkış Yap" akışıyla yeniden doğrulanmalı |
+| Push — Berkin'in gerçek cihazına gerçek teslimat | 🔴 **Doğrulanamadı (kural #103)** — `Build/E2E-QA.md` → S33 adım 36-38 yeniden koşulmalı |
+| Sipariş senkronu — gerçek durum değişikliğiyle mobil ekranda görme | 🔴 **Doğrulanamadı (kural #103)** — cihaz/simülatör yok |
+| CTA — mobil ekranda görsel doğrulama | 🔴 **Doğrulanamadı (kural #103)** — kod okumasıyla doğrulandı |
+
+### Dokunulan dosyalar
+
+**`hasat-d2c-marketplace`:** `src/routes/__root.tsx` ·
+`src/routes/index.tsx` · `src/routes/onboarding.buyer.tsx` ·
+`src/routes/onboarding.farmer.tsx` · `src/lib/hasat/sessionGuard.ts`
+
+**`hasat-mobile`:** `app/_layout.tsx` · `app/orders.tsx` ·
+`src/lib/hasat/sessionGuard.ts`
+
+**Supabase şeması (migration):**
+`p23_m8b2_fix_offer_accepted_notify_recipient`
+
+**`hasat-vault`:** `TODO.md` (bu build log) · `Build/E2E-QA.md` (S33
+adım 11/43/46 notu)
+
+### Dokunulmayan (kapsam kuralı tutuldu)
+
+`src/lib/core/` (kural #105) · T2/T3/T4 kapsamı (çiftçi yönlendirmesi —
+mobil rol kararı, `source_recipe_id`, klavye, OTP autofill, pişirme modu)
+· checkout · `dispatch_sms`/`send-sms`'in kendi event-map duplikasyonu
+(P23-M8-b'de zaten bilinçli olarak dokunulmamıştı, bu turda da aynı karar)
+· Expo push receipt polling (bilinen sınır, P23-M8-b'den beri raporlu) ·
+web'in `login.tsx`'indeki aynı naif `getSession()` deseni (yalnızca
+"zaten girişliyi login'den uzaklaştırma" için kullanılıyor — yanlış
+tetiklenirse en kötü ihtimalle kullanıcı login'de kalır, kilitlenme/tekrar
+toast riski yok, bu turun raporladığı semptomların dışında).
+

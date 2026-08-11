@@ -1205,6 +1205,33 @@ adımlar yeniden koşulmalı, bu S33 henüz tamamen ✅ işaretlenmedi:
 "Çıkış Yap" fatal hata veriyordu (canlı sistemde) — kök neden + düzeltme
 `TODO.md` → "P23-M8-b" → Bölüm 2.
 
+### İkinci tur (P23-M8-b-2, 2026-08-11) — T1'in kendi düzeltmesinin açtığı regresyon
+
+P23-M8-b'nin düzeltmeleri canlıya çıktıktan sonra Berkin gerçek cihaz +
+web'de yeni bir regresyon buldu: sürekli `Onboarding/Buyer`'a düşme, çıkış
+yapamama, "oturumunuz sonlandı" mesajının tekrar tekrar çıkması (web);
+arka plan/foreground geçişinde veya kapat-aç sonrası onboarding'e düşme +
+"oturum bulunamadı" hatası (mobil, kullanıcı gerçekten girişliyken). Kök
+neden + düzeltme tam detayı: `TODO.md` → "P23-M8-b-2". Aşağıdaki üç adımın
+S33 numaralandırmasındaki **yeni beklenen sonucu** budur — bu turda kod
+düzeltildi ama gerçek cihazda henüz **doğrulanamadı** (kural #103),
+Berkin'in yeniden koşması gerekiyor:
+
+| Adım | Bölüm | Eski beklenen | Yeni beklenen (P23-M8-b-2 sonrası) |
+|---|---|---|---|
+| 11 | C — Gerçek uçak modu | Uçak modu kapatılınca/relaunch'ta tarif listesi görünür kalmalı | Aynı **+ ek kontrol:** uygulamayı birkaç dakika arka plana at (uçak modu olmasa bile), geri dön → tarif listesi hâlâ görünüyor, onboarding'e/login'e düşmüyor. Kök neden: `AppState`/`startAutoRefresh`/`stopAutoRefresh` hiç kablolanmamıştı (`app/_layout.tsx`'e eklendi) — arka planda süren autoRefresh ticker'ı token rotasyonunu bozup gerçek (ama yanlış) bir `SIGNED_OUT`'a yol açabiliyordu. |
+| 43 | J — Yeni kullanıcı kaydı | Atılabilir numarayla girişte onboarding ekranı açılmalı | Aynı — bu adımın kendisi regresyona uğramadı, ama **aynı senaryoyu ikinci kez** (onboarding'i tamamlamadan) tekrarla: ilk denemede uygulamayı arka plana atıp geri dön → hâlâ onboarding'de kalmalı, yanlışlıkla login'e/başka bir role düşmemeli (sessionGuard.ts'in dedupe + offline savunması bu senaryoyu da kapsıyor). |
+| 46 | J — Hesap silme | Silme sonrası giriş ekranına dönmeli | Aynı **+ ek kontrol:** bu turda `sessionGuard.ts`'e eklenen dedupe (`useHasatMobileSession.getState().user` boşsa event yok sayılıyor) ve offline savunması (`expo-network` ile bağlantı kontrolü) bilinçli hesap silme akışını **geciktirmemeli/engellememeli** — `markExpectedSignOut()` işaretli olduğu için her iki savunma da atlanıyor (kod okumasıyla doğrulandı), ama gerçek cihazda silme sonrası hâlâ anında login'e döndüğü teyit edilmeli. |
+
+**Ek doğrulama (S33 kapsamına yeni değil, ama aynı turda düzeltilen üç
+bulgu):** sipariş durumu (bir web ödemesi sonrası mobilde Siparişlerim
+sekmesine dönünce güncel görünmeli — `useFocusEffect` ile eklendi), push
+teslimatı ("teklif kabul edildi" senaryosu, bkz. adım 36-38'in gerçek bir
+"kabul et" aksiyonuyla — MCP/script kısayolu değil — yeniden koşulması
+gerekiyor, `TODO.md` → "P23-M8-b-2" Bölüm 7'deki kanıtlanamayan ihtimal
+notuna bkz.), "Ödeme Bekleniyor" durumunda Siparişlerim → Tekliflerim
+sekmesinde yeni "Web'de Öde →" butonu.
+
 ---
 
 ## Feature Sonrası Süreç
