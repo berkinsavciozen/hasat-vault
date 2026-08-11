@@ -1,6 +1,6 @@
 ---
 title: Hasat — Lansman Planı
-updated: 2026-08-06
+updated: 2026-08-10
 tags:
   - hasat
   - launch
@@ -168,3 +168,89 @@ yönlendirmesiyle netleşti: M8'in kendisi değil, Roadmap.md'nin M5-M7 için
 hâlâ gelecek tarihli görünen Gantt'ı bayattı (M5-M7, M7-b hariç, planın
 6-8 hafta önünde zaten tamamlanmıştı). Roadmap.md bu doğrultuda düzeltildi;
 bu dosyadaki M8 tarihleri Berkin'in verdiği yeni takvimi yansıtıyor.
+
+---
+
+## 6. T1-T4 tur yapısı (P23-M8-b sonrası, 2026-08-10 eklendi)
+
+S33'ün gerçek cihaz bulguları (Apple 4.2 reddine yol açacak dört blocker +
+iki sarkan madde) tek turda kapanamayacak kadar genişti — **T1-T4** dört
+ayrı tura bölündü. Bu bölüm hangi maddenin hangi turda olduğunu, mevcut
+epic'lerle (E3/E4/E7, yukarıdaki Bölüm 1) nasıl birleştiğini ve Berkin'in
+paralel yürüyen işlerini tek yerde topluyor.
+
+> ⚠️ **Doğrulanabilirlik notu:** Görev metni bu turu "S33'ün 12 bulgusu, 3
+> sarkan madde, 13 plan maddesi — hiçbiri düşmemeli" diye tanımladı. Bu
+> üçlü sayının kaynağı olan orijinal orkestratör dökümü bu repoda (vault'ta)
+> ayrı bir belge olarak bulunamadı — yalnızca görev metninin kendisi ve
+> aşağıdaki doğrulanabilir kaynaklar mevcuttu: `Build/E2E-QA.md` → S33'ün
+> gerçek başarısız adımları (11-14, 36-38, 46 — bkz. S33 sonundaki "Sonuç"
+> tablosu) + web'de bağımsız bulunan "çıkış fatal hata" + "parsel ekleme
+> kırık" bulguları, ve görev metninin kendi "Dokunulmayacaklar" listesindeki
+> 8 T2+ maddesi. Aşağıdaki tur eşlemesi bu doğrulanabilir kaynaklardan
+> kuruldu; 12/3/13 sayılarıyla birebir eşleşip eşleşmediği bağımsız olarak
+> teyit **edilemedi** — sessizce "eşleşti" varsayılmadı, burada açıkça
+> bildiriliyor. Berkin karşılaştırıp fark varsa düzeltmeli.
+
+### T1 — ✅ TAMAMLANDI (2026-08-10, bu tur, `TODO.md` → "P23-M8-b")
+
+**4 blocker + 2 sarkan madde (6 madde), hepsi kök nedenine kadar çözüldü:**
+
+| # | Madde | Tür | Durum |
+|---|---|---|---|
+| 1 | Uçak modunda giriş ekranı (S33 adım 11-14) | 🔴 Blocker | ✅ Düzeltildi, yeniden test bekliyor |
+| 2 | Hesap silme oturum temizliği + web çıkış fatal hatası (S33 adım 46 + bağımsız web bulgusu) | 🔴 Blocker | ✅ Düzeltildi, yeniden test bekliyor |
+| 3 | Push gönderim mekanizması hiç kurulmamış (S33 adım 36-38) | 🔴 Blocker | ✅ Kuruldu, Expo'ya gerçek çağrıyla doğrulandı, fiziksel teslimat Berkin'de |
+| 4 | Parsel ekleme trigger regresyonu (bağımsız web bulgusu) | 🔴 Blocker | ✅ Düzeltildi, gerçek insert ile doğrulandı |
+| 5 | `eas.json` submit profili eksik | 🟡 Sarkan | ✅ Eklendi (`ascAppId` Berkin'i bekliyor) |
+| 6 | Sürüm numarası (`0.1.0`→`1.0.0`) | 🟡 Sarkan | ✅ Yapıldı |
+
+**Epic bağlantısı:** T1, Bölüm 1'deki **E3** (Alıcı akışı — uçtan uca denetim)
+ve **E4** (Çiftçi akışı — uçtan uca denetim, özellikle parsel ekleme) için
+ön koşuldu — ikisi de kırık bir akış üzerinde anlamlı bir denetim
+yapamazdı. **E7** (Admin/operasyon) için de kritik: push gönderimi
+olmadan "Lansman günü izleme planı" bildirim kanalı eksik sayılırdı.
+
+### T2/T3/T4 — sıraya alındı, henüz tur bazında ayrıştırılmadı
+
+Görev metninin "Dokunulmayacaklar" listesi 8 maddeyi T2+ kapsamına
+işaretledi ama bu 8 maddenin T2/T3/T4 arasında nasıl bölüneceğine dair bir
+talimat/öncelik sırası **verilmedi** — kural #107 gereği burada bir sıra
+uydurulmadı, hepsi tek bir "sıraya alındı" havuzunda listeleniyor. Berkin
+önceliklendirmeli:
+
+- Çiftçi rol yönlendirmesi (mobil v1 şu an yalnızca buyer, farmer girişi
+  nereye düşüyor netleşmeli)
+- `source_recipe_id` (tarif→teklif atfının mobil tarafındaki kalan işi)
+- Klavye modalı (native picker/modal klavye konumlanma cilası)
+- Siparişlerim ekranına dokunma (şu an salt okunur, M7-d kararı — genişletme
+  T2+)
+- Pişirme modu "Devam Et" (kaldığı yerden devam UX'i)
+- OTP autofill (`textContentType="oneTimeCode"` zaten var, otomatik
+  doldurmanın tam davranışı)
+- Kalan kayan nokta gösterim yerleri (P23-M7-g'de yalnızca stok/teklif
+  ekranları düzeltildi — bkz. `TODO.md` → "P23-M7-g" → "Dokunulmayan")
+- Adım fotoğrafı (pişirme modu adımlarına fotoğraf ekleme)
+
+**Epic bağlantısı:** Bu 8 madde büyük ölçüde **E3**/**E4**'ün "boş durum
+ekranları" ve genel UX cilası kapsamına giriyor — lansman kritik yolunun
+(web, 25 Ağustos) üzerinde değil, M8-b/c/d'nin (mobil, Ekim) bir parçası.
+
+### Berkin'in paralel yürüyen işleri (T1-T4'ten bağımsız, aynı takvimde akıyor)
+
+Bu maddeler zaten Bölüm 1'in Epic tablosunda var — burada yalnızca T1-T4
+tur yapısıyla karışmadığı, **ayrı ve paralel** aktığı teyit ediliyor:
+
+| İş | Epic | Not |
+|---|---|---|
+| Tarif kapakları (18 adet) | E1 | 14 Ağustos hedefi, SEO için işlevsel (Google Recipe şeması) |
+| Search Console kaydı + sitemap | E2 | 16 Ağustos hedefi, görsellere bağlı |
+| Avukat onayı (KVKK + gizlilik metni) | E5 | 20 Ağustos hedefi |
+| Şirket tescili | E5 | 7 Ağustos hedefiydi, bu dosyanın Bölüm 3(a)'sındaki zincirin başı |
+| Glossary insan gözden geçirmesi | E6 | 21 Ağustos hedefi, P22-C'nin AI üretimi içeriği |
+| İlk gerçek çiftçiler (5-10 kazanım) | E4 | 20 Ağustos hedefi, `Build/Launch-Plan.md` Bölüm 3(c)'deki kırılgan nokta |
+
+**Sonuç:** T1-T4 tamamen mobil/P23-M8 tarafında akıyor (Ekim hedefi); yukarıki
+altı madde web lansmanının (25 Ağustos) kritik yolunda. İki tur birbirini
+bloklamıyor — Bölüm 2'deki M8-a/b/c/d milestone tablosu bunu zaten
+yansıtıyor.

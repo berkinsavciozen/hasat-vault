@@ -3775,3 +3775,344 @@ düzeltilmedi"; `StockBadge` üzerinden dolaylı olarak düzeldi) ·
 subscriptions/journal/requests/negotiation sayfalarındaki kayan nokta
 gösterimi (yukarıya bkz., ayrı tur önerisi).
 
+---
+
+## P23-M8-b — Uçak Modu Girişi + Hesap Silme Temizliği + Push Gönderimi + Parsel Trigger Regresyonu (T1, 2026-08-10)
+
+**Kapsam:** Berkin S33'ü gerçek iPhone'da (TestFlight) koştu — 49 adımın
+çoğu geçti, beş kritik başarısızlık bulundu (adım 11-14, 36-38, 46, 49 + web
+tarafında ayrı bir "çıkış fatal hata" bulgusu). Bu tur bunların kök
+nedenlerini çözüyor: (1) uçak modunda giriş ekranına düşme, (2) hesap
+silme sonrası oturum temizlenmemesi + web çıkış fatal hatası, (3) push
+gönderim mekanizmasının hiç kurulmamış olması, (4) parsel ekleme trigger
+regresyonu, (5) `eas.json` submit profili, (6) sürüm numarası. Kural
+#107 kapsamında karar gerektiren bir madde çıkmadı — hepsi kök neden
+teşhisi + doğrudan düzeltme.
+
+### 1 — 🔴 Uçak modunda giriş ekranı — kök neden doğrulandı ve düzeltildi
+
+**Hipotez doğrulandı.** `app/index.tsx`, açılışta `supabase.auth.
+getSession()` çağırıyordu. supabase-js v2'nin `getSession()`/`_initialize()`
+davranışı: saklı token süresi dolmuşsa (veya dolmaya yakınsa) `autoRefreshToken`
+ile ağa çıkıp yeniler; offline'da bu istek `AuthRetryableFetchError` ile
+başarısız olur. Kaynak koddaki (`__loadSession`) davranış, hata **retryable**
+(ağ kaynaklı) olduğunda saklı oturumu **silmiyor** (`_removeSession()`
+çağrılmıyor — token cihazda kalıyor) ama o ÇAĞRININ döndürdüğü `session`'ı
+yine de `null` yapıyor. Eski kod bunu "oturum yok" ile aynı sayıp `/login`'e
+yönlendiriyordu — token'ın kendisi bozulmamışken, salt o anki ağ isteği
+başarısız olduğu için.
+
+**Düzeltme (`app/index.tsx`):** `useIsOffline()` (mevcut hook) + hata adı/
+mesajı (`AuthRetryableFetchError` veya "network"/"fetch" içeren mesaj) ile
+ağ kaynaklı başarısızlık gerçek kimlik doğrulama reddinden (401/403,
+`invalid_grant`) ayrıştırılıyor. Ağ kaynaklıysa VE `useHasatMobileSession`
+(zustand, `LargeSecureStore`'da kalıcı) bir önbelleklenmiş kullanıcı
+gösteriyorsa, o kullanıcıya güvenilip doğrudan `/home` (veya isim boşsa
+`/onboarding`) hedeflenir — profil sorgusu da offline'da denenmiyor
+(zaten başarısız olurdu). Yalnızca hem yerel önbellek yoksa hem de hata ağ
+kaynaklı değilse `/login`'e düşülüyor — bu, gerçek bir kimlik doğrulama
+reddidir.
+
+**Malzeme kartlarının offline davranışı (adım 13-14) — teşhis: zaten
+doğruydu.** `app/recipe/[slug].tsx`'teki `IngredientCard`, `isOffline`
+true'yken zaten yalnızca "Çevrimdışı — fiyat ve stok bilgisi gösterilmiyor."
+nötr metnini render ediyor, Sipariş Ver/Talep Et butonları o dalda hiç
+yok (muhtemelen M6-ek'te eklenmiş). Bu maddede **hiçbir değişiklik
+gerekmedi** — S33'te bu adımların başarısız görünmesinin tek nedeni, uygulamanın
+girişte hiç `/home`'a ulaşamaması, kartların kendisi değil. Aynı şekilde
+bulk prefetch (adım 12, `expo-sqlite`) M5-b-ek'ten beri kodda mevcut ve
+dokunulmadı — giriş ekranı engeli kalktığında bu adımlar da açılacak.
+
+### 2 — 🔴 Hesap silme sonrası oturum temizlenmiyor + web çıkış fatal hatası
+
+**DB tarafı (`rpc_delete_own_account`) dokunulmadı, yeniden doğrulandı** —
+atılabilir bir test kullanıcısıyla (buyer, gerçek `auth.users` insert +
+`SET LOCAL ROLE authenticated` impersonation) gerçek RPC çağrısı: `profiles.
+name='Silinmiş Kullanıcı'`, `phone`/`iban` NULL, `device_tokens` 0 satıra
+düştü, `auth.users.phone` NULL + `banned_until=infinity` doğru ✅ — P26'daki
+orijinal davranışın aynısı, regresyon yok. Test verisi temizlendi.
+
+**Mobil kök neden:** `app/profile.tsx`'teki `afterAccountDeleted()`,
+`supabase.auth.signOut()`'u **varsayılan `global` scope'la** çağırıyordu —
+bu bir `/logout` ağ isteği atar. Hesap silindikten hemen sonra `auth.users.
+banned_until='infinity'` olduğu için bu istek reddedilebiliyor/gecikebiliyor;
+`catch {}` hatayı yutuyordu ama ardından çağrılan `clear()` yalnızca zustand
+store'unu temizliyordu — Supabase'in kendi oturum kaydı (`LargeSecureStore`),
+TanStack Query cache'i ve offline sqlite önbelleği **dokunulmadan**
+kalıyordu; ekranda önbellekteki "Silinmiş Kullanıcı" profili görünmeye
+devam ediyordu.
+
+**Mobil düzeltme:** Hesap silme akışında (`afterAccountDeleted`)
+`supabase.auth.signOut({ scope: "local" })` — Supabase'in resmî "offline/
+banned hesap" deseni, hiç ağa çıkmadan yalnızca cihazdaki oturumu temizler
+(hesap artık banned olduğu için sunucuya `/logout` isteği atmak gereksiz
+ağ bağımlılığı + red riski taşır). Normal "Çıkış Yap" (`signOut`) varsayılan
+`global` scope'ta bırakıldı — kullanıcı bilerek çıkış yapıyor, refresh
+token'ının sunucuda da geçersiz kılınması (diğer cihazlardan da çıkış)
+doğru davranış, bunu değiştirmek görev kapsamının dışındaydı. Geri kalan
+temizlik (zustand + TanStack Query cache + offline sqlite önbelleği +
+`/login`'e yönlendirme) her iki yolda da yeni bir merkezi modülde
+(`src/lib/hasat/sessionGuard.ts`) toplandı — `supabase.auth.
+onAuthStateChange`'in `SIGNED_OUT` event'ini dinleyip TEK yerden yapıyor.
+Bu, hem manuel çıkışta hem hesap silmede hem de üçüncü maddedeki ("oturum
+canlı kalırsa") otomatik durumda aynı yoldan geçiyor — kural #106'nın
+client-içi simetriği (aynı temizlik iki ayrı yerde sürüklenmesin).
+`clearRecipeCache()` (`src/lib/offline/db.ts`, yeni) offline sqlite
+önbelleğini temizliyor — bu önbellek yalnızca editoryal/genel tarif verisi
+tutuyor (kullanıcıya özel değil), temizlik bir gizlilik gereği değil,
+tutarlı "çıkış = temiz durum" davranışı içindir.
+
+**Web "çıkış fatal hata" — kök neden bulundu: yarışan çift temizlik.**
+Bu proje `SIGNED_OUT` event'ini İKİ ayrı yerde ele alıyordu: (1) `__root.tsx`
+→ `AuthBootstrap`'taki GLOBAL dinleyici (`reset()` + `router.navigate({to:"/"})`),
+(2) her sayfanın kendi `logout()`/`afterAccountDeleted()`'ındaki
+(`buyer.account.tsx`, `farmer.settings.tsx`) AYNI temizlik, `finally`
+bloğunda tekrar. `supabase.auth.signOut()` bu event'i kendi promise'i
+sonuçlanmadan (gotrue-js `_removeSession()` içinde) ateşliyor — yani tek bir
+"Çıkış Yap" tıklamasında `reset()`/`navigate()` neredeyse aynı anda İKİ
+farklı yerden tetikleniyordu. TanStack Router'ın navigasyon state machine'i
+ilk `navigate()`'in ürettiği unmount'un ortasına düşen ikinci `navigate()`
+çağrısıyla hataya düşüyordu — bu, projenin **kendi** kural #106'sının client
+içi simetrik ihlaliydi (aynı temizlik iki client arasında değil, aynı
+client'ın iki farklı yerinde ayrı ayrı sürüklenmişti).
+
+> **Doğrulama sınırı (kural #103):** Bu oturumun ağ politikası
+> `efuqpiaavrzimvstpdpm.supabase.co`'ya `CONNECT`'i reddediyor (agent proxy
+> `403 gateway answered 403 to CONNECT`, hem `curl` hem Playwright/Chromium'la
+> doğrulandı) — web dev server bu oturumda çalıştırılıp Playwright ile OTP
+> girişi denenmişti ama gerçek Supabase Auth'a ulaşamadı. Kök neden analizi
+> tamamen statik kod okumasıyla yapıldı (yukarıdaki race koşulu), gerçek
+> tarayıcıda "Çıkış Yap"a basıp hatanın kaybolduğunu görmek Berkin'e kalıyor.
+
+**Web düzeltme:** Aynı mimari mobile taşındı — yeni `src/lib/hasat/
+sessionGuard.ts` (`markExpectedSignOut`/`takeExpectedSignOut`), `__root.tsx`
+→ `AuthBootstrap`'ın `SIGNED_OUT` dinleyicisi artık TEK temizlik noktası
+(`reset()` + `queryClient.clear()` + yönlendirme + beklenmedikse
+`toast.error("Oturumun sona erdi...")`). `buyer.account.tsx` ve
+`farmer.settings.tsx`'in `logout()`/`afterAccountDeleted()`'ı artık yalnızca
+`markExpectedSignOut()` + `signOut()` çağırıyor, kendi `reset()`/`navigate()`'ini
+çağırmıyor (ölü kod haline gelen `useNavigate`/`reset`/`setRole`
+değişkenleri kaldırıldı). Hesap silme akışında burada da `scope:"local"`
+kullanılıyor (aynı banned-hesap gerekçesi).
+
+**Üçüncü madde — "oturum bir şekilde canlı kalırsa" güvenlik ağı.**
+`auth.users` hard-delete edilmiyor (kural #116), yalnızca `banned_until`
+set ediliyor — PostgREST bunu istek başına kontrol ETMİYOR (yalnızca JWT
+imza/süre doğrular), bu yüzden hesap silindiği anda MEVCUT bir access token
+hâlâ geçerli kalmaya devam eder. Gerçek red, token'ın doğal süresi dolup
+`autoRefreshToken`'ın arka planda yenilemeyi denediği anda gelir — gotrue-js
+bu reddi (banned → 401/403, ağ hatası değil) otomatik olarak `_removeSession()`
++ `SIGNED_OUT` event'i olarak yayınlar. Mobil `sessionGuard.ts` ve web
+`AuthBootstrap` dinleyicisi bu event'i zaten TEK noktadan yakalıyor — mobilde
+`login.tsx`'e "Oturumun sona erdi. Lütfen tekrar giriş yap." mesajı
+(`takePendingSessionMessage`), webde `toast.error(...)` ile kullanıcıya
+anlamlı bir mesaj gösteriliyor, sessizce kırılmıyor. Gerçek bir banned
+oturumla bu senaryonun uçtan uca tetiklenmesi (saatlerce beklemek gerektiği
+için) bu oturumda **doğrulanamadı** (kural #103) — mekanizma kod
+okumasıyla + gotrue-js'in belgelenmiş `SIGNED_OUT`-on-refresh-failure
+davranışına dayanıyor.
+
+### 3 — 🔴 Push gönderim mekanizması kuruldu
+
+**Kök neden teşhisi doğrulandı:** `device_tokens`'ta Berkin'in gerçek iOS
+Expo push token'ı vardı (`ExponentPushToken[syOKkeBTcgERIoAPkCKRJr]`,
+P23-M6'da `rpc_register_device_token` ile kaydedilmiş) ama projedeki 11 edge
+function'ın hiçbiri push göndermiyordu — **M6'da token kaydı yapıldı,
+gönderim hiç kurulmadı; bu turdan önce bilinçli/kayıtlı bir kapsam kararı
+değildi, sessiz bir eksikti.**
+
+**Kurulan altyapı (Supabase, `dispatch_sms`/`send-sms`'in kardeşi):**
+- `notif_prefs`'e 11 yeni `_push` kolonu eklendi (`offer_accepted_push`,
+  `offer_countered_push`, `payment_confirmed_push`, `order_shipped_push`,
+  `order_delivered_push`, `order_cancelled_push`, `dispute_opened_push`,
+  `crop_request_match_push`, `subscription_new_push`,
+  `subscription_accepted_push`, `subscription_rejected_push` — hepsi
+  `DEFAULT true`, mevcut `new_offer_push`/`price_alert_push`/
+  `harvest_time_push`/`community_push` zaten vardı).
+- `dispatch_push(_user_id, _event, _title, _message)` (SQL, yeni) —
+  `dispatch_sms`'in birebir kardeşi: event→pref-kolon eşlemesi, `notif_prefs`
+  kontrolü, kullanıcının TÜM `device_tokens` satırları toplanıp `send-push`
+  edge function'ına `net.http_post` ile gönderiliyor.
+- `send-push` (edge function, yeni) — Expo Push API'ye (`https://exp.host/
+  --/api/v2/push/send`) gönderiyor. Expo `DeviceNotRegistered` hatası
+  dönerse (anlık ticket seviyesinde) o token `device_tokens`'tan siliniyor.
+  ⚠️ **Bilinen sınır:** Expo'nun tam teslimat garantisi için ayrı bir
+  "getReceipts" u pass~15 dk sonra kontrol edilmesi gerekir — bu turda
+  yalnızca anlık ticket hatası ele alındı, gecikmeli receipt kontrolü
+  uygulanmadı (raporlanıyor, kapsam dışı bırakılmadı — bilinçli bir
+  sınırlama olarak not düşülüyor).
+- 6 trigger fonksiyonu (`notify_offer_received`, `notify_offer_accepted`,
+  `notify_subscription_changes`, `notify_order_status`,
+  `send_subscription_harvest_reminders`, `notify_crop_request_fulfilled`)
+  her `dispatch_sms` çağrısının yanına bir `dispatch_push` çağrısı eklendi.
+  **`offer_countered` dalı** (S33 adım 36-38'in tam repro'su — teklif kabul
+  VE karşı teklifte hiç push gelmiyordu) daha önce dispatch_sms bile
+  çağırmıyordu; bu turda yalnızca **push** eklendi, SMS'e dokunulmadı
+  (kapsam kararı — görev metni yalnızca push eksiğini raporlamıştı).
+
+**⚠️ Kural #101/#106 — event→kanal eşlemesi ikinci kez çoğaltılmadı, bilinçli
+mimari fark:** `send-sms`, `dispatch_sms`'in event-map'ini KENDİ İÇİNDE de
+tekrarlıyor (dosyanın kendi yorumu: "Keep this map in sync with... If you
+add/remove an event in one, mirror the change in the other") — tam olarak
+P20/P24'te SMS'i sessizce kıran drift deseni. `send-push` bunu **tekrar
+etmiyor**: eligibility (event→kolon eşlemesi + `notif_prefs` kontrolü)
+YALNIZCA `dispatch_push`'ta (DB'de) yaşıyor, `send-push` kör bir gönderici —
+aldığı token listesine gönderir, ikinci bir tercih kontrolü yapmaz.
+`send-sms`'in kendi duplikasyonu bu turda **düzeltilmedi** (kapsam dışı,
+canlı SMS hattına gereksiz dokunma riski) ama yeni koda aynı hata
+**taşınmadı**.
+
+**SMS'in hâlâ çalıştığını kanıtlama (gerçek gönderim yapmadan):**
+`BEGIN; SELECT dispatch_sms(...); SELECT * FROM net.http_request_queue
+ORDER BY id DESC LIMIT 3; ROLLBACK;` — `send-sms`'e doğru URL/payload'la
+(event `new_offer`, Ahmet'in `new_offer_sms` tercihi `true`) bir istek
+kuyruklandığı görüldü, sonra `ROLLBACK` ile gerçek gönderim **iptal edildi**
+(post-rollback kontrolle satırın gerçekten kaybolduğu doğrulandı). Push
+eklenmeden önce/sonra `dispatch_sms`/`send-sms` fonksiyon tanımları
+değiştirilmedi — SMS hattı dokunulmadan kaldı.
+
+**Push'un gerçek bir çağrıyla test edilmesi:** Berkin'in kayıtlı iOS
+token'ına gerçek bir `dispatch_push()` çağrısı yapıldı (test verisi değil,
+Berkin'in kendi hesabı — `new_offer_push=true` ön koşulu doğrulandı).
+`net._http_response`'ta sonuç: Expo API `200 {"data":[{"status":"ok","id":
+"019feb9e-0739-723a-88ae-74427311bfe3"}]}` — Expo mesajı kabul etti (ticket
+üretti). **Gerçek bildirim teslimatının Berkin'in fiziksel cihazına
+ulaştığı bu oturumda doğrulanamaz (kural #103)** — Berkin telefonunu
+kontrol etmeli.
+
+**Bildirime dokunma → yönlendirme (adım 38):** `src/lib/native/
+notifications.ts`'e `attachNotificationTapRouting()` eklendi
+(`Notifications.addNotificationResponseReceivedListener` +
+`getLastNotificationResponseAsync` — hem ön/arka plandayken dokunmayı hem
+soğuk başlatmayı kapsıyor), `_layout.tsx`'te bir kez çağrılıyor. `data.event`'e
+göre `/orders`'a (offer/order/subscription ailesi) veya `/home`'a
+(crop_request_match/price_alert/harvest_time) yönlendiriyor — mobil v1'de
+pazarlık yanıtı/checkout olmadığı için (`_Context.md` → "Mobil v1 kapsamı")
+tüm offer/order alt-tiplerinin tek hedefi Siparişlerim (salt okunur).
+
+### 4 — 🔴 Parsel ekleme trigger regresyonu — kök neden, ⚠️ 5 gündür canlıda kırık (denetim izi)
+
+**Kök neden doğrulandı:** `trg_enforce_min_order_le_quantity` (P23-M1-a'da
+eklendi, `Build/E2E-QA.md` → S18) yalnızca `min_order > quantity` olan HER
+INSERT'i reddediyordu — parsel oluşturma akışının kendi trigger'ı
+(`tg_parcels_after_insert` → `create_draft_listings_for_parcel`, P23-M1-a'dan
+ÖNCE zaten var olan bir mekanizma) her yeni parsel için `quantity=0,
+min_order=10, status='draft'` ile otomatik taslak ilan yaratıyor —
+tam olarak reddedilen desen. **P23-M1-a bu etkileşimi öngörmedi** ("mevcut
+21 draft'a dokunmuyorum" kararı verildi ama trigger'ın yeni draft'ları da
+engelleyeceği fark edilmedi). Live DB'de doğrulandı: 21 draft satırın
+**tamamı** `quantity=0`/`min_order>quantity` ihlal deseninde, 17 aktif
+ilanın **hiçbiri** ihlal etmiyor — kriterin `status='draft'` olması gerektiği
+buradan da teyit edildi. **Regresyon süresi: P23-M1-a'nın deploy tarihi
+(2026-07-28) ile bu düzeltme (2026-08-10) arasında ~13 gün canlıda kırık
+durdu; görev metninin belirttiği "~5 gündür" muhtemelen Berkin'in bunu fark
+ettiği tarihe göreydi — kırık kalma süresinin gerçek başlangıcı P23-M1-a'nın
+deploy anı, ilk fark edilme değil.**
+
+**Düzeltme:** `tg_enforce_min_order_le_quantity()` artık `NEW.status <>
+'draft'` koşuluyla sarılı — draft'lar (satılabilir değil, "Yayınlamadan
+önce miktar ve fiyatı güncelleyin" UI uyarısıyla zaten işaretli) muaf,
+aktif ilanlar için kontrol **aynen** korunuyor. Trigger kaldırılmadı, yalnızca
+koşulu daraltıldı.
+
+**Gerçek insert ile doğrulama (tek transaction, ROLLBACK):**
+`create_draft_listings_for_parcel(farmer, null, ARRAY['test_p23m8b_crop'])`
+→ artık **başarılı** (draft insert geçti) ✅; ardından aynı transaction'da
+`INSERT ... status='active', quantity=5, min_order=10` → **hâlâ reddedildi**
+(`23514: min_order (10.00) quantity (5.00) üzerinde olamaz`) ✅ — koruma
+kırılmadı. `ROLLBACK` ile test verisi hiç kalıcı olmadı.
+
+**Draft→active geçişinde kontrol var mı? — Tespit edildi, DÜZELTİLMEDİ
+(kapsam kararı, görev metninin talimatı).** `trg_enforce_min_order_le_quantity`
+yalnızca `BEFORE INSERT` (`pg_trigger` ile doğrulandı — `listings` tablosunda
+UPDATE'i yakalayan başka bir trigger yok). Web'in `ListingSheet.save()`'i
+(`farmer.storefront.tsx`) taslağı yayınlarken yalnızca `quantity <= 0` ve
+`price <= 0` kontrol ediyor, **`min_order > quantity`'yi HİÇ kontrol
+etmiyor**. Sonuç: bir kullanıcı `quantity=5` girip `min_order`'ı
+varsayılan `10`'da bırakıp "Yayınla"ya basarsa, ilan `min_order > quantity`
+ile **aktifleşebilir** — bu, trigger'ın asıl amacının (satılabilir bir
+ilanda sipariş verilmesinin matematiksel olarak imkânsız olmaması) sessizce
+delinmesi demek. Düzeltme bu turun kapsamı dışında bırakıldı.
+
+### 5 — `eas.json` submit profili eklendi
+
+`hasat-mobile/eas.json` → `build` bloğunun kardeşi olarak `submit` bloğu:
+```json
+"submit": { "ios-testflight": { "ios": {
+  "appleId": "berkinsavciozen@gmail.com",
+  "appleTeamId": "XM562PFC7F"
+} } }
+```
+**`ascAppId` bilinçli olarak boş bırakıldı** (uydurulmadı) — Berkin'in
+alacağı yer: **App Store Connect → Hasat-AI → App Information → Apple ID**
+(sayısal bir ID, "Hasat-AI" App Store Connect'te zaten oluşturulmuştu,
+`Build/Store-Compliance.md` → Bölüm 1). Bu alan olmadan `eas submit
+--profile ios-testflight --non-interactive` (Actions'tan) çalışmaz;
+interaktif `eas submit -p ios --profile ios-testflight --latest` (Berkin'in
+terminalinden, daha önce zaten böyle çalıştırmıştı) **hâlâ çalışır** — EAS
+`ascAppId` eksikse App Store Connect'teki uygulamayı interaktif olarak
+seçmeni ister.
+
+### 6 — Sürüm numarası
+
+`app.json` → `expo.version`: `"0.1.0"` → `"1.0.0"`. `buildNumber`'a
+dokunulmadı (`autoIncrement: true` zaten `eas.json`'daki `ios-testflight`/
+`android-device` profillerinde yönetiyor, mevcut değer 2).
+
+### Doğrulama (kural #96)
+
+| Kontrol | Sonuç |
+|---|---|
+| `tsc --noEmit` — `hasat-mobile` (`npm install` sonrası) | ✅ Temiz |
+| `tsc --noEmit` — `hasat-d2c-marketplace` (`npm install` sonrası) | ✅ Temiz |
+| `tsc --noEmit` — `hasat-core` (`npm install` sonrası) | ✅ Temiz |
+| Parsel trigger — draft insert (gerçek, ROLLBACK) | ✅ Artık geçiyor |
+| Parsel trigger — aktif ilanda `min_order>quantity` (gerçek, ROLLBACK) | ✅ Hâlâ reddediliyor, koruma kırılmadı |
+| Hesap silme RPC — atılabilir test kullanıcısıyla gerçek insert + impersonation | ✅ `profiles`/`auth.users`/`device_tokens` beklendiği gibi, test verisi temizlendi |
+| SMS hâlâ çalışıyor mu (gerçek gönderim yok) | ✅ `net.http_request_queue`'da doğru payload görüldü, `ROLLBACK` ile iptal edildi |
+| Push gerçek çağrı | ✅ Expo API `200`/`status:"ok"` — ticket üretildi; **fiziksel teslimat doğrulanamadı (kural #103)**, Berkin telefonunu kontrol etmeli |
+| `eas.json`/`app.json` JSON geçerliliği | ✅ `json.load` ile doğrulandı |
+| Web "çıkış fatal hata" — gerçek tarayıcı click-through | 🔴 **Doğrulanamadı (kural #103)** — bu oturumun ağ politikası `efuqpiaavrzimvstpdpm.supabase.co`'ya `CONNECT`'i reddediyor (agent proxy `403`, hem `curl` hem Playwright/Chromium'la doğrulandı); kök neden analizi statik kod okumasıyla yapıldı |
+| Uçak modu — gerçek cihaz | 🔴 **Doğrulanamadı (kural #103)** — Berkin'de, `Build/E2E-QA.md` → S33 Bölüm C yeniden koşulmalı |
+| Banned oturum güvenlik ağı — uçtan uca (saatler süren token expiry) | 🔴 **Doğrulanamadı (kural #103)** — mekanizma kod okuması + gotrue-js'in belgelenmiş davranışına dayanıyor |
+| Bildirime dokunma → yönlendirme — gerçek cihaz | 🔴 **Doğrulanamadı (kural #103)** — kod okumasıyla doğrulandı, `Build/E2E-QA.md` → S33 adım 38'de koşulmalı |
+
+### Dokunulan dosyalar
+
+**`hasat-mobile`:** `app/index.tsx` · `app/_layout.tsx` · `app/login.tsx` ·
+`app/profile.tsx` · `src/lib/hasat/sessionGuard.ts` (yeni) ·
+`src/lib/offline/db.ts` · `src/lib/native/notifications.ts` ·
+`src/lib/core/db/types.ts` (hasat-core'dan senkron, elle düzenlenmedi) ·
+`src/lib/core/.manifest` (senkron) · `eas.json` · `app.json`
+
+**`hasat-d2c-marketplace`:** `src/routes/__root.tsx` ·
+`src/routes/buyer.account.tsx` · `src/routes/farmer.settings.tsx` ·
+`src/lib/hasat/sessionGuard.ts` (yeni) · `src/lib/core/db/types.ts`
+(hasat-core'dan senkron) · `src/lib/core/.manifest` (senkron)
+
+**`hasat-core`:** `core/db/types.ts` (yeniden üretildi — `notif_prefs` 11
+yeni `_push` kolonu + `dispatch_push` fonksiyon imzası) · `core/.manifest`
+
+**Supabase şeması (migration'lar):**
+`p23_m8b_fix_min_order_trigger_exempt_draft` ·
+`p23_m8b_push_notif_prefs_columns` · `p23_m8b_dispatch_push_function` ·
+`p23_m8b_wire_dispatch_push_into_notify_triggers` · edge function `send-push`
+(yeni, deploy).
+
+**`hasat-vault`:** `TODO.md` (bu build log) · `Build/Store-Compliance.md` ·
+`Build/E2E-QA.md` · `Build/Launch-Plan.md`
+
+### Dokunulmayan (kapsam kuralı tutuldu)
+
+`src/lib/core/` elle düzenlenmedi (kural #105 — yalnızca hasat-core'da
+üretilip iki hedefe byte-birebir kopyalandı, `check-drift.mjs` ile
+doğrulandı) · checkout/ödeme · çiftçi rol yönlendirmesi · `source_recipe_id`
+· klavye modalı · siparişlerim ekranı · pişirme modu "Devam Et" · OTP
+autofill · kalan kayan nokta yerleri · adım fotoğrafı (hepsi T2/T3/T4
+kapsamı, ayrı turlarda) · `dispatch_sms`/`send-sms`'in kendi event-map
+duplikasyonu (tespit edildi, düzeltilmedi — kapsam dışı, canlı SMS hattına
+gereksiz dokunma riski) · draft→active geçişinde min_order/quantity
+kontrolü eksikliği (tespit edildi, raporlandı, düzeltilmedi — görev
+metninin kendi kapsam kararı) · Expo push receipt polling (bilinen sınır,
+raporlandı).
+
