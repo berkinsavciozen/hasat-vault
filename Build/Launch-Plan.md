@@ -40,9 +40,9 @@ nedeniyle) güncellendi; hiçbir kod/DB/migration/edge function değiştirilmedi
 | E2 | Landing sayfası lansman mesajı | 🤖 Claude Code | 21 Ağu | ⬜ Planlandı |
 | **E3 — Alıcı akışı** | Uçtan uca denetim | 🎯 Orkestratör | 17 Ağu | ⬜ Planlandı |
 | E3 | Boş durum ekranları | 🤖 Claude Code | 18 Ağu | ⬜ Planlandı |
-| **E4 — Çiftçi akışı** | Uçtan uca denetim | 🎯 Orkestratör | 17 Ağu | ⬜ Planlandı |
-| E4 | İlan fotoğrafı zorunluluğu | 👤 Berkin | 12 Ağu | 🔴 **Karar bekliyor** — bkz. bölüm 4, madde 2 |
-| E4 | "Nasıl başlarım" rehberi (çiftçi onboarding) | 🤖 Claude Code | 18 Ağu | ⬜ Planlandı |
+| **E4 — Çiftçi akışı** | Uçtan uca denetim | 🎯 Orkestratör | 17 Ağu | ✅ **Yapıldı (2026-08-12, P23-M8-c)** — statik kod denetimi (kural #103, gerçek tarayıcı erişimi bu oturumda engelli); ana omurgada (kayıt→parsel→günlük→ilan→teklif yanıtı→sipariş) kırık nokta bulunmadı, iki küçük bulgu raporlandı (`TODO.md` → "P23-M8-c") |
+| E4 | İlan fotoğrafı zorunluluğu | 👤 Berkin | 12 Ağu | ✅ **Karar verildi ve uygulandı (P23-M8-c) — zorunlu DEĞİL**, kaydetmeden hemen önce yumuşak `window.confirm` uyarısı ("Fotoğraflı ilanlar daha çok teklif alıyor"). Bkz. bölüm 4, madde 2 (artık çözüldü) |
+| E4 | "Nasıl başlarım" rehberi (çiftçi onboarding) | 🤖 Claude Code | 18 Ağu | ✅ **Yapıldı (2026-08-12, P23-M8-c)** — `farmer.home.tsx` boş-durum kartı 3 adımlık rehbere çevrildi (parsel→hasat kaydı→vitrin), her adım gerçek veriyle tamamlandı işaretleniyor |
 | E4 | İlk 5-10 gerçek çiftçi kazanımı | 👤 Berkin | 20 Ağu | 🔴 Başlanmadı — bugünkü durum 17 ilan/9 crop, çoğu seed (bkz. bölüm 3, madde c) |
 | **E5 — Ödeme/Yasal** | Şirket tescili | 👤 Berkin | 7 Ağu | 🟡 Devam ediyor — hedefe 1 gün kaldı, henüz tamamlanmadı |
 | E5 | iyzico onboarding | 👤 Berkin | 8 Ağu | ⬜ Şirket tesciline bloke |
@@ -90,6 +90,29 @@ nedeniyle) güncellendi; hiçbir kod/DB/migration/edge function değiştirilmedi
 > görüntüleri, review notları) bu tabloda M8-a'nın öncesinde bitmesi
 > varsayılıyor ama **kesin tarihi yok** — Berkin'den netleşmeli.
 
+> **⚠️ İsim çakışması bulundu, sessizce üzerine yazılmadı (kural #107):**
+> Bu tablodaki **M8-c** ("APNs anahtarı + push doğrulama", 20 Eylül) ile
+> 2026-08-12'de yapılan görevin kendi adı olan **P23-M8-c** ("T2 — çiftçi
+> mobil rol yönlendirmesi + E4 + Actions build/submit birleştirmesi", bkz.
+> `TODO.md` → "P23-M8-c") **aynı kısaltmayı farklı işler için taşıyor.**
+> İkisi de bu dokümanda zaten vardı (M8-c burada 2026-08-06'dan beri, T1-T4
+> tur yapısı Bölüm 6'da 2026-08-10'dan beri) — bu tur ikisini birleştirmedi,
+> sadece fark edilip burada bildiriliyor. Berkin hangi numaralandırmanın
+> kalacağına karar vermeli (ör. T2/T3/T4 turlarını M8-c/d/e olarak yeniden
+> adlandırmak, ya da push doğrulama milestone'ını farklı bir isimle
+> ayırmak) — bu doküman kendi başına yeniden adlandırma yapmadı.
+
+**Actions build+submit birleştirmesi (P23-M8-c, 2026-08-12):**
+`eas-build-testflight.yml` artık build'den hemen sonra aynı işte `eas
+submit --non-interactive --latest` çalıştırıyor (App Store Connect API Key
+Team Key olarak EAS'a kayıtlı olduğu için etkileşimli Apple girişi
+gerekmiyor) — Berkin tek "Run workflow" ile hem build alıp hem TestFlight'a
+gönderebiliyor, önceki turda (M8-a) ayrı bırakılan terminal adımı ortadan
+kalktı. `eas.json` → `submit.ios-testflight.ios.ascAppId` dolduruldu
+(`6798678884`). Yukarıdaki milestone tablosundaki **M8-c** (APNs/push
+doğrulama, 20 Eylül) ile karıştırılmamalı — bu ayrı bir iş, yukarıdaki
+uyarıya bkz. Detay: `TODO.md` → "P23-M8-c".
+
 ---
 
 ## 3. Takvimin kırılgan noktaları
@@ -126,9 +149,12 @@ sunuluyor:
 1. **32 görsel (14 crop + 18 tarif) nasıl üretilecek?** Kendi çekim / stok
    fotoğraf / AI üretimi — üçü de farklı hız/maliyet/telif profiline sahip,
    14 Ağustos'a yetişecek yöntem Berkin'in kendi kapasitesine bağlı.
-2. **İlan fotoğrafı zorunlu mu?** E4'teki 12 Ağustos maddesi — zorunlu
-   kılınırsa mevcut fotoğrafsız ilanlar/çiftçiler etkilenir, kılınmazsa
-   marketplace'te fotoğrafsız ilan kalmaya devam eder.
+2. ~~**İlan fotoğrafı zorunlu mu?**~~ — ✅ **Çözüldü (P23-M8-c, 2026-08-12):**
+   Berkin kararı **zorunlu değil**. `ListingSheet` (`farmer.storefront.tsx`)
+   bir ilan aktif duruma geçmeden hemen önce, fotoğraf yoksa yumuşak bir
+   `window.confirm` uyarısı gösteriyor ("Fotoğraflı ilanlar daha çok teklif
+   alıyor") — engellemiyor, sadece hatırlatıyor. Detay: `TODO.md` →
+   "P23-M8-c".
 3. **Şirket tescili gecikirse: ödemesiz lansman mı, lansman ötelemesi mi?**
    Bölüm 3(a)'daki zincirin kırılması durumunda hangi yol izlenecek —
    "kapsam kesilmez, tarih ötelenir" kuralı burada da mı geçerli, yoksa web

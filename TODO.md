@@ -4376,3 +4376,163 @@ web'in `login.tsx`'indeki aynı naif `getSession()` deseni (yalnızca
 tetiklenirse en kötü ihtimalle kullanıcı login'de kalır, kilitlenme/tekrar
 toast riski yok, bu turun raporladığı semptomların dışında).
 
+## P23-M8-c — Çiftçi Mobil Rol Yönlendirmesi (T2) + E4 Çiftçi Denetimi + Actions Build/Submit Birleştirmesi (2026-08-12)
+
+Üç ayrı iş, tek turda: (1) T2 havuzundan tek madde — mobilde çiftçi rol
+yönlendirmesi (bkz. `Build/Launch-Plan.md` → "T2/T3/T4 — sıraya alındı");
+(2) E4 (çiftçi akışı — Launch-Plan Bölüm 1) uçtan uca denetim + fotoğraf
+teşviki + "nasıl başlarım" rehberi; (3) `eas-build-testflight.yml`'e submit
+adımının eklenmesi + `eas.json`'a `ascAppId` yazılması.
+
+### 1 — Çiftçi mobilde alıcı gibi davranabiliyordu (T2)
+
+**Bulgu doğrulandı:** `hasat-mobile`'da rol kontrolü hiç yoktu.
+`useHasatMobileSession`'ın `role` alanı (`login.tsx`'te `profiles.role`'den
+dolduruluyor) yalnızca UI metni için değil hiçbir yerde okunmuyordu —
+çiftçi hesabıyla giriş yapan biri Sipariş Ver (`app/product/[farmerId]/
+[crop].tsx`), Talep Et (`CropRequestSheet`) ve Siparişlerim (`app/
+orders.tsx`) dahil tüm alıcı akışlarına erişebiliyordu. Bu, P23-M7-d'de
+kayda geçirilen "seçenek 3" kararına aykırıydı (bkz. `Build/P23-Mobile.md`
+→ M5-b: "çiftçi rolüyle mobil girişin nasıl ele alınacağı" Berkin'e
+bırakılmıştı, henüz seçilmemişti — bu turun görev metni seçeneği verdi:
+tarifler açık kalsın, alıcıya özel akışlarda rol kontrolü olsun).
+
+**Düzeltme — `src/components/hasat/FarmerRedirectNotice.tsx` (yeni,
+`hasat-mobile`):** Ortak bir bildirim bileşeni — "Bu uygulama alıcılar
+için tasarlandı. Çiftçi işlemlerini web'den (hasat.lovable.app) veya
+WhatsApp'tan Hasat AI asistanıyla yapabilirsin." metni + iki buton (Web'de
+Aç, WhatsApp'ta Aç — `hasat-d2c-marketplace/src/lib/hasat/constants.ts`
+→ `HASAT_WHATSAPP_NUMBER` ile aynı sabit numara, iki repo arasında kod
+paylaşımı yok, sadece aynı değer). Üç yerde kullanıldı:
+- `app/orders.tsx` — `role==="farmer"` ise Siparişlerim'in tamamı bu
+  bildirimle değişiyor (deep link dahil, header/geri butonu kalıyor).
+- `app/product/[farmerId]/[crop].tsx` — Sipariş Ver ekranı aynı desen
+  (bütün hook'lar hâlâ çağrılıyor, sadece JSX dönüşü değişiyor —
+  React'in hooks kuralına uymak için erken dönüş tüm hook çağrılarından
+  SONRA).
+- `src/components/hasat/CropRequestSheet.tsx` — Talep Et bir route değil
+  bottom-sheet modal; `role==="farmer"` ise formun yerine aynı bildirim
+  render ediliyor, kapatma (✕) davranışı değişmedi.
+
+Tarif okuma/kaydetme (`app/home.tsx`, `app/recipe/[slug].tsx`, pişirme
+modu, AI import/"Defterim") **dokunulmadı** — M7-d kararı korundu.
+
+### 2 — E4: Çiftçi uçtan uca denetim + teşvikler
+
+**Denetim yöntemi (dürüstçe işaretleniyor, kural #103):** Bu oturumun ağ
+politikası `hasat.lovable.app` ve Supabase host'una doğrudan erişimi
+engelliyor (`curl` ile yeniden doğrulandı, `exit 56`/timeout) — gerçek
+tarayıcı click-through yapılamadı. Denetim statik kod okumasıyla yapıldı:
+kayıt (`onboarding.farmer.tsx`) → parsel (`farmer.settings.tsx` +
+`farmer.journal.index.tsx`'teki "+ Parsel" sheet) → günlük
+(`farmer.journal.new.tsx`, `farmer.journal.index.tsx`) → ilan
+(`farmer.storefront.tsx` → `ListingSheet`) → teklif yanıtı + sipariş
+(`farmer.orders.index.tsx`).
+
+**Kırık nokta bulunamadı** (kod seviyesinde) akışın ana omurgasında.
+Bulunan iki bulgu:
+- 🟡 **Kayıt akışında "Belge yükle" kutusu dekoratif** (`onboarding.farmer.tsx`
+  step 3) — `<input type="file">` ya da `onClick` YOK, sadece ikon+metin.
+  Gerçek sertifika yükleme yalnızca `farmer.settings.tsx`'te
+  (`useUploadCertification`) çalışıyor. Düzeltilmedi — görev kapsamı
+  "denetle, kırık nokta raporla" idi, bu görsel bir eksik/yanıltıcı UI ama
+  akışı kırmıyor (kayıt "Şimdilik atla" ile tamamlanabiliyor); Berkin'e
+  bırakılıyor.
+- 🟡 **İlk ilan oluşturma sırası UI'da açık değildi** — `ListingSheet`
+  parsel seçilmeden yeni ilan kaydını reddediyor (`if (!editing &&
+  !parcelId) { toast.error("Parsel seçin"); return; }`), ama eski boş-durum
+  metni ("Vitrine bir ürün ekleyin") bu ön koşulu hiç söylemiyordu — bir
+  çiftçi doğrudan "Ürün Listele"ye basıp parsel seçiciyi boş bulabilirdi.
+  Bu, aşağıdaki "nasıl başlarım" rehberiyle düzeltildi (sıra artık açık:
+  parsel → hasat kaydı (opsiyonel) → vitrin).
+
+Teklif yanıtı (`farmer.orders.index.tsx` → Kabul Et/Karşı Teklif/Reddet/
+Ödeme onayı) ve sipariş (Kargoya Ver/İptal/Değerlendir) akışları kod
+seviyesinde eksiksiz görünüyor — P15 teklif state machine + P17-B sipariş
+sonrası akışın üstüne kurulu, bu turda yeni bir bulgu çıkmadı.
+
+**Fotoğraf teşviki (zorunlu değil, Berkin kararı) —
+`farmer.storefront.tsx` → `ListingSheet.save()`:** Bir ilan "aktif" duruma
+geçmeden (yeni ilan yayınlanırken ya da taslak yayınlanırken) hemen önce,
+hiç fotoğraf yoksa `window.confirm` ile "Fotoğraflı ilanlar daha çok
+teklif alıyor. Fotoğrafsız devam etmek istiyor musunuz?" gösteriliyor —
+aynı dosyadaki mevcut g/kg fiyat-mantık-hatası kontrolüyle birebir aynı
+desen (native confirm, Tamam/Vazgeç). Kapsam kasıtlı olarak dar tutuldu:
+zaten aktif bir ilanın diğer alanlarını (fiyat, miktar vb.) düzenlerken
+fotoğraf durumu sorgulanmıyor — her düzenlemede aynı uyarıyı tekrarlamak
+rahatsız edici olurdu, "yumuşak" ilkesiyle çelişirdi.
+
+**"Nasıl başlarım" rehberi — `farmer.home.tsx`:** Boş hesaplı bir çiftçiye
+(`isEmpty = entries.length===0 && listings.length===0`) gösterilen kartı,
+tek "Hasat Kaydet + Vitrine Ekle" buton çiftinden üç adımlık numaralı bir
+listeye (`StartStep`, yeni yardımcı bileşen) çevirdi: 1) Parsel ekleyin
+(`/farmer/journal`) 2) Hasadınızı kaydedin (opsiyonel, AI chat) 3) Vitrine
+ilan ekleyin (`/farmer/storefront`). Her adım gerçek veriye göre (parsel/
+kayıt/ilan sayısı) tamamlandı işaretleniyor — örn. `onboarding.farmer.tsx`
+kayıt sırasında zaten bir parsel oluşturduysa (crop+arazi seçildiyse) adım
+1 baştan ✓ görünür. Mevcut genel `OnboardingTour` (tur balonları, `tab-
+storefront`/`tab-prices` vb.) **dokunulmadı** — bu iki mekanizma birbirini
+tekrarlamıyor: tur genel navigasyonu anlatıyor, bu kart ilk-veri-girişi
+sırasını anlatıyor.
+
+### 3 — Actions'ta build + submit birleştirme
+
+**Bağlam:** App Store Connect API Key artık EAS'a Team Key olarak kayıtlı
+(Admin erişim, Key ID `TGL8Z9MNTT`) — Berkin'in terminalinde `eas submit
+--non-interactive` etkileşimli Apple kimlik doğrulaması istemeden
+çalıştı. Önceki turda (`P23-M8-a`) submit bilinçli olarak ayrı, tek
+seferlik bir terminal adımı bırakılmıştı çünkü o zaman non-interactive
+submit mümkün değildi.
+
+**`eas.json`:** `submit.ios-testflight.ios.ascAppId` = `"6798678884"`
+eklendi (App Store Connect'teki Hasat-AI'ın Apple ID'si, Berkin'in
+terminal çıktısından). Bu alan olmadan non-interactive submit uygulamayı
+bundle ID'den etkileşimli aramaya çalışıp takılabiliyor — `appleId`/
+`appleTeamId` zaten vardı, üçü birlikte tam non-interactive kimlik seti.
+
+**`.github/workflows/eas-build-testflight.yml`:** Build adımından hemen
+sonra aynı job'a `eas submit --profile ios-testflight --platform ios
+--non-interactive --latest` adımı eklendi (`--latest`, aynı iş içinde az
+önce tamamlanan build'i otomatik seçiyor). Submit adımı `if: always()`
+DEĞİL — build başarısız olursa GitHub Actions'ın varsayılan davranışı
+gereği submit hiç çalışmıyor (submit edilecek yeni bir build yoksa
+denenmemesi doğru). Kota koruması değişmedi (submit build kotasına dahil
+değil, yalnızca build'ler sayılıyor) — özet metni bunu netleştirecek
+şekilde güncellendi. Workflow adı "EAS TestFlight Build (iOS)"'tan "EAS
+TestFlight Build + Submit (iOS)"a değişti.
+
+### Doğrulama (kural #96)
+
+| Kontrol | Sonuç |
+|---|---|
+| `hasat-mobile` rol yönlendirmesi — kod seviyesi | ✅ `role==="farmer"` üç yüzeyde (`orders.tsx`, `product/[farmerId]/[crop].tsx`, `CropRequestSheet`) doğrulandı; tarif ekranlarına dokunulmadığı `git diff` ile teyit edildi |
+| `hasat-mobile` `tsc --noEmit` | ✅ Temiz (`npm install` sonrası) |
+| `hasat-d2c-marketplace` `tsc --noEmit` | ✅ Temiz (`npm install` sonrası) |
+| `eas.json` JSON geçerliliği | ✅ `json.load` ile doğrulandı, diff yalnızca `ascAppId` eklemesi |
+| `eas-build-testflight.yml` YAML sözdizimi + yalnızca `workflow_dispatch` | ✅ PyYAML ile parse edildi, geçerli |
+| Fotoğraf teşviki — kod okuması | ✅ `becomingActive` mantığı (yeni ilan + `!batchDecisionOverride`, ya da taslak→aktif) doğrulandı; zaten-aktif ilan düzenlemesinde tetiklenmediği kod okumasıyla teyit edildi |
+| "Nasıl başlarım" rehberi — kod okuması | ✅ Üç `done` koşulu (`parcels/entries/listings.length>0`) mevcut query hook'larına doğru bağlandı |
+| Web/mobil gerçek tarayıcı/simülatör click-through'u (rol yönlendirmesi, fotoğraf uyarısı, rehber, `eas build`/`eas submit` gerçek çalıştırması) | 🔴 **Doğrulanamadı (kural #103)** — bu oturumun ağ politikası hem `hasat.lovable.app`/Supabase'e hem `expo.dev`'e erişimi engelliyor (`curl` ile yeniden doğrulandı). Berkin'in gerçek çiftçi hesabıyla mobilde + tarayıcıda + Actions'tan "Run workflow" ile doğrulaması gerekiyor. |
+
+### Dokunulan dosyalar
+
+**`hasat-mobile`:** `src/components/hasat/FarmerRedirectNotice.tsx`
+(yeni) · `app/orders.tsx` · `app/product/[farmerId]/[crop].tsx` ·
+`src/components/hasat/CropRequestSheet.tsx` · `eas.json` ·
+`.github/workflows/eas-build-testflight.yml`
+
+**`hasat-d2c-marketplace`:** `src/routes/farmer.home.tsx` ·
+`src/routes/farmer.storefront.tsx`
+
+**`hasat-vault`:** `TODO.md` (bu build log) · `Build/Launch-Plan.md` (E4
+madde durumları + Actions submit birleştirme notu)
+
+### Dokunulmayan (kapsam kuralı tutuldu)
+
+`src/lib/core/` (kural #105, hiçbir dosya değişmedi) · T1-b'nin auth/push
+kodu · `source_recipe_id` (T3) · klavye/OTP/pişirme modu (T4) · checkout ·
+`crop_config`/Supabase şema değişikliği yok (kural #115'in sıralaması bu
+turda gerekmedi) · genel `OnboardingTour` mekanizması (yalnızca boş-durum
+kartı değişti) · teklif yanıtı/sipariş akışının kendisi (yalnızca
+denetlendi, kod değişikliği yok — bu turda bulgu çıkmadı).
+
