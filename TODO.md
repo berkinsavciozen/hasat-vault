@@ -4536,3 +4536,246 @@ turda gerekmedi) · genel `OnboardingTour` mekanizması (yalnızca boş-durum
 kartı değişti) · teklif yanıtı/sipariş akışının kendisi (yalnızca
 denetlendi, kod değişikliği yok — bu turda bulgu çıkmadı).
 
+---
+
+## P23-M8-c2 — T2/T3/T4 Havuzundan T3: E3 Alıcı Düzeltmeleri + Ölçüm (2026-08-17)
+
+T2/T3/T4 havuzundan (`Build/Launch-Plan.md` → "T1-T4 tur yapısı") T3 turu:
+`source_recipe_id` atfı, Siparişlerim'de dokunma, boş durum ekranları,
+kalan kayan nokta yerleri, ısı haritası doğrulaması. Üç repo: `hasat-mobile`
+(1, 2, 3), `hasat-d2c-marketplace` (3, 4), doğrulama Supabase MCP ile
+doğrudan (5).
+
+### 1 — `source_recipe_id` yazılmıyordu (mobil bulgusu, web'de de bulundu)
+
+**Kök neden:** `hasat-mobile/src/lib/hasat/offers.ts` → `useCreateOffer`,
+`rpc_create_offer`'a **her zaman** `p_source_recipe_id: undefined`
+gönderiyordu — parametre RPC tarafında zaten kabul ediliyordu (P23-M2-ek),
+ama mobil client hiçbir zaman doldurmuyordu. Zincir kırığı üç dosyada:
+`app/recipe/[slug].tsx`'teki "Sipariş Ver" `router.push`'u `recipeId`'yi
+`/product/[farmerId]/[crop]` rotasına hiç taşımıyordu → o ekran param'ı
+okumuyordu → `useCreateOffer`'a hiç geçmiyordu.
+
+**Düzeltme (üç dosya, `hasat-mobile`):**
+- `app/recipe/[slug].tsx` — "Sipariş Ver" `router.push`'una `recipeId`
+  (zaten `IngredientCard`'a prop olarak geliyordu, `isOwn` ise `undefined`)
+  eklendi.
+- `app/product/[farmerId]/[crop].tsx` — `useLocalSearchParams`'a
+  `recipeId?: string` eklendi, `createOffer.mutateAsync`'e
+  `sourceRecipeId: recipeId || undefined` olarak iletiliyor.
+- `src/lib/hasat/offers.ts` — `CreateOfferInput.sourceRecipeId?: string`
+  eklendi, `p_source_recipe_id: input.sourceRecipeId ?? undefined`.
+
+**⚠️ Kural #107 — web "zaten çalışıyor mu" sorusu, bulgu beklenenin
+tersi:** Görev metni web'in bu deseni zaten çalıştırdığını varsayıyordu.
+Kod okuması bunun **doğru olmadığını** gösterdi:
+`hasat-d2c-marketplace/src/lib/hasat/queries.ts` → `insertOfferWithItems`/
+`MultiBatchOfferInput`'ta `sourceRecipeId` alanı **hiç yok**, `rpc_create_offer`
+çağrısı `p_source_recipe_id`'i hiç göndermiyor. Daha kök neden: web'in
+tarif detayındaki "Sipariş Ver" butonu (`tarifler.$slug.tsx` →
+`goToProduct`) zaten belirli bir ürün/çiftçi sayfasına gitmiyor — genel
+`/buyer/discover`'a yönlendiriyor (buyer değilse `/login`'e). Yani web'de
+tarif → teklif arasında mobildeki gibi doğrudan bir sayfa geçişi hiç
+kurulmamış; `source_recipe_id`'i web'de doldurmak önce bu navigasyon
+boşluğunu kapatmayı gerektirir — bu, "aynı deseni kullan" talimatının
+öngördüğünden daha büyük bir mimari karar. Kural #107 gereği **web'e
+dokunulmadı**, burada bulgu olarak bildiriliyor. Önceki E2E-QA doğrulaması
+(`Build/E2E-QA.md` S23/M4-b) yalnızca RLS UPDATE politikasının kolonu
+kapsadığını kanıtlamıştı (elle SQL UPDATE) — hiçbir gerçek uygulama akışının
+`source_recipe_id`'i yazdığını kanıtlamamıştı; bu turda ilk kez gerçek bir
+client akışı (mobil) sütunu dolduruyor.
+
+**Doğrulama — gerçek SQL testi (transaction + rollback, Zeynep
+`032eb467-661d-4df4-adf5-3d277d9b6549` impersonasyonu):**
+```sql
+begin;
+select set_config('request.jwt.claims', json_build_object(
+  'sub', '032eb467-661d-4df4-adf5-3d277d9b6549', 'role', 'authenticated')::text, true);
+set local role authenticated;
+select public.rpc_create_offer(
+  p_farmer_id := 'bb4a2664-...'::uuid,
+  p_items := jsonb_build_array(jsonb_build_object('listing_id','85ce880f-...','quantity',20,'price_per_unit',25.50)),
+  p_delivery := 'kargo-buyer', p_delivery_date := (current_date + 7),
+  p_note := 'T3 SQL testi', p_subscription_id := null,
+  p_source_recipe_id := '1fea1003-a2e7-4a05-8cfc-4e11615533b9'::uuid  -- "Zeytinyağlı Nohut Yemeği"
+) as created_offer;
+-- created_offer.source_recipe_id = 1fea1003-a2e7-4a05-8cfc-4e11615533b9 ✅
+rollback;
+```
+Ayrıca aynı transaction'da (kural #113 — RESET ROLE ile admin görünümü)
+`v_kpi_recipe_funnel_by_recipe`'in bu tarif için `recipe_offers` sayacının
+0'dan 1'e çıktığı doğrulandı, sonra rollback edildi. Rollback sonrası canlı
+kontrol: `offers` tablosunda test notuyla (`'T3 SQL testi%'`) eşleşen 0
+satır (temiz), `v_kpi_recipe_funnel_by_recipe`'de bu tarif için canlı
+`recipe_offers = 0` (test verisi kalıcı hale gelmedi).
+
+### 2 — Siparişlerim'de teklife dokunulmuyordu
+
+**Kök neden ikisi birden:** `app/orders.tsx` → `OfferRow` düz bir `View`'dı
+(dokunma alanı hiç yoktu) **ve** hedef bir detay rotası hiç kurulmamıştı
+(S33 adım 30, `Build/E2E-QA.md`). M7-d'de bu ekran bilinçli "salt okunur"
+bırakılmıştı (`Build/Launch-Plan.md` → T2/T3/T4 havuzu, "genişletme T2+")
+— bu tur o genişletme.
+
+**Düzeltme (`hasat-mobile`):**
+- `app/offer/[id].tsx` (yeni) — teklif detay ekranı: crop, üretici adı+şehir,
+  miktar, birim fiyat, toplam, teslimat türü, teslim tarihi, oluşturulma
+  tarihi, not, durum etiketi (mevcut `offerStatusLabel`), gerekiyorsa
+  "Web'de Yanıtla/Öde →" (Siparişlerim satırıyla aynı desen). Yeni bir sorgu
+  yazılmadı — `useBuyerOffers()`'ın zaten `["buyerOffersReadonly"]`
+  önbelleğinden `id`'ye göre buluyor.
+- `src/lib/hasat/orders.ts` — `BuyerOfferRow`'a `farmerCity`/`delivery`/
+  `deliveryDate`/`note` eklendi (detay ekranının ihtiyacı, satır zaten
+  sorguluyordu ama tipe/select'e yansımamıştı).
+- `app/orders.tsx` — `OfferRow` artık `Pressable`, `/offer/[id]`'e
+  `router.push` ediyor; "Web'de Yanıtla/Öde" butonu `stopPropagation` ile
+  satırın kendi tıklamasını tetiklemiyor.
+
+**Kapsam kasıtlı olarak dar:** yalnızca **teklif** (Tekliflerim sekmesi) —
+bulgu buydu (S33 adım 30). Siparişler sekmesindeki `OrderRow` aynı sınıf
+sorunu taşıyor (dokunulamıyor) ama bulgu kapsamında değildi, dokunulmadı —
+Berkin'e bırakılan bir sonraki tur adayı.
+
+### 3 — Boş durum ekranları: "Talep Et" CTA'sı eksik/dead-end (3 ekran)
+
+Denetim kapsamı: alıcı tarafında crop/ürün bulunamadığında gösterilen tüm
+ekranlar (web + mobil). **Üç gerçek bulgu, üçü de düzeltildi:**
+
+1. **`hasat-d2c-marketplace/src/routes/buyer.product.$farmerId.$crop.tsx`**
+   — en ciddi bulgu. `listings.length === 0` → `throw notFound()` →
+   `notFoundComponent` **tamamen ölü bir mesajdı**: CTA yok, geri linki
+   yok, hiçbir yönlendirme yok. 9/70 crop'ta aktif ilan olduğu gerçeğiyle
+   (`_Context.md` → "Arz gerçeği") bu ekranın gerçek bir çıkmaz olması
+   düşük ihtimal değil — eşleşen bir malzemenin partisi teklif
+   oluşturulurken tükenirse de aynı yola düşülür. Düzeltme: `ProductNotFound`
+   komponenti — Keşfet'e geri link + "Bu ürünü talep et" CTA'sı (paylaşılan
+   `CropRequestModal`, `lockCropName` — crop URL'den zaten biliniyor).
+2. **`hasat-mobile/app/product/[farmerId]/[crop].tsx`** — aynı sınıf,
+   mobil tarafı: "← Geri" vardı ama "Talep Et" CTA'sı yoktu. Aynı düzeltme
+   (`CropRequestSheet`, `lockCropName`, `recipeId` atfı korunuyor).
+3. **`hasat-d2c-marketplace/src/routes/buyer.discover.tsx`** — sorgu
+   filtreli "Sonuç bulunamadı" durumunda CTA zaten vardı (M4-b'den); ama
+   filtresiz "Henüz aktif ilan yok." durumunda (yalnızca site genelinde hiç
+   aktif ilan yoksa tetiklenir — `filtered` yalnızca `query`'e göre
+   filtreliyor, kategori chip'leri şu an filtrelemeye hiç katılmıyor, bu
+   **ayrı, dokunulmayan bir bulgu**, aşağıda) CTA yoktu. Aynı desene
+   getirildi.
+
+**Ek, düzeltilen ama daha dar (crop bilinmiyor):**
+`hasat-d2c-marketplace/src/routes/buyer.offer.$listingId.tsx`
+`notFoundComponent`'i de tamamen ölüydü (hiçbir link yok). Bu ekranda
+`crop` URL'de yok (yalnızca `listingId`, ilan zaten silinmiş/bulunamıyor) —
+"Talep Et" CTA'sı için crop adı bilinmiyor, bu yüzden yalnızca Keşfet'e
+geri dönüş linki eklendi (önceden **hiçbir** navigasyon yoktu).
+
+**⚠️ Kural #107 — bulunan ama dokunulmayan ayrı bir bug:**
+`buyer.discover.tsx`'teki `filters` (kategori chip) state'i set ediliyor
+ama `filtered` listesi hiçbir yerde `filters`'ı okumuyor — yalnızca
+`query`'e göre filtreliyor. Yani kategori chip'lerine tıklamak görsel
+olarak "seçili" görünüyor ama sonuç listesini hiç değiştirmiyor. Bu,
+görev metninin "boş durum ekranı" kapsamının dışında, ayrı bir UI bug'ı —
+kod değiştirilmedi, burada bulgu olarak bildiriliyor.
+
+### 4 — Kalan kayan nokta yerleri (`formatQuantity`, M7-g'nin bıraktığı üç kategori)
+
+M7-g'de `formatQuantity` yalnızca "Keşfet, ürün detay, teklif, parti,
+siparişler, tarif alışveriş listesi" yüzeylerine uygulanmıştı; "abonelikler,
+günlük, pazarlık" görev metninde adı geçen üç kategori kapsam dışı
+bırakılmıştı (`TODO.md` → "P23-M7-g" → "Tarandı, bu turda düzeltilmedi").
+Bu tur o üç kategoriyi kapatıyor — **6 dosya, hepsi `hasat-d2c-marketplace`**
+(mobilde bu ekranlar hiç yok — abonelik/günlük çiftçi özelliği, pazarlık
+yanıtı mobilde zaten yok):
+
+- **Abonelikler:** `buyer.subscriptions.tsx` (`FulfillmentBar`'daki
+  `deliveredQty`/`target`, `estimatedQty`, `farmerListings` satırındaki
+  `minOrder`/`quantity`), `farmer.subscriptions.tsx` (aynı `FulfillmentBar`
+  kopyası + `volumeCommitment`).
+- **Günlük:** `farmer.journal.$entryId.tsx` (KPI grid'deki `entry.quantity`,
+  batch-link `<select>`'teki `l.quantity`), `farmer.journal.index.tsx`
+  (satır listesindeki `e.quantity`, batch seçim chip'lerindeki `b.quantity`).
+- **Pazarlık:** `buyer.negotiation.$offerId.tsx` (`SideCard`'daki
+  `snap.quantity`), `NegotiationTimeline.tsx` (`Round`'daki `snap.quantity`
+  — tur geçmişi zaman çizelgesi).
+
+Abonelik alanları (`deliveredQty`/`target`/`estimatedQty`/`volumeCommitment`)
+şemada birimsiz (her zaman kg, mevcut kodda da hep `" kg"` sabit metniyle
+gösteriliyordu) — `formatQuantity(x, "kg")` ile sabitlendi, hesaplama
+(`pct` oranı) değişmedi, yalnızca gösterim (M7-g'nin ilkesiyle aynı: kayan
+nokta artığı bir gösterim sorunu, hesaplama sorunu değil).
+
+**Tarandı, bu turda da düzeltilmedi (görev metninin adlandırdığı üç
+kategoriye girmiyor, M7-g'nin kendi "tarandı, dokunulmadı" listesindeki
+geri kalan yerler):** `buyer.requests.tsx`, `ProvenanceTimeline.tsx`,
+`farmer.home.tsx`, `farmer.storefront.tsx`'in `StockBadge` dışındaki kendi
+satırları, `Stepper.tsx`'in ham `value` girişi (editable input, gösterim
+değil).
+
+### 5 — Isı haritası doğrulaması (`v_kpi_crop_demand_heatmap`)
+
+Kod değişikliği yok — Supabase MCP ile canlı veriye karşı doğrudan
+doğrulama. `pg_get_viewdef` ile view tanımı okunup bağımsız bir SQL'le
+(raw `crop_requests` + `crop_config` eşleştirmesi, view'ın kendi mantığını
+tekrar üretmeden) karşılaştırıldı:
+
+| Kontrol | Sonuç |
+|---|---|
+| `requester_count` (7 crop, 40+ satır) view vs. bağımsız `count(distinct requested_by)` | ✅ Birebir eşleşti |
+| Hiç crop_request satırı view'dan düşmüyor (`raw_agg` ↔ view sol-dış-join farkı) | ✅ 0 satır düştü |
+| `has_active_listing` (tüm satırlar) view vs. bağımsız `exists(...)` | ✅ 0 uyuşmazlık |
+| `zeytinyağı` → `key_ingredient_recipe_count` | ✅ 9 (M4-b'nin canlı bulgusuyla birebir aynı, sabit kalmış) |
+| Grant'ler (kural #110) | ✅ `anon`/`authenticated`'a hâlâ grant yok |
+
+**⚠️ Bulgu, düzeltilmedi (kural #107 — kapsam dışı, view'ın tasarım
+sınırı):** `total_quantity_normalized` yalnızca `unit = default_unit` veya
+kg↔g dönüşümünü kapsıyor; culinary birimler (`bardak`, `adet` vb.)
+sessizce `NULL` sayılıp toplamdan **düşüyor**. Canlı örnek: `ceviz`
+talebinin 3 satırından biri `10 bardak` — `total_quantity_normalized=2 kg`
+yalnızca diğer iki `1 kg`'lık satırı topluyor, `requester_count=3` doğru
+kalıyor ama miktar sinyali eksik. Bu, view'ın **tasarım gereği** kapsamı
+(yalnızca kg/g normalize eder, `crop_culinary_meta.conversion_hints`'e
+bağlanmamış — `rpc_recipe_shopping_list`'in yaptığı gibi) — bir regresyon
+değil, ama önceden dokümante edilmemiş bir sınırdı, burada bildiriliyor.
+
+### Doğrulama (kural #96)
+
+| Kontrol | Sonuç |
+|---|---|
+| `hasat-mobile` `tsc --noEmit` | ✅ Temiz |
+| `hasat-d2c-marketplace` `tsc --noEmit` | ✅ Temiz |
+| `hasat-core` `tsc --noEmit` (dokunulmadı, baseline) | ✅ Temiz |
+| `rpc_create_offer` → `offers.source_recipe_id` gerçek SQL testi | ✅ Yukarıda — transaction+rollback, test verisi temiz |
+| `v_kpi_recipe_funnel_by_recipe.recipe_offers` artışı (aynı transaction) | ✅ 0→1, rollback sonrası canlı 0 |
+| `v_kpi_crop_demand_heatmap` bağımsız SQL karşılaştırması | ✅ Yukarıda, 0 uyuşmazlık |
+| Mobil native UI davranışı (dokunma, `CropRequestSheet` açılışı, navigasyon) | 🔴 **Doğrulanamadı (kural #103)** — bu oturumda simülatör/cihaz yok. Berkin'in ayrı test oturumunda koşması gerekiyor. |
+| Web tarayıcı click-through (boş durum CTA'ları, `formatQuantity` gösterimi) | 🔴 **Doğrulanamadı (kural #103)** — ağ politikası `hasat.lovable.app`'e erişimi engelliyor. |
+
+### Dokunulan dosyalar
+
+**`hasat-mobile`:** `app/recipe/[slug].tsx` · `app/product/[farmerId]/
+[crop].tsx` · `app/orders.tsx` · `app/offer/[id].tsx` (yeni) ·
+`src/lib/hasat/offers.ts` · `src/lib/hasat/orders.ts`
+
+**`hasat-d2c-marketplace`:** `src/routes/buyer.product.$farmerId.$crop.tsx`
+· `src/routes/buyer.offer.$listingId.tsx` · `src/routes/buyer.discover.tsx`
+· `src/routes/buyer.subscriptions.tsx` · `src/routes/farmer.subscriptions.tsx`
+· `src/routes/farmer.journal.$entryId.tsx` · `src/routes/farmer.journal.index.tsx`
+· `src/routes/buyer.negotiation.$offerId.tsx` ·
+`src/components/hasat/NegotiationTimeline.tsx`
+
+**`hasat-vault`:** `TODO.md` (bu build log) · `Build/Launch-Plan.md` (T3
+durumu)
+
+### Dokunulmayan (kapsam kuralı tutuldu)
+
+`src/lib/core/` (kural #105, hiçbir dosya değişmedi) · T4 havuzu (klavye,
+OTP autofill, pişirme modu "Devam Et") · checkout/ödeme · kural #115'in
+sıralaması bu turda gerekmedi (şema değişikliği yok) · web'in tarif→teklif
+navigasyon boşluğu (madde 1'deki kural #107 bulgusu — mimari karar,
+Berkin'e bırakıldı) · `buyer.discover.tsx`'in kategori filtre bug'ı (madde
+3'teki kural #107 bulgusu) · `OrderRow` dokunma (madde 2'de kapsam dışı
+bırakıldı, bulgu yalnızca teklifleri kapsıyordu) · `total_quantity_normalized`'in
+culinary birim sınırı (madde 5'teki kural #107 bulgusu, view'ın tasarım
+sınırı) · `buyer.requests.tsx`/`ProvenanceTimeline.tsx`/`farmer.home.tsx`/
+`Stepper.tsx` (M7-g'nin kendi tarayıp bırakmasıyla aynı, bu turun görev
+metnindeki üç kategoriye girmiyor).
+
