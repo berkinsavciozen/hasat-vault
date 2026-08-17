@@ -1,6 +1,6 @@
 ---
 title: Hasat — Lansman Planı
-updated: 2026-08-10
+updated: 2026-08-17
 tags:
   - hasat
   - launch
@@ -237,26 +237,45 @@ ve **E4** (Çiftçi akışı — uçtan uca denetim, özellikle parsel ekleme) i
 yapamazdı. **E7** (Admin/operasyon) için de kritik: push gönderimi
 olmadan "Lansman günü izleme planı" bildirim kanalı eksik sayılırdı.
 
-### T2/T3/T4 — sıraya alındı, henüz tur bazında ayrıştırılmadı
+### T2/T3/T4 — durum (2026-08-17 güncellendi)
 
 Görev metninin "Dokunulmayacaklar" listesi 8 maddeyi T2+ kapsamına
 işaretledi ama bu 8 maddenin T2/T3/T4 arasında nasıl bölüneceğine dair bir
 talimat/öncelik sırası **verilmedi** — kural #107 gereği burada bir sıra
-uydurulmadı, hepsi tek bir "sıraya alındı" havuzunda listeleniyor. Berkin
-önceliklendirmeli:
+uydurulmadı; aşağıdaki T2/T4 etiketleri turların kendi görev metinlerinden
+(P23-M8-c, P23-M8-d) geliyor, bu dosyada uydurulmadı.
 
-- Çiftçi rol yönlendirmesi (mobil v1 şu an yalnızca buyer, farmer girişi
-  nereye düşüyor netleşmeli)
+**✅ Tamamlanan (5/8):**
+- ~~Çiftçi rol yönlendirmesi~~ — **P23-M8-c (T2, 2026-08-12)**'de kapandı,
+  bkz. `TODO.md` → "P23-M8-c".
+- ~~Klavye modalı~~ — **P23-M8-d (T4, 2026-08-17)**'de kapandı: yalnızca
+  `CropPickerModal` değil, projedeki klavye açan yedi ekranın/modalın
+  tamamı tek paylaşılan bileşene (`KeyboardAvoidingScreen`) taşındı. Bkz.
+  `TODO.md` → "P23-M8-d" → madde 1.
+- ~~Pişirme modu "Devam Et"~~ — **P23-M8-d (T4, 2026-08-17)**'de kapandı:
+  tarif ekranının üstünde banner + CTA buton metni, ikisi de aktif pişirme
+  oturumu varsa kaldığı adıma götürüyor. Bkz. `TODO.md` → "P23-M8-d" →
+  madde 2.
+- ~~OTP autofill~~ — **P23-M8-d (T4, 2026-08-17)**'de kapandı: kök neden
+  `textContentType`/`autoComplete` değil `maxLength={1}`'di (iOS'un
+  autofill'i tam kodu tek kutuya yazmaya çalışıyor, kırpılıyordu). Bkz.
+  `TODO.md` → "P23-M8-d" → madde 3.
+- ~~Adım fotoğrafı~~ — **P23-M8-d (T4, 2026-08-17)**'de kapandı (nice-to-have
+  olarak, kapsam büyütülmeden) — yeni bir storage bucket'ı otonom kararla
+  eklendi (kural #107, Berkin'e sorulmadı), gerekçesi ve bilinen sınırı
+  (yarım kalan taslaklarda yetim dosya) `TODO.md` → "P23-M8-d" → madde 4'te.
+
+**🔴 Kalan (3/8, henüz tur bazında ayrıştırılmadı):**
 - `source_recipe_id` (tarif→teklif atfının mobil tarafındaki kalan işi)
-- Klavye modalı (native picker/modal klavye konumlanma cilası)
 - Siparişlerim ekranına dokunma (şu an salt okunur, M7-d kararı — genişletme
   T2+)
-- Pişirme modu "Devam Et" (kaldığı yerden devam UX'i)
-- OTP autofill (`textContentType="oneTimeCode"` zaten var, otomatik
-  doldurmanın tam davranışı)
 - Kalan kayan nokta gösterim yerleri (P23-M7-g'de yalnızca stok/teklif
   ekranları düzeltildi — bkz. `TODO.md` → "P23-M7-g" → "Dokunulmayan")
-- Adım fotoğrafı (pişirme modu adımlarına fotoğraf ekleme)
+
+> Not: "Klavye modalı" orijinal 8'li listede "native picker/modal klavye
+> konumlanma cilası" olarak dar tanımlanmıştı; P23-M8-d bunu projedeki TÜM
+> klavye açan ekranları kapsayacak şekilde genişletti (tanımın ötesine
+> geçti, eksik değil fazla kapsadı) — bkz. yukarıdaki "Tamamlanan" satırı.
 
 **Epic bağlantısı:** Bu 8 madde büyük ölçüde **E3**/**E4**'ün "boş durum
 ekranları" ve genel UX cilası kapsamına giriyor — lansman kritik yolunun

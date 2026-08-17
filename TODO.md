@@ -1,6 +1,6 @@
 ---
 title: Hasat — Master Roadmap & Build Log
-updated: 2026-08-09
+updated: 2026-08-17
 tags:
   - hasat
   - todo
@@ -4535,4 +4535,179 @@ kodu · `source_recipe_id` (T3) · klavye/OTP/pişirme modu (T4) · checkout ·
 turda gerekmedi) · genel `OnboardingTour` mekanizması (yalnızca boş-durum
 kartı değişti) · teklif yanıtı/sipariş akışının kendisi (yalnızca
 denetlendi, kod değişikliği yok — bu turda bulgu çıkmadı).
+
+## P23-M8-d — Mobil UX Düzeltmeleri (T4, 2026-08-17)
+
+T2/T3/T4 havuzundan (bkz. `Build/Launch-Plan.md` → "T2/T3/T4 — sıraya
+alındı") dört madde, tek turda: (1) klavye açılan ekranlarda içeriğin
+klavyenin altında kalması, (2) pişirme modunda "Devam Et", (3) OTP
+autofill'in yalnızca ilk haneyi doldurması, (4) adım düzenlemeye opsiyonel
+fotoğraf (nice-to-have). Görev metni "build gerektirmiyor, kod" diye
+tanımladı — hiçbir yeni native modül eklenmedi, `eas build` tetiklenmedi.
+
+### 1 — Klavye açılan ekranlarda içerik klavyenin altında kalıyordu
+
+**Bulgu doğrulandı ve genişletildi:** S33 adım 27 yalnızca `CropPickerModal`'ı
+işaret ediyordu, ama `grep TextInput` projede yedi dosya buldu — beşinde
+hiç klavye kaçırma önlemi yoktu: `CropPickerModal`, `CropRequestSheet`,
+`DeleteAccountModal` (üçü de `Modal`), `app/product/[farmerId]/[crop].tsx`
+ve `app/onboarding.tsx` (ikisi tam ekran rota).
+
+**Kök neden (Modal'lar için):** RN'in `Modal` bileşeni kendi native pencere
+hiyerarşisini kullanıyor — Android'in Activity seviyesindeki
+`windowSoftInputMode=adjustResize`'ını miras almıyor, bu yüzden `Modal`
+içinde klavye açılınca içerik kendiliğinden yukarı kaymıyor.
+`app/onboarding.tsx`'te ayrı bir bulgu: ekran hiç `ScrollView` kullanmıyordu
+— klavye açıldığında altındaki alanlara (işletme tipi/hacim/"Keşfetmeye
+Başla" butonu) kaydırma imkânı bile yoktu.
+
+**Tek çözüm (görev metni: "tek bileşende çöz"):** yeni
+`src/components/hasat/KeyboardAvoidingScreen.tsx` — `behavior={Platform.OS
+=== "ios" ? "padding" : "height"}` (Android'de `"height"`, `Modal`'ın
+adjustResize eksikliğine karşı yaygın/belgeli çözüm). Yedi dosyanın
+YEDİSİ de bu bileşeni kullanıyor artık — `login.tsx`/`import.tsx`'in daha
+önce kendi başlarına tuttuğu `Platform.OS === "ios" ? "padding" :
+undefined` mantığı da buraya taşındı (tekrar eden mantık kalmadı).
+Ayrıca `CropRequestSheet`/`DeleteAccountModal` (5/1 alanlı formlar,
+taşma riski) ve `onboarding.tsx` `ScrollView`'a çevrildi;
+`product/[farmerId]/[crop].tsx` zaten `ScrollView` kullanıyordu, yalnızca
+`KeyboardAvoidingScreen` sarmalayıcısı eklendi (not alanı + altta sabit
+"Teklif Gönder" barı klavyeyle çakışmasın diye).
+
+### 2 — Pişirme modunda "Devam Et" (S33 adım 18)
+
+Berkin'in iki önerisi de uygulandı:
+
+**(a) Banner:** Tarif ekranının en üstünde (kapak fotoğrafının hemen
+altında), aktif bir pişirme oturumu varsa vurgulu bir kart — "👨‍🍳
+Pişirmeye devam ediyorsun / Adım X/Y" — dokunulunca doğrudan o adıma
+götürüyor.
+
+**(b) Buton metni:** "Hazırlanışı" bölümündeki CTA, aktif oturum varsa
+"👨‍🍳 Pişirmeye Başla" yerine "▶ Devam Et" gösteriyor ve aynı şekilde
+kaldığı adıma gidiyor.
+
+**Mekanizma (yeni `src/lib/native/cookSession.ts`):** `cookTimer.ts`'teki
+gerçek geri sayım durumundan AYRI, daha basit bir kayıt — yalnızca "bu
+tarifte en son hangi adımdaydın" (`AsyncStorage`, `hasat-cook-
+session:{recipeId}`). Bir timer hiç kurulmasa da (timer'sız bir adımda
+kalınsa da) konum hatırlanıyor — bulgu tam olarak bunu işaret ediyordu
+("aktif bir timer varken... aynı adımı bulmak zor" → timer'a bağımlı
+olmayan bir çözüm gerekiyordu). `app/cook/[slug].tsx` her adım
+değişiminde konumu yazıyor, `app/recipe/[slug].tsx` ekran her
+odaklandığında (`useFocusEffect`) okuyor. Yalnızca "Bitir ✓"e basılınca
+temizleniyor — ✕ ile çıkışta KORUNUYOR (kullanıcı mutfaktan ayrılıp geri
+dönebilir, "Devam Et" tam olarak bu senaryo için var). Kayıtlı adım
+kullanıcı tarifi sonradan düzenleyip adım sayısını değiştirirse aralık
+dışına düşmesin diye son adıma kilitleniyor (çökme yerine).
+
+### 3 — OTP autofill yalnızca ilk haneyi dolduruyordu (S33 adım 43)
+
+**Kök neden bulundu — bulgunun tarif ettiğinden farklı bir yerdeydi:**
+Görev metni `textContentType`/`autoComplete` kullanımının doğruluğunu
+sordu, ama asıl kırık olan `maxLength={1}` idi. iOS'un SMS önerisine
+dokunulduğunda kodun TAMAMI (6 hane) odaklanılan tek kutuya birden
+yazılmaya çalışıyor; `maxLength={1}` bunu native katmanda 1 haneye
+kırpıyordu — JS'e (`onChangeText`) hiçbir zaman 6 hane ulaşmıyordu, üstüne
+üstlük eski kod da gelen değerin yalnızca SON hanesini alıyordu
+(`slice(-1)`). İki katman birden kesiyordu, sonuç: yalnızca (yanlış) tek
+hane doluyordu.
+
+**Düzeltme (`app/login.tsx`):** `maxLength={6}`'ya çıkarıldı (kutu zaten
+`value={d}` ile controlled — her render'da tek haneye geri dönüyor, elle
+yazmayı bozmuyor); `handleOtpChange` artık birden fazla hane gelirse
+(autofill/yapıştırma) `i`'den başlayarak sıradaki kutulara dağıtıyor.
+`textContentType="oneTimeCode"` yalnızca ilk kutudan TÜM kutulara
+taşındı (autofill şeridi hangi kutu odaktaysa görünsün diye).
+Android için `autoComplete="sms-otp"` eklendi (görev metninin işaret
+ettiği, daha önce hiç olmayan alan).
+
+### 4 — Adım fotoğrafı (S33 adım 25, nice-to-have)
+
+**Şema:** `recipe_steps.photo_url` P23-M2'den beri zaten vardı (editoryal
+tariflerde/cook mode'da zaten kullanılıyor) — yeni kolon EKLENMEDİ.
+Eksik olan tek şey, kullanıcının kendi taslağında bu alanı
+doldurabileceği bir yükleme yoluydu.
+
+**🔶 Otonom alınan karar (kural #107 — Berkin onayı YOK):** Görev metni
+bu maddeyi "küçük bir iyileştirme, kapsamı büyütme" diye tanımladı ama
+gerçek bir fotoğraf yüklemesi (yerel `file://` URI'yi kalıcı olmayacağı
+için DOĞRUDAN saklamak yerine) bir Supabase Storage bucket'ı gerektiriyordu
+— proje hiçbirini kullanıcı taslaklarına açık tutmuyordu. Bu turda YENİ
+bir bucket açıldı: **`recipe-step-photos`** (public=true, INSERT/UPDATE/
+DELETE yalnızca `auth.uid()::text = yolun ilk klasörü` — `parcel-photos`/
+`harvest-photos`/`listing-photos` ile BİREBİR aynı desen,
+`hasat-d2c-marketplace`'in `uploadParcelPhotos`/`uploadHarvestPhotos`'undan
+kopyalandı). Bu karar Berkin'e SORULMADI, otonom alındı — gerekçe: (a)
+desen zaten üç kez onaylanmış ve canlıda çalışıyor, yeni bir mimari icat
+edilmedi; (b) yerel URI'yi olduğu gibi saklamak "yarım bir uygulama"
+olurdu (cihaz önbelleği temizlenince kırılırdı) — görev metninin
+yasakladığı türden bir eksik bırakma. Supabase MCP ile `apply_migration`
+(`p23_m8_d_recipe_step_photos_bucket`) üzerinden uygulandı, bucket +
+4 politika (public read, owner insert/update/delete) gerçek SQL ile
+doğrulandı.
+
+**Yeni native modül YOK:** `expo-image-picker` zaten projede vardı
+(AI import akışında kullanılıyordu) — döndürdüğü `uri` doğrudan
+`FormData`'ya `{uri, name, type}` olarak veriliyor (React Native'in
+`fetch`/`FormData` implementasyonu bunu native tarafta multipart'a
+çeviriyor, Supabase'in resmi Expo örnekleriyle aynı desen).
+`expo-file-system`/`base64-arraybuffer` gibi ek bağımlılık ya da yeni bir
+EAS build GEREKMEDİ (görev talimatı: "build gerektirmiyor" — tutuldu).
+
+**UI (`app/import.tsx`, "Kontrol Et" ekranı):** Her adım satırına galeriden
+fotoğraf seçme butonu eklendi ("+ Fotoğraf ekle (opsiyonel)") — seçilen
+fotoğraf hemen yükleniyor (yükleme sırasında satır kendi spinner'ını
+gösteriyor), taslağa kalıcı URL yazılıyor; "Fotoğrafı kaldır" ile
+temizlenebiliyor. `src/lib/hasat/import.ts`: `DraftStep.photoUrl` eklendi,
+`loadDraft` DB'den okuyor, `saveDraft` `recipe_steps.photo_url`'e yazıyor
+(kolon zaten vardı, `as any` gerekmedi — `ingredient_class`'ın aksine
+`hasat-core`'un üretilmiş tiplerinde zaten mevcuttu).
+
+**Bilinen sınır (raporlanıyor, çözülmedi):** Kullanıcı bir adım fotoğrafı
+yükleyip taslağı KAYDETMEDEN "✕" ile çıkarsa (`discardDraft`), taslak
+satırı silinir ama storage'a yüklenmiş dosya silinmez — yetim obje kalır.
+Web'in benzer akışlarında (`uploadListingPhotos` vb.) da aynı sınır var,
+yeni bir temizleme mekanizması bu turda icat edilmedi (kapsamı büyütme
+kuralına uyuldu); Berkin isterse ileride bir tur bu tür yetim objeleri
+temizleyen bir job'a konu olabilir.
+
+### Doğrulama (kural #96)
+
+| Kontrol | Sonuç |
+|---|---|
+| `hasat-mobile` `tsc --noEmit` | ✅ Temiz (`npm install` sonrası) |
+| `hasat-mobile` `tsc --noEmit --noUnusedLocals --noUnusedParameters` | ✅ Temiz — kullanılmayan import/değişken yok |
+| `recipe-step-photos` bucket + 4 politika | ✅ Gerçek SQL ile doğrulandı (`storage.buckets`/`pg_policies`) |
+| `recipe_steps.photo_url` zaten tipli miydi (`as any` gerekmedi mi) | ✅ `hasat-core/core/db/types.ts`'te doğrulandı, kolon zaten mevcuttu |
+| OTP `maxLength`/`handleOtpChange` mantığı | ✅ Kod okumasıyla doğrulandı (controlled input her render'da tek haneye dönüyor, çok haneli autofill artık kutulara dağıtılıyor) |
+| Gerçek cihaz/simülatör click-through (klavye davranışı, "Devam Et" akışı, gerçek SMS autofill, adım fotoğrafı yükleme) | 🔴 **Doğrulanamadı (kural #103)** — bu oturumda simülatör/cihaz yok. Berkin'in ayrı test oturumunda (S33'ün devamı) koşulması gerekiyor — özellikle OTP autofill gerçek bir iPhone + gerçek SMS gerektiriyor, simülatörde bile tam taklit edilemez. |
+
+### Dokunulan dosyalar
+
+**`hasat-mobile`:** `src/components/hasat/KeyboardAvoidingScreen.tsx`
+(yeni) · `src/lib/native/cookSession.ts` (yeni) ·
+`src/components/hasat/CropPickerModal.tsx` ·
+`src/components/hasat/CropRequestSheet.tsx` ·
+`src/components/hasat/DeleteAccountModal.tsx` · `app/onboarding.tsx` ·
+`app/product/[farmerId]/[crop].tsx` · `app/login.tsx` · `app/import.tsx` ·
+`app/cook/[slug].tsx` · `app/recipe/[slug].tsx` ·
+`src/lib/hasat/import.ts`
+
+**Supabase (`efuqpiaavrzimvstpdpm`):** `storage.buckets` +
+`storage.objects` politikaları (`recipe-step-photos`) — migration
+`p23_m8_d_recipe_step_photos_bucket`. `recipe_steps` tablosuna dokunulmadı.
+
+**`hasat-vault`:** `TODO.md` (bu build log) · `Build/Launch-Plan.md` (T4
+durumu)
+
+### Dokunulmayan (kapsam kuralı tutuldu)
+
+`src/lib/core/` (kural #105, hiçbir dosya değişmedi) · T3 kapsamı
+(`source_recipe_id`) · checkout · `crop_config`/`recipe_steps` tablo
+şeması (yalnızca yeni bir storage bucket'ı eklendi, hiçbir tabloya
+migration uygulanmadı — kural #115'in dört adımlı sırası burada
+gerekmedi çünkü hiçbir yeni kolon/tip üretimi söz konusu değildi) ·
+Keşfet/genel ürün tarama · Siparişlerim ekranının genişletilmesi · yeni
+bir native modül/EAS build (görev talimatı: "build gerektirmiyor").
 
