@@ -39,7 +39,7 @@ nedeniyle) güncellendi; hiçbir kod/DB/migration/edge function değiştirilmedi
 | E2 | Rich Results Test (Google) | 👤 Berkin | 17 Ağu | ⬜ Planlandı — görsellere bağlı (E1 tamamlanmadan Recipe şeması eksik kalır) |
 | E2 | Landing sayfası lansman mesajı | 🤖 Claude Code | 21 Ağu | ⬜ Planlandı |
 | **E3 — Alıcı akışı** | Uçtan uca denetim | 🎯 Orkestratör | 17 Ağu | ⬜ Planlandı |
-| E3 | Boş durum ekranları | 🤖 Claude Code | 18 Ağu | ⬜ Planlandı |
+| E3 | Boş durum ekranları | 🤖 Claude Code | 18 Ağu | ✅ **Yapıldı (2026-08-17, P23-M8-c2/T3)** — üç gerçek bulgu (ikisi web `notFoundComponent`, biri mobil), üçü de "Talep Et" CTA'sı/geri navigasyonuyla düzeltildi; ayrıca kapsam dışı bir bug bulundu (Keşfet kategori filtreleri sonuç listesini etkilemiyor, kural #107 — bkz. `TODO.md` → "P23-M8-c2") |
 | **E4 — Çiftçi akışı** | Uçtan uca denetim | 🎯 Orkestratör | 17 Ağu | ✅ **Yapıldı (2026-08-12, P23-M8-c)** — statik kod denetimi (kural #103, gerçek tarayıcı erişimi bu oturumda engelli); ana omurgada (kayıt→parsel→günlük→ilan→teklif yanıtı→sipariş) kırık nokta bulunmadı, iki küçük bulgu raporlandı (`TODO.md` → "P23-M8-c") |
 | E4 | İlan fotoğrafı zorunluluğu | 👤 Berkin | 12 Ağu | ✅ **Karar verildi ve uygulandı (P23-M8-c) — zorunlu DEĞİL**, kaydetmeden hemen önce yumuşak `window.confirm` uyarısı ("Fotoğraflı ilanlar daha çok teklif alıyor"). Bkz. bölüm 4, madde 2 (artık çözüldü) |
 | E4 | "Nasıl başlarım" rehberi (çiftçi onboarding) | 🤖 Claude Code | 18 Ağu | ✅ **Yapıldı (2026-08-12, P23-M8-c)** — `farmer.home.tsx` boş-durum kartı 3 adımlık rehbere çevrildi (parsel→hasat kaydı→vitrin), her adım gerçek veriyle tamamlandı işaretleniyor |
@@ -53,7 +53,7 @@ nedeniyle) güncellendi; hiçbir kod/DB/migration/edge function değiştirilmedi
 | **E6 — Veri hijyeni** | Seed/test verisi temizliği | 👤 Berkin | 22 Ağu | 🔴 **Karar bekliyor** — bkz. bölüm 4, madde 4 |
 | E6 | `SMS_TEST_OTP_VALID_UNTIL` hatırlatıcısı | 👤 Berkin | 12 Ağu | ⬜ Planlandı (bkz. `Build/Store-Compliance.md` → Bölüm 6) |
 | E6 | Glossary insan gözden geçirmesi | 👤 Berkin | 21 Ağu | 🔴 Başlanmadı — `TODO.md`'de "hâlâ açık" olarak kayıtlı (P22-C, AI üretimi, bölgesel doğrulama yapılmadı) |
-| **E7 — Admin/operasyon** | Talep ısı haritası doğrulaması | 🎯 Orkestratör | 22 Ağu | ⬜ Planlandı |
+| **E7 — Admin/operasyon** | Talep ısı haritası doğrulaması | 🎯 Orkestratör | 22 Ağu | ✅ **Yapıldı (2026-08-17, P23-M8-c2/T3)** — `v_kpi_crop_demand_heatmap` canlı `crop_requests` verisiyle bağımsız SQL karşılaştırmasıyla doğrulandı (0 uyuşmazlık); bir tasarım sınırı bulundu ve düzeltilmedi (kural #107 — culinary birimler `total_quantity_normalized`'e dahil edilmiyor, bkz. `TODO.md` → "P23-M8-c2" madde 5) |
 | E7 | Lansman günü izleme planı | 🎯 Orkestratör | 23 Ağu | ⬜ Planlandı |
 | E7 | İlk 100 kullanıcı kampanyası | 👤 Berkin | 19 Ağu | ⬜ Planlandı |
 | **E8 — App Store Connect** *(tümü 👤 Berkin, tarayıcıdan)* | Bundle ID kaydı | 👤 Berkin | 8 Ağu *(önerilen)* | 🟢 Başlanabilir — Apple hesabı 2026-08-05'te onaylandı |
