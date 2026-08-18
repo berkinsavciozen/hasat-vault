@@ -225,40 +225,80 @@ aşamaları.** Submit'i bloklamamalı.
 
 ---
 
-### F3 — Push/OTP: sistemsel event listesi + tüm senaryolar test edilmeli
+### F3 — Push/SMS/WhatsApp Event Haritası (canlı DB'den çıkarıldı, 2026-08-18)
 
-**Event haritası zaten net (yukarıda çıkardım) — bunu `hasat-vault`'a
-canlı kaynaktan üretilmiş bir tablo olarak yazacağım** (13 event ×
-push/SMS/WhatsApp sütunları), böylece "hangi durumda hangi push atılıyor"
-sorusu artık koddan aranmıyor, dokümanda.
+> Kaynak: `dispatch_push`/`dispatch_sms` fonksiyon tanımları + 6 trigger fonksiyonu +
+> `cron.job` + `notif_prefs` şeması, tümü Supabase MCP ile doğrudan sorgulandı
+> (varsayım değil, gerçek `pg_get_functiondef`/`information_schema` çıktısı).
+> Bu turda üç yeni bulgu ortaya çıktı, Berkin'in kararlarıyla çözüldü (bkz. altta).
 
-**Bulunan somut hatalar:**
-1. `community_push` tercihi var ama hiçbir event onu tetiklemiyor — ölü
-   toggle. **Karar (Berkin, 2026-08-18): community push'a şimdilik gerek
-   yok, toggle kaldırılsın.** UI'a hiç eklenmeyecek (F4), `notif_prefs.
-   community_push` kolonu Bölüm 4'ün migration'ında düşürülecek (kullanılmayan
-   kolon birikmesin).
-2. `offer_countered` yalnızca push'ta var, SMS karşılığı yok — bilinçli
-   bir tasarım mı yoksa unutulmuş mu, netleşmeli.
-3. `device_tokens`'ta **tek fiziksel cihazla çoklu rol testi** token'ı
-   sürekli el değiştiriyor (`UNIQUE(token)`) — bu bir kod hatası değil
-   ama gerçek QA için **en az 2 fiziksel/sanal cihaz** (biri farmer
-   rolünde sabit kalan, biri buyer rolünde sabit kalan) gerekiyor,
-   yoksa "her senaryoyu test ettim" sonucu yine güvenilmez çıkar.
+#### Berkin'in kararları (2026-08-18, ikinci tur)
 
-**Kapsam:** (a) event haritası dokümantasyonu + 2 kod-seviyesi düzeltme
-(community event kararı, offer_countered SMS kararı) — bunlar benim/🤖
-işim. (b) gerçek çok-cihazlı test matrisi (13 event × push/SMS ×
-farmer/buyer) — **Berkin'in zamanı**, ben yalnızca test senaryosunu
-(kural #104 formatında) hazırlıyorum. (c) APNs/FCM kredansiyel durumu —
-F16 ile birleşik.
+1. **`price_alert` kaldırılıyor.** Hiçbir trigger/cron/edge function onu tetiklemiyor
+   (org genelinde kod araması sıfır sonuç) — `community_push` ile birebir aynı "ölü
+   toggle" deseni. `notif_prefs.price_alert_push/sms/whatsapp` düşürülüyor,
+   `dispatch_push`/`dispatch_sms`'in CASE'inden çıkarılıyor.
+2. **WhatsApp toggle'ı yalnızca gerçekten kolonu olan event'lerde gösterilecek.**
+   `price_alert` kaldırıldığı için bu artık yalnızca **2 event** kalıyor: `new_offer`,
+   `harvest_time`. ⚠️ **Önemli:** hiçbir yerde bir `dispatch_whatsapp` fonksiyonu yok —
+   toggle açık olsa bile şu an bu iki event'te de WhatsApp gitmiyor. UI'da bu toggle'ın
+   "yakında" / işlevsiz olduğu görsel olarak belli edilmeli (öneri: devre dışı görünüm +
+   kısa not), aksi halde kullanıcı açıp hiç mesaj almayınca yanılgıya düşer.
+3. **Üç sessiz geçiş kapatılıyor** — `offer_rejected`, `order_preparing`,
+   `order_completed` artık push+SMS gönderiyor (yeni event'ler, aşağıda migration'da).
 
-**Bağımlılık:** F4 (bildirim tercihleri UI) bu event haritasını
-doğrudan kullanıyor — F3 önce netleşmeli.
+#### Nihai event tablosu (16 event, price_alert çıkarıldı)
 
-**Roller:** 🎯 (event haritası dokümanı + QA senaryosu) · 🤖 (2 kod
-düzeltmesi, karar netleşince) · 👤 (çok cihazlı gerçek test + Twilio
-Console/APNs/FCM durum kontrolü).
+| Event key | Ne zaman | Kime | In-app | Push | SMS | WhatsApp | Kaynak |
+|---|---|---|---|---|---|---|---|
+| `new_offer` | Buyer teklif oluşturur (INSERT `offers`) | Çiftçi | ✅ | ✅ | ✅ | ✅ | `notify_offer_received` |
+| `offer_accepted` | `offers.status`→accepted | ball_side'a göre buyer/farmer | ✅ | ✅ | ✅ | — | `notify_offer_accepted` |
+| `offer_countered` | `offers.status`→counter (veya fiyat/miktar değişir) | Karşı taraf | ✅ | ✅ | ⚠️ **yok — bilinçli/açık, aşağıda** | — | `notify_offer_accepted` |
+| `offer_rejected` 🆕 | `offers.status`→rejected | Buyer | ✅ | 🆕 | 🆕 | — | `notify_offer_accepted` |
+| `payment_confirmed` | `offers.payment_status`→paid | Çiftçi | ✅ | ✅ | ✅ | — | `notify_offer_accepted` |
+| `order_preparing` 🆕 | `orders.status`→preparing | Buyer | ✅ (şu an boş gövde — düzeltilecek) | 🆕 | 🆕 | — | `notify_order_status` |
+| `order_shipped` | `orders.status`→shipped | Buyer | ✅ | ✅ | ✅ | — | `notify_order_status` |
+| `order_delivered` | `orders.status`→delivered | Buyer | ✅ | ✅ | ✅ | — | `notify_order_status` |
+| `order_cancelled` | `orders.status`→cancelled | Buyer **+ Çiftçi** | ✅ ikisine | ✅ ikisine | ✅ ikisine | — | `notify_order_status` |
+| `dispute_opened` | `orders.status`→disputed | Buyer **+ Çiftçi** | ✅ ikisine | ✅ ikisine | ✅ ikisine | — | `notify_order_status` |
+| `order_completed` 🆕 | `orders.status`→completed | Buyer | ✅ (şu an boş gövde — düzeltilecek) | 🆕 | 🆕 | — | `notify_order_status` |
+| `crop_request_match` | Crop `crop_config`'te aktif olur, eşleşen bekleyen talep varsa | Talep eden | ✅ | ✅ | ✅ | — | `notify_crop_request_fulfilled` |
+| `harvest_time` | Abonelik hasadına 3 gün kala (günlük 07:00 UTC cron) | Çiftçi **+ Buyer** | ✅ ikisine | ✅ ikisine | ✅ ikisine | ✅ ikisine | `send_subscription_harvest_reminders` (`cron.job`: `subscription-harvest-reminders-daily`) |
+| `subscription_new` | Yeni abonelik talebi (INSERT, status=pending) | Çiftçi | ✅ | ✅ | ✅ | — | `notify_subscription_changes` |
+| `subscription_accepted` | Abonelik pending→active | Buyer | ✅ | ✅ | ✅ | — | `notify_subscription_changes` |
+| `subscription_rejected` | Abonelik pending→cancelled **VE `auth.uid() = farmer_id`** ⚠️ | Buyer | ✅ | ✅ | ✅ | — | `notify_subscription_changes` |
+
+##### Kaldırılan
+
+| Event | Neden |
+|---|---|
+| ~~`price_alert`~~ | Hiçbir tetikleyicisi yok, ölü toggle — kaldırılıyor (karar yukarıda). |
+
+##### Açık/bilinçli bırakılan tek nokta
+
+- **`offer_countered` hâlâ SMS göndermiyor** (yalnızca push+in-app). Berkin bu turda da
+  bu maddeye net bir karar vermedi — düşük öncelikli, kapsam dışı bırakılmaya devam
+  ediyor, burada açıkça işaretleniyor (kural #107, sessizce kaybolmasın).
+
+##### Dikkat çekilmesi gereken bir davranış (kod değişmeyecek, yalnızca QA'ya not)
+
+- **`subscription_rejected`** yalnızca `auth.uid() = NEW.farmer_id` iken tetikleniyor —
+  yani iptal işlemi çiftçinin kendi oturumu üzerinden değil de (ör. bir admin/service-role
+  akışıyla) yapılırsa buyer bildirim ALMAZ. F14/F15 QA'sında her iki yol da (çiftçi kendi
+  hesabından iptal / farklı bir yoldan iptal) ayrı test edilmeli.
+
+**Kapsam:** (a) event haritası dokümantasyonu (bu bölüm) + migration round 2 (3 sessiz
+geçiş kapatıldı, price_alert kaldırıldı) — bunlar benim/🤖 işim. (b) gerçek çok-cihazlı
+test matrisi (16 event × push/SMS × farmer/buyer) — **Berkin'in zamanı**, test senaryosu
+`Build/E2E-QA-F14-F15.md`'de (kural #104 formatında) hazır. (c) APNs/FCM kredansiyel
+durumu — F16 ile birleşik.
+
+**Bağımlılık:** F4 (bildirim tercihleri UI) bu event haritasını doğrudan kullanıyor —
+F3 önce netleşmeli. WhatsApp toggle'ı yalnızca `new_offer`/`harvest_time`'da gösterilecek
+(karar 2, F4'ün ayrı bir turu).
+
+**Roller:** 🎯 (event haritası dokümanı + QA senaryosu) · 🤖 (migration + kod düzeltmesi)
+· 👤 (çok cihazlı gerçek test + Twilio Console/APNs/FCM durum kontrolü).
 
 **v1.0 — şart.** Push/OTP çalışmıyorsa uygulama "tam işlevsel değil"
 sayılır, tam olarak Apple'ın aradığı red gerekçesi.
@@ -571,6 +611,8 @@ netleştirilmesi/dokümante edilmesi.
 **Bağımlılık:** F3 (event haritası) olmadan "doğru bildirim gitti mi"
 sorusu cevaplanamaz — F3 önce.
 
+Tam senaryo seti: `Build/E2E-QA-F14-F15.md`.
+
 **Roller:** 🎯 (QA senaryo seti + Supabase MCP ile durum-geçiş
 doğrulaması) · 🤖/🎨 (bulunan hataların düzeltmesi, varsa).
 
@@ -591,6 +633,8 @@ bir listesi `TODO.md`'de dağınık duruyor — **ilk adımım bunları tek bir
 konsolide checklist'te toplamak** (hangi build log'da, hangi QA
 senaryosunda) olacak, böylece Berkin tek oturumda (ya da birkaç
 oturumda cihaza göre gruplanmış) hepsini kapatabilir.
+
+Tam senaryo seti: `Build/E2E-QA-F14-F15.md`.
 
 **Roller:** 🎯 (konsolide checklist) · 👤 (fiili gerçek cihaz/tarayıcı
 testi — bu adım kimse tarafından devredilemez, gerçek cihaz gerekiyor).
