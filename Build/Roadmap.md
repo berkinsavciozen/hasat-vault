@@ -113,16 +113,18 @@ gantt
     M7-e buyer_type veri kaybi fix   :done, m7e, 2026-08-05, 2026-08-05
     M7-b Kesfet + store varliklari (ACIK, tarih belirsiz) :active, m7b, 2026-08-06, 10d
 
+    %% 2026-08-18: web ve mobil lansmani birlestirildi, artik ayri bir
+    %% "web marketplace soft launch" milestone'i yok - ikisi de asagidaki
+    %% "Store canli" ile ayni anda cikiyor. Gerekce: Launch-Scope-Plan.md
     section LANSMAN
-    Soft launch (web marketplace)    :milestone, L1, 2026-08-25, 0d
     Lansman buffer haftasi           :done, L2, 2026-08-25, 7d
 
-    section M8 Store submit (Apple onayi sonrasi yeni takvim)
+    section M8 Store submit (birlesik web+mobil takvim, 2026-08-18)
     M8-a gercek cihaz test altyapisi :crit, m8a, 2026-08-06, 2026-08-08
-    M8-b gercek cihaz dogrulama oturumu (Berkine bagli) :m8b, 2026-09-15, 1d
-    M8-c APNs anahtari + push dogrulama :m8c, 2026-09-20, 1d
-    M8-d store submit                :crit, m8d, 2026-09-30, 1d
-    Store canli                      :milestone, m8e, 2026-10-15, 0d
+    M8-b gercek cihaz dogrulama oturumu (Berkine bagli) :m8b, 2026-08-27, 5d
+    M8-c APNs anahtari + push dogrulama :m8c, 2026-08-27, 5d
+    M8-d store submit                :crit, m8d, 2026-09-01, 15d
+    Store canli                      :milestone, m8e, 2026-09-20, 0d
 ```
 
 **M7-b'nin tarihi (2026-08-06, +10g) bir yer tutucudur, onaylı değil** —
@@ -178,6 +180,45 @@ taşlar geç taşlardan sonra bitmiş görünürdü).
 
 ---
 
+## ⏱️ 2026-08-18 güncellemesi — web+mobil birleşik lansman, M8 öne çekildi
+
+**Neden:** Berkin 2026-08-18'de kritik bir karar verdi — web marketplace
+lansmanı ile mobil (P23) app store lansmanı artık ayrı takvimlerde değil,
+**birlikte**: hedef App Store + Play **submit, 1-15 Eylül 2026** penceresi.
+Bu, önceki "web 25 Ağustos / mobil Ekim" ayrımını (yukarıdaki "⏱️
+2026-08-06 güncellemesi" bölümünde sabitlenen M8-b 15 Eyl/M8-c 20 Eyl/
+M8-d 30 Eyl/Store canlı ~15 Eki takvimi dahil) geçersiz kılıyor. Aynı
+oturumda Berkin'in ilettiği 17 maddelik yeni özellik/sağlamlaştırma
+listesi analiz edilip önceliklendirildi ve onaylandı — tam gerekçe, madde
+bazlı analiz ve v1.0/v1.1 ayrımı: `Build/Launch-Scope-Plan.md`.
+
+**Yapılan düzeltme:**
+1. Gantt'taki `M8-b`/`M8-c` 27 Ağustos'a çekildi (paralel, 5 gün), `M8-d`
+   (submit) 1-15 Eylül penceresine (15 gün) taşındı, `Store canlı`
+   milestone'ı ~20 Eylül'e (tahmini) çekildi.
+2. Ayrı bir "Soft launch (web marketplace)" milestone'ı kaldırıldı —
+   artık tek bir birleşik "Store canlı" var, Gantt'ta gerekçe yorum
+   satırı olarak bırakıldı.
+3. "🎯 Kilometre taşları ve çıkış kriterleri" tablosundaki **M8** satırı
+   ve **Soft launch** satırı yeni tarihlerle güncellendi (Soft launch
+   satırı üstü çizili + bayat notuyla referans olarak bırakıldı, kural
+   #108 — sessizce kaybolmadı).
+4. `Build/Launch-Plan.md` §2 (lansman sonrası milestone tablosu) aynı
+   kararla güncellendi, eski tablo orada da üstü çizili referans olarak
+   kaldı.
+
+**Kapsam notu:** Bu bir tarih değişikliği + kapsam önceliklendirmesi —
+hiçbir madde listeden düşmedi (`Launch-Scope-Plan.md` §0'daki ilke:
+"kapsam kesilmez tarih ötelenir" burada da geçerli, yalnızca v1.0
+(submit'ten önce) / v1.1 (submit sonrası hızlı takip) sıralaması
+yapıldı). `Build/Launch-Plan.md` §1 Epic tablosu ve bu dosyanın M0-M7
+bölümleri henüz yeni takvime göre tam hizalanmadı — bu turda yalnızca M8
+ve LANSMAN bölümleri güncellendi, kalan bayat tarihler ilgili yerlerde
+"bayat, yeni takvime bkz." notuyla işaretlendi (kural #107, sessizce
+üzerine yazılmadı).
+
+---
+
 ## 🎯 Kilometre taşları ve çıkış kriterleri
 
 | # | Taş | Tarih (hedef) | Çıkış kriteri |
@@ -186,12 +227,12 @@ taşlar geç taşlardan sonra bitmiş görünürdü).
 | **M1** | Paylaşılan çekirdek — ✅ **TAMAMLANDI (2026-07-29)** | 4 – 10 Ağu | `hasat-core` + subtree + drift guard kuruldu; **web'de sıfır regresyon**; küçük şema borçları kapandı |
 | **M2** | Tarif backend'i (ekleyici) — ✅ **TAMAMLANDI (2026-07-29)**, tarayıcı QA (S20-B) bekliyor | 11 – 22 Ağu | Şema + RLS + RPC'ler gerçek SQL ve RLS simülasyonuyla doğrulandı; **3 crop testi** (mainstream + niş + yenilemez filtresi) |
 | **M3** | İçerik — ✅ **TAMAMLANDI (2026-07-30)**, tarayıcı QA (S21) bekliyor | 18 Ağu – 1 Eyl | 15–20 özgün tarif; culinary meta seed; ~20 crop görseli; glossary insan gözden geçirmesi (**glossary insan gözden geçirmesi hâlâ açık** — bkz. `Build/Launch-Plan.md` E6) |
-| — | **Soft launch (web marketplace)** | **25 Ağu** | Lansman haftası **buffer** — yeni özellik yazılmaz; kritik yol burası, mobil (M8) değil |
+| — | ~~**Soft launch (web marketplace)**~~ | ~~**25 Ağu**~~ | ⚠️ **Bayat (2026-08-18) — artık ayrı bir web-only soft launch yok.** Web ve mobil birlikte lansmanıyor, bkz. aşağıdaki "🎯 Kilometre taşları" tablosundaki **M8** satırı ve "⏱️ 2026-08-18 güncellemesi" bölümü. Lansman haftası **buffer** kavramı (25 Ağustos) hâlâ geçerli olabilir ama artık "kritik yol" tek başına web değil — kritik yol M8-d submit penceresi (1-15 Eylül) |
 | **M4** | Web tarif yüzeyi — ✅ **TAMAMLANDI (2026-07-30, a+b+c)** | 1 – 13 Eyl | `/tarifler` misafire açık ve SEO'lu; Talep Et çalışıyor; huni ölçümü veri üretiyor; **Gap #9 kapandı** |
 | **M5** | Mobil iskelet — ✅ **TAMAMLANDI (2026-07-30 a, 07-31 a-ek, 08-03 b/b-ek)**, simülatör/cihaz QA (S26) bekliyor | 14 – 27 Eyl | **Uçak modunda app açılıyor ve tarifler görünüyor** (Apple 4.2'nin asıl testi, kod tarafı hazır — gerçek cihaz doğrulaması M8-b'de); Play hesap tipi kararı hâlâ M5'e ait, verilmedi |
 | **M6** | Native yetenekler — ✅ **TAMAMLANDI (2026-08-03, 08-04 ek)**, simülatör/cihaz QA (S27) bekliyor | 28 Eyl – 11 Eki | Pişirme modu + timer, AI import (metin + foto), push token kaydı — kod tarafı hazır; **gerçek cihazda doğrulama M8-b/M8-c'de** |
 | **M7** | Köprü + store varlıkları — 🟡 **KISMEN TAMAMLANDI**: M7-a/c/d/e uygulandı (2026-08-04 – 08-05); **M7-b (Keşfet + store varlıkları) AÇIK** | 12 – 18 Eki | Teklif oluşturma uçtan uca native (**checkout yok**) ✅; hesap silme ✅ (P26); Keşfet, gizlilik metni, ekran görüntüleri, review notları **hâlâ hazır değil** — M7-b |
-| **M8** | Store submit — 🔵 **Apple hesabı onaylandı (2026-08-05), yeni takvim başladı** *(önceki hedef 19-31 Ekim'di, öne çekildi)* | M8-a 6-8 Ağu · M8-b 15 Eyl · M8-c 20 Eyl · M8-d 30 Eyl → Store canlı ~15 Eki | iOS + Android canlı — tam döküm: `Build/Launch-Plan.md` |
+| **M8** | Store submit — 🔵 **2026-08-18: web+mobil birleşik lansman kararıyla öne çekildi** *(önceki hedef M8-b 15 Eyl/M8-c 20 Eyl/M8-d 30 Eyl/Store canlı ~15 Eki idi)* | M8-a 6-8 Ağu (✅ tamamlandı) · M8-b 27-31 Ağu · M8-c 27-31 Ağu (M8-b ile paralel) · M8-d **submit 1-15 Eylül** → Store canlı ~20 Eylül (tahmini) | iOS + Android canlı — tam döküm: `Build/Launch-Plan.md`, gerekçe: `Build/Launch-Scope-Plan.md` |
 | **M9** | Sıraya alındı (silinmedi) | Kasım+ | YouTube/link import (hukuki kontrol) · yemek fotoğrafından tahmin · HoReCa porsiyon maliyeti · abonelik köprüsü · bildirim konsolidasyonu · organizasyon hesabına geçiş — ⚠️ bu satır bayat: web Defterim ve sipariş takibi web köprüsü de M9'a eklendi ama bu tabloya hiç yansımamıştı; **tam ve güncel konsolide liste:** `TODO.md` → "M9 — Lansman Sonrası" (17 madde, özet: `Build/Launch-Plan.md`) |
 
 ---
