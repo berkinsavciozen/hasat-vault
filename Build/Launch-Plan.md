@@ -10,9 +10,23 @@ tags:
 
 # Lansman Planı — 25 Ağustos 2026 (web marketplace)
 
-> **Kritik yol: web marketplace, 25 Ağustos 2026.** Kapsam web'dir — mobil
-> (M8) Ekim'i hedefliyor ama lansman kritik yolunun üzerinde değil (bkz.
-> `Build/P23-Mobile.md` → "Şirket gecikirse ne olur").
+> **⚠️ 2026-08-18 güncellemesi — kritik yol değişti.** Web marketplace
+> ve mobil (P23) lansmanı artık AYRI takvimlerde değil, **birlikte**
+> lansmanıyor. Yeni hedef: App Store + Play **submit 1-15 Eylül
+> 2026**, store canlı tahmini Eylül sonu. Önceki "web 25 Ağustos"
+> kritik yolu geçersiz. Gerekçe, yeni özellik kapsamı ve tam
+> önceliklendirme: `Build/Launch-Scope-Plan.md`. Bu değişikliğin bu
+> dosyadaki (§1 Epic tablosu) ve `Build/Roadmap.md`'deki tüm eski
+> tarihlere etkisini gözden geçir — bazı Epic satırları hâlâ 25
+> Ağustos'a göre yazılmış, `Launch-Scope-Plan.md` §5'teki yeni sırayla
+> tutarlı hâle getir ya da en azından "bayat, yeni takvime bkz." notu
+> düş (sessizce üzerine yazma, kural #107).
+
+> **Kritik yol (eski, 2026-08-06'dan — artık geçersiz, bkz. yukarıdaki
+> 2026-08-18 banner'ı):** ~~web marketplace, 25 Ağustos 2026. Kapsam
+> web'dir — mobil (M8) Ekim'i hedefliyor ama lansman kritik yolunun
+> üzerinde değil (bkz. `Build/P23-Mobile.md` → "Şirket gecikirse ne
+> olur").~~
 > Bu doküman 2026-08-06'da oluşturuldu. Bağlam: Apple Developer bireysel
 > hesabı 2026-08-05'te onaylandı; şirket tescili henüz yapılmadı (hedef 7
 > Ağustos).
@@ -27,6 +41,17 @@ nedeniyle) güncellendi; hiçbir kod/DB/migration/edge function değiştirilmedi
 ---
 
 ## 1. Epic tablosu — lansman öncesi (25 Ağustos'a kadar)
+
+> ⚠️ **Bayat, yeni takvime bkz. (2026-08-18 güncellemesi).** Bu tablodaki
+> "25 Ağustos'a kadar" çerçevesi ve bazı deadline'lar (özellikle E7 —
+> "Lansman günü izleme planı" 23 Ağu, "İlk 100 kullanıcı kampanyası" 19
+> Ağu) artık web-özel 25 Ağustos kritik yoluna göre yazılmış — yeni
+> birleşik takvimde bu işler 1-15 Eylül submit penceresine göre yeniden
+> sıralanmalı. Bu tablo kural #107 gereği sessizce üzerine yazılmadı;
+> Berkin/Claude Code bir sonraki turda bu satırları `Launch-Scope-Plan.md`
+> §5'teki yeni sırayla (Bölüm 2, yukarıda) hizalamalı. E1 (görsel
+> varlıklar) F1 ile örtüşüyor — F1 zaten yapıldı (bkz.
+> `Launch-Scope-Plan.md` F1), bu tablodaki E1 satırları da bayat.
 
 | Epic | Task | Sahip | Deadline | Durum |
 |---|---|---|---|---|
@@ -67,15 +92,33 @@ nedeniyle) güncellendi; hiçbir kod/DB/migration/edge function değiştirilmedi
 
 ---
 
-## 2. Lansman sonrası milestone tablosu
+## 2. Birleşik lansman takvimi (2026-08-18'de güncellendi)
 
-| Milestone | Tarih | Açıklama / bağımlılık |
+| Aşama | İş | Hedef |
 |---|---|---|
-| **M8-a** — Gerçek cihaz test altyapısı | 6-8 Ağustos 2026 | Apple hesabı onaylandığı (2026-08-05) için başlıyor |
-| **M8-b** — Gerçek cihaz doğrulama oturumu | 15 Eylül 2026 | Berkin'e bağlı, lansman sonrası; M5/M6/M7'nin "kod hazır, cihazda doğrulanmadı" işaretli maddeleri (offline erişim, pişirme modu, timer, AI import kamera yolu, native picker/modal akışları) burada koşulur |
-| **M8-c** — APNs anahtarı + push doğrulama | 20 Eylül 2026 | Android FCM + iOS APNs gerçek cihaza teslimat testi |
-| **M8-d** — Store submit | 30 Eylül 2026 | iOS App Review + Play production başvurusu |
-| **Store canlı** | ~15 Ekim 2026 | iOS + Android canlı — milestone |
+| Hemen | F1 (✅ yapıldı) · F3 (event haritası + 2 kod düzeltmesi) · F4-lite (bildirim tercihleri) · F10-lite (mobil bildirim merkezi) · F13-dar (süre + Hasat-ürünü-içeren + mevcut diyet filtresi) · F14 (sipariş akışı QA) · F15 (konsolide doğrulama checklist) | 18-22 Ağustos |
+| Berkin'e bağlı, paralel | F16 (Android FCM) · APNs'in EAS'a yüklenmesi · F17 (logo/icon) | 18-25 Ağustos |
+| Migration turu | `Launch-Scope-Plan.md` §4'teki tek PR, kural #115 sırasıyla (migration → `hasat-core` tip PR → sync PR'ları her iki hedefte merge → client kod) | 22-27 Ağustos |
+| M8-b — gerçek cihaz doğrulama | F15 checklist + yeni v1.0 özellikleri | 27-31 Ağustos |
+| M8-c — push/OTP gerçek teslimat doğrulaması | F3'ün çok-cihazlı test matrisi | 27-31 Ağustos (M8-b ile paralel) |
+| **M8-d — Submit** | App Store + Play | **1-15 Eylül 2026** |
+| Store canlı | Review sonucu | Eylül sonu (tahmini — Apple red ihtimaline pay var) |
+| v1.1 fast-follow | F2 (otomasyon tam ritim) · F5 (favoriler) · F7 (kendi tarifini editleme) · F8-private (Defterim paylaşımı) · F9 (wizard görsel ekleme) · F11 (klonlama) · F12 (besin değerleri) · F13-geniş (ekipman+alerjen filtresi) | Submit sonrası, ~Eylül sonu–Ekim başı |
+
+Tam madde bazlı analiz, bağımlılıklar, roller: `Build/Launch-Scope-Plan.md`.
+
+### Eski takvim (2026-08-06, artık geçersiz — bkz. yukarıdaki 2026-08-18 banner'ı)
+
+Aşağıdaki tablo yalnızca referans için tutuluyor (kural #108, doküman
+değişiklikleri iz bırakmalı) — 1-15 Eylül submit hedefiyle geçersiz.
+
+| ~~Milestone~~ | ~~Tarih~~ | ~~Açıklama / bağımlılık~~ |
+|---|---|---|
+| ~~**M8-a** — Gerçek cihaz test altyapısı~~ | ~~6-8 Ağustos 2026~~ | ~~Apple hesabı onaylandığı (2026-08-05) için başlıyor~~ |
+| ~~**M8-b** — Gerçek cihaz doğrulama oturumu~~ | ~~15 Eylül 2026~~ | ~~Berkin'e bağlı, lansman sonrası; M5/M6/M7'nin "kod hazır, cihazda doğrulanmadı" işaretli maddeleri (offline erişim, pişirme modu, timer, AI import kamera yolu, native picker/modal akışları) burada koşulur~~ |
+| ~~**M8-c** — APNs anahtarı + push doğrulama~~ | ~~20 Eylül 2026~~ | ~~Android FCM + iOS APNs gerçek cihaza teslimat testi~~ |
+| ~~**M8-d** — Store submit~~ | ~~30 Eylül 2026~~ | ~~iOS App Review + Play production başvurusu~~ |
+| ~~**Store canlı**~~ | ~~~15 Ekim 2026~~ | ~~iOS + Android canlı — milestone~~ |
 | **Komisyon açılışı** | Ekim 2026 | **Tüm crop'larda** açılıyor — safran hasat sezonuyla aynı aya denk gelmesi **tesadüf**, karar crop-bağımsız verildi |
 | **P17-D — Fatura/e-müstahsil** | Ekim 2026 | Şirket tesciline bloke (BENCHMARK Gap #4) |
 | **M9 — 17 madde** | Kasım 2026 | Lansman sonrasına konsolide edilmiş açık madde listesi — tam liste: `TODO.md` → "🟣 M9 — Lansman Sonrası (Konsolide Açık Maddeler)" |
@@ -83,6 +126,11 @@ nedeniyle) güncellendi; hiçbir kod/DB/migration/edge function değiştirilmedi
 | **BENCHMARK #11** — onaylı alıcıya vade/cari | Aralık 2026 | Gap #11, P1→P2, şu an "Yapılmadı" |
 | **BENCHMARK #12** — hasat öncesi finansman | Ocak 2027 | Gap #12, partner gerektirir, uzun vade |
 | **Buyer premium** — ₺299 | Ocak 2027 | |
+
+> Komisyon açılışı, P17-D, M9, Farmer subscription, BENCHMARK #11/#12,
+> Buyer premium tarihleri (Ekim 2026+) bu değişiklikten etkilenmiyor —
+> bunlar zaten submit sonrası fast-follow zaman çizelgesinde, yeni
+> takvimle çelişmiyor, üstü çizilmedi.
 
 > M8 tarihlerinin gerekçesi ve M5-M7'nin gerçek tamamlanma durumu:
 > `Build/Roadmap.md` → "⏱️ 2026-08-06 güncellemesi". **Önemli:** M7'nin bir
