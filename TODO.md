@@ -11,7 +11,7 @@ tags:
 # Hasat — Master Roadmap & Build Log
 > GTM Hedefi: **25 Ağustos 2026** · Günlük 1-2 saat · `[C]` = Claude ile · `[C Web]` = Web Claude (Lovable+Supabase+GitHub MCP+Hasat MCP)
 >
-> **2026-08-27 UI yürütme pointer'ı:** Güncel kapsam/statü için Drive `04.10` / `04.11` kanoniktir. Group 7 / PR #66 `MERGED — APPROVED WITH FOLLOW-UP — ACCEPTED` (merge `1282affa057e1bc0cbd65084404d5bd99674bbc1`). Group 9 — Native Buyer App Core Experience `READY FOR CODEX DISPATCH — NOT STARTED` (implementer Codex, reviewer ChatGPT); Group 10 `NOT STARTED`. Bu pointer tarihsel build loglarını yeniden yazmaz.
+> **2026-08-27 UI yürütme pointer'ı:** Güncel kapsam/statü için Drive `04.10` / `04.11` kanoniktir. Group 7 / PR #66 `MERGED — APPROVED WITH FOLLOW-UP — ACCEPTED` (merge `1282affa057e1bc0cbd65084404d5bd99674bbc1`). Group 9 / PR #35 `MERGED — APPROVED WITH FOLLOW-UP — ACCEPTED` (merge `47cb5c7499a6f83a7c4f94a822ebcc103639baae`). Group 10 — Motion, Micro-Interactions, Accessibility & Production Polish `READY FOR CODEX DISPATCH — NOT STARTED` (implementer Codex, reviewer ChatGPT). Bu pointer tarihsel build loglarını yeniden yazmaz.
 
 ---
 
