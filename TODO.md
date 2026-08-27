@@ -10,6 +10,8 @@ tags:
 
 # Hasat — Master Roadmap & Build Log
 > GTM Hedefi: **25 Ağustos 2026** · Günlük 1-2 saat · `[C]` = Claude ile · `[C Web]` = Web Claude (Lovable+Supabase+GitHub MCP+Hasat MCP)
+>
+> **2026-08-27 UI yürütme pointer'ı:** Güncel kapsam/statü için Drive `04.10` / `04.11` kanoniktir. Group 7 / PR #66 `MERGED — APPROVED WITH FOLLOW-UP — ACCEPTED` (merge `1282affa057e1bc0cbd65084404d5bd99674bbc1`). Group 9 — Native Buyer App Core Experience `READY FOR CODEX DISPATCH — NOT STARTED` (implementer Codex, reviewer ChatGPT); Group 10 `NOT STARTED`. Bu pointer tarihsel build loglarını yeniden yazmaz.
 
 ---
 
@@ -745,7 +747,7 @@ tarih ötelenir.**
 
 | # | Karar | Gerekçe |
 |---|---|---|
-| 1 | **Expo/React Native** (Capacitor değil) | Şirket Mac'i — local'de Xcode/imzalama yönetilemiyor. EAS bulutta derliyor. Bedeli: mobil %100 Claude Code, Lovable mobilde çalışmıyor. |
+| 1 | **Expo/React Native** (Capacitor değil) | Şirket Mac'i — local'de Xcode/imzalama yönetilemiyor. EAS bulutta derliyor. Lovable mobilde çalışmıyor; tarihsel mobil implementasyon Claude Code ile yürütüldü, güncel UI gruplarında kanonik Berkin dispatch'i geçerlidir (Group 9: Codex / reviewer ChatGPT). |
 | 2 | **Mobil v1'de checkout YOK** | Ödeme blokajını uygulamadan izole eder + Guideline 2.1 riski kalkar + IAP tartışması biter. Akış "Talep Et"te biter, ödeme web'de. |
 | 3 | **Apple bireysel hesap, şimdi** | D-U-N-S gerekmiyor, şirketten bağımsız → Apple kritik yoldan çıkar. Şahıs şirketi zaten organizasyon hesabına uygun değil. |
 | 4 | **Tarif katmanı = huni** | Başarı ölçüsü tarif geliri değil, tarif→kayıt→talep→sipariş dönüşümü. `v_kpi_recipe_funnel` çekirdek. |

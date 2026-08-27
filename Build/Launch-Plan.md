@@ -1,6 +1,6 @@
 ---
 title: Hasat — Lansman Planı
-updated: 2026-08-10
+updated: 2026-08-26
 tags:
   - hasat
   - launch
@@ -9,6 +9,17 @@ tags:
 ---
 
 # Lansman Planı — 25 Ağustos 2026 (web marketplace)
+
+> **Güncel yürütme otoritesi — 2026-08-26:** Bu dosya lansman kapsamı ve
+> tarihsel karar/QA bağlamıdır; güncel UI uygulama sırası ve kabul durumu için
+> Google Drive'daki `04.10 — Hasat MVP UI Implementation Specification v1.0`
+> ile `04.11 — UI Group Review & Handoff Log` kanoniktir. Group 7 / PR #66
+> `MERGED — APPROVED WITH FOLLOW-UP — ACCEPTED` (merge
+> `1282affa057e1bc0cbd65084404d5bd99674bbc1`); Group 9 — Native Buyer App
+> Core Experience `READY FOR CODEX DISPATCH — NOT STARTED`; Group 10
+> `NOT STARTED`. Claude Code ve Codex, Berkin'in dispatch'ine göre ayrı
+> implementasyon sahipleridir; `MERGED` ile `ACCEPTED` ayrı statülerdir.
+> Deploy, migration ve canlı ortam kararları yalnız Berkin'e aittir.
 
 > **⚠️ 2026-08-18 güncellemesi — kritik yol değişti.** Web marketplace
 > ve mobil (P23) lansmanı artık AYRI takvimlerde değil, **birlikte**
