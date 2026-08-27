@@ -6,7 +6,7 @@ tags: [hasat, ai-context]
 
 # Hasat AI Context
 > Bu dosya tarihsel teknik ve ürün bağlamı sağlar; tek yürütme kaynağı değildir.
-> **Güncel UI kapsamı ve review/handoff statüsü için Drive `04.10 — Hasat MVP UI Implementation Specification v1.0` ile `04.11 — UI Group Review & Handoff Log` kanoniktir.** Group 7 / PR #66 `MERGED — APPROVED WITH FOLLOW-UP — ACCEPTED` (merge `1282affa057e1bc0cbd65084404d5bd99674bbc1`); Group 9 `READY FOR CODEX DISPATCH — NOT STARTED`; Group 10 `NOT STARTED`.
+> **Güncel UI kapsamı ve review/handoff statüsü için Drive `04.10 — Hasat MVP UI Implementation Specification v1.0` ile `04.11 — UI Group Review & Handoff Log` kanoniktir.** Group 7 / PR #66 `MERGED — APPROVED WITH FOLLOW-UP — ACCEPTED` (merge `1282affa057e1bc0cbd65084404d5bd99674bbc1`); Group 9 / PR #35 `MERGED — APPROVED WITH FOLLOW-UP — ACCEPTED` (merge `47cb5c7499a6f83a7c4f94a822ebcc103639baae`); Group 10 `READY FOR CODEX DISPATCH — NOT STARTED`.
 
 ## Ne?
 İki paralel iş kolu:
