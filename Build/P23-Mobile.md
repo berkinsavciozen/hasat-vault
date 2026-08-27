@@ -16,6 +16,8 @@ tags:
 > milestone takvimi + açık kararlar: `Build/Launch-Plan.md`. Kritik yol web
 > marketplace (25 Ağustos) — mobil (M8) bu yolun üzerinde değil, bkz.
 > aşağıda "Şirket gecikirse ne olur".
+>
+> **2026-08-27 UI yürütme pointer'ı:** Drive `04.10 — Hasat MVP UI Implementation Specification v1.0` ve `04.11 — UI Group Review & Handoff Log` güncel UI kapsamı/statüsü için kanoniktir. Group 7 / PR #66 `MERGED — APPROVED WITH FOLLOW-UP — ACCEPTED` (merge `1282affa057e1bc0cbd65084404d5bd99674bbc1`); Group 9 `READY FOR CODEX DISPATCH — NOT STARTED`; Group 10 `NOT STARTED`. Bu pointer tarihsel P23 kayıtlarını silmez.
 
 ---
 
@@ -39,7 +41,7 @@ Bu, eksikliği varlığa çeviriyor: `crop_requests` crop bazında toplandığı
 
 **Kısıt:** Berkin'in bilgisayarı şirket Mac'i; local'de Xcode/imzalama yönetilemiyor. Capacitor bir Xcode projesi üretir ve elle müdahale ister → **iOS tarafı kapalı.** Expo + EAS Build tamamen bulutta derler ve submit eder.
 
-**Kabul edilen bedel:** Lovable React Native üretemez. Web'de Lovable + Claude Code birlikte çalışır; **mobil %100 Claude Code.**
+**Kabul edilen bedel:** Lovable React Native üretemez. Tarihsel mobil implementasyon Claude Code tarafından yürütüldü. Güncel UI gruplarında implementer Berkin tarafından kanonik Drive `04.10` / `04.11` kayıtlarına göre atanır; **Group 9 implementeri Codex, bağımsız reviewer ChatGPT'tir.**
 
 ### Bedeli düşüren üç karar
 - **Nativewind** — Tailwind sözdizimi React Native'de; web bileşenlerini port etmek sıfırdan yazmaya değil kopyalamaya yakın
