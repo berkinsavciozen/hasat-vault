@@ -11,14 +11,17 @@ status: ONAYLANDI (2026-08-18) — açık kararlar netleşti, implementasyon ba�
 
 # Birleşik Lansman Kapsam Planı
 
+> **2026-08-27 UI pointer'ı:** Group 7 / PR #66 `MERGED — APPROVED WITH FOLLOW-UP — ACCEPTED` (merge `1282affa057e1bc0cbd65084404d5bd99674bbc1`). Sıradaki iş Group 9 — Native Buyer App Core Experience, `READY FOR CODEX DISPATCH — NOT STARTED`; implementer Codex, bağımsız reviewer ChatGPT. Group 10 `NOT STARTED`.
+
 > **Karar (Berkin, 2026-08-18):** Web ve mobil ayrı takvimlerde değil,
 > **birlikte** lansmanır. Hedef: **App Store + Play submit, 1-15 Eylül
 > 2026 penceresi.** Bu doküman, Berkin'in ilettiği 17 maddelik listeyi +
 > bu planın kendi önerdiği ekleri, ürün vizyonu ve mevcut mimariye karşı
 > analiz ediyor, önceliklendiriyor, kapsamlarını netleştiriyor ve bağımlı
-> alanları haritalıyor. **Henüz onaylanmadı — hiçbir implementasyon
-> başlamadı.** Onay sonrası ilk adım `hasat-vault`'un güncellenmesi (bu
-> doküman + `Launch-Plan.md` + `Roadmap.md`), ardından implementasyon.
+> alanları haritalıyor. **Plan 2026-08-18'de onaylandı ve implementasyon
+> başladı.** Güncel UI yürütme kapsamı ve statüsü Drive `04.10` / `04.11`
+> kayıtlarından takip edilir; bu belge lansman kapsamı ve tarihsel karar
+> gerekçelerini korur.
 
 ---
 
