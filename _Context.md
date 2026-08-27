@@ -5,8 +5,8 @@ tags: [hasat, ai-context]
 ---
 
 # Hasat AI Context
-> Yeni bir Claude / Claude Code oturumuna bu notu ver — anında tam bağlam sağlar.
-> **Bu dosya tek bağlam kaynağıdır.** Güncel değilse oturum yanlış varsayımla çalışır — her faz sonunda güncellenmeli.
+> Bu dosya tarihsel teknik ve ürün bağlamı sağlar; tek yürütme kaynağı değildir.
+> **Güncel UI kapsamı ve review/handoff statüsü için Drive `04.10 — Hasat MVP UI Implementation Specification v1.0` ile `04.11 — UI Group Review & Handoff Log` kanoniktir.** Group 7 / PR #66 `MERGED — APPROVED WITH FOLLOW-UP — ACCEPTED` (merge `1282affa057e1bc0cbd65084404d5bd99674bbc1`); Group 9 `READY FOR CODEX DISPATCH — NOT STARTED`; Group 10 `NOT STARTED`.
 
 ## Ne?
 İki paralel iş kolu:
@@ -142,9 +142,9 @@ Bu sayılar ürün kararlarını doğrudan etkiliyor — özellikle tarif/tüket
 | Repo | İçerik | Kim yazıyor |
 |---|---|---|
 | `hasat-d2c-marketplace` | Web uygulaması | Lovable (`main`, sync bot `gpt-engineer-app[bot]`) + Claude Code (feature branch → PR) |
-| `hasat-mobile` | Mobil (Expo SDK 57 + Expo Router + Nativewind) — **açıldı 2026-07-30 (M5-a).** Expo iskelet + `hasat-core` subtree'si + telefon OTP girişi kurulu; tarif ekranları M5-b | %100 Claude Code (Lovable RN üretemiyor) |
+| `hasat-mobile` | Mobil (Expo SDK 57 + Expo Router + Nativewind) — **açıldı 2026-07-30 (M5-a).** Expo iskelet + `hasat-core` subtree'si + telefon OTP girişi kurulu; tarif ekranları M5-b | Lovable RN üretemiyor. Tarihsel implementer Claude Code; güncel gruplarda Berkin'in kanonik dispatch'i geçerli. Group 9: Codex / reviewer ChatGPT. |
 | `hasat-core` | Paylaşılan TS — açıldı 2026-07-29 (M1-b). İçinde: DB tipleri, design token'ları, `convertQuantity`, **Supabase client factory + storage adapter (M5-a)**. Sorgu hook'ları + zod M5-b'ye bırakıldı | Claude Code; subtree ile web'e **ve mobile'a** iner (M5-a'da ikinci hedef eklendi) |
-| `hasat-vault` | İş notları, roadmap, dokümanlar (**public** — kod/sır yok) | Claude Code PR + Berkin merge |
+| `hasat-vault` | İş notları, roadmap, dokümanlar (**public** — kod/sır yok) | Atanan doküman implementeri PR açar; bağımsız reviewer inceler; Berkin merge eder. |
 
 ### Mobil stack (M5+)
 - **Expo + EAS Build** — şirket Mac'i olduğu için local Xcode/imzalama yönetilemiyor; EAS bulutta derliyor ve submit ediyor
@@ -227,7 +227,7 @@ OTP test: `123456`
 ## Dosya Haritası
 ```
 hasat-vault/
-├── _Context.md              ← bu dosya (tek bağlam kaynağı)
+├── _Context.md              ← tarihsel teknik/ürün bağlamı; güncel UI statüsü Drive 04.10/04.11
 ├── TODO.md                  ← master roadmap + build log + kural #1-106
 ├── Build/                   ← (doğrulandı 2026-07-28)
 │   ├── Roadmap.md              ← P23 görsel Gantt + kilometre taşları
