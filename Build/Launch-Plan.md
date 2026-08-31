@@ -10,14 +10,14 @@ tags:
 
 # Lansman Planı — 25 Ağustos 2026 (web marketplace)
 
-> **Güncel yürütme otoritesi — 2026-08-27:** Bu dosya lansman kapsamı ve
+> **Güncel yürütme otoritesi — 2026-08-31:** Bu dosya lansman kapsamı ve
 > tarihsel karar/QA bağlamıdır; güncel UI uygulama sırası ve kabul durumu için
 > Google Drive'daki `04.10 — Hasat MVP UI Implementation Specification v1.0`
-> ile `04.11 — UI Group Review & Handoff Log` kanoniktir. Group 7 / PR #66
+> ile `04.11 — UI Group Review & Handoff Log` kanoniktir. Group 9 / PR #35
 > `MERGED — APPROVED WITH FOLLOW-UP — ACCEPTED` (merge
-> `1282affa057e1bc0cbd65084404d5bd99674bbc1`); Group 9 / PR #35
-> `MERGED — APPROVED WITH FOLLOW-UP — ACCEPTED` (merge
-> `47cb5c7499a6f83a7c4f94a822ebcc103639baae`); Group 10
+> `47cb5c7499a6f83a7c4f94a822ebcc103639baae`); Group 10A / PR #70 +
+> Group 10A1 / PR #74 `MERGED — APPROVED WITH FOLLOW-UP — ACCEPTED`
+> (correction merge `2bc9f58dd785c148b24ce3d572c6b7060d611c8d`); Group 10B
 > `READY FOR CODEX DISPATCH — NOT STARTED`. Claude Code ve Codex,
 > Berkin'in dispatch'ine göre ayrı implementasyon sahipleridir; `MERGED`
 > ile `ACCEPTED` ayrı statülerdir. Deploy, store submission, migration ve
