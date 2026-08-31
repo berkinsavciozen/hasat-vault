@@ -17,7 +17,7 @@ tags:
 > marketplace (25 Ağustos) — mobil (M8) bu yolun üzerinde değil, bkz.
 > aşağıda "Şirket gecikirse ne olur".
 >
-> **2026-08-27 UI yürütme pointer'ı:** Drive `04.10 — Hasat MVP UI Implementation Specification v1.0` ve `04.11 — UI Group Review & Handoff Log` güncel UI kapsamı/statüsü için kanoniktir. Group 7 / PR #66 `MERGED — APPROVED WITH FOLLOW-UP — ACCEPTED` (merge `1282affa057e1bc0cbd65084404d5bd99674bbc1`); Group 9 / PR #35 `MERGED — APPROVED WITH FOLLOW-UP — ACCEPTED` (merge `47cb5c7499a6f83a7c4f94a822ebcc103639baae`); Group 10 `READY FOR CODEX DISPATCH — NOT STARTED`. Bu pointer tarihsel P23 kayıtlarını silmez.
+> **2026-08-31 UI pointer'ı:** Drive `04.10 — Hasat MVP UI Implementation Specification v1.0` ve `04.11 — UI Group Review & Handoff Log` güncel UI kapsamı/statüsü için kanoniktir. Group 9 / PR #35 `MERGED — APPROVED WITH FOLLOW-UP — ACCEPTED` (merge `47cb5c7499a6f83a7c4f94a822ebcc103639baae`). Group 10A / PR #70 + Group 10A1 / PR #74 `MERGED — APPROVED WITH FOLLOW-UP — ACCEPTED` (correction merge `2bc9f58dd785c148b24ce3d572c6b7060d611c8d`). Group 10B — Buyer, Public & Auth Web Polish `READY FOR CODEX DISPATCH — NOT STARTED` (implementer Codex, reviewer ChatGPT). Bu pointer tarihsel kayıtları yeniden yazmaz.
 
 ---
 
