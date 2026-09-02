@@ -16,12 +16,15 @@ tags:
 > ile `04.11 — UI Group Review & Handoff Log` kanoniktir. Group 9 / PR #35
 > `MERGED — APPROVED WITH FOLLOW-UP — ACCEPTED` (merge
 > `47cb5c7499a6f83a7c4f94a822ebcc103639baae`); Group 10A / PR #70 +
-> Group 10A1 / PR #74 `MERGED — APPROVED WITH FOLLOW-UP — ACCEPTED`
-> (correction merge `2bc9f58dd785c148b24ce3d572c6b7060d611c8d`); Group 10B
-> `READY FOR CODEX DISPATCH — NOT STARTED`. Claude Code ve Codex,
-> Berkin'in dispatch'ine göre ayrı implementasyon sahipleridir; `MERGED`
-> ile `ACCEPTED` ayrı statülerdir. Deploy, store submission, migration ve
-> canlı ortam kararları yalnız Berkin'e aittir.
+> Group 10A1 / PR #74 ve Group 10B / PR #77
+> `MERGED — APPROVED WITH FOLLOW-UP — ACCEPTED` (Group 10B merge
+> `b9aa252f84e18cd3db8dee757c805b1065836118`). Sıradaki batch Group 10C —
+> Native Buyer App Production Polish & Simulator QA:
+> `READY FOR CODEX DISPATCH — NOT STARTED`. Group 10D final çapraz-platform
+> screenshot, erişilebilirlik, regresyon ve UI-freeze matrisidir. Claude Code
+> ve Codex, Berkin'in dispatch'ine göre ayrı implementasyon sahipleridir;
+> `MERGED` ile `ACCEPTED` ayrı statülerdir. Deploy, store submission,
+> migration ve canlı ortam kararları yalnız Berkin'e aittir.
 
 > **⚠️ 2026-08-18 güncellemesi — kritik yol değişti.** Web marketplace
 > ve mobil (P23) lansmanı artık AYRI takvimlerde değil, **birlikte**
